@@ -1,0 +1,83 @@
+###############################################################################
+# Auto detect text files and perform LF normalization
+###############################################################################
+
+* text=auto
+
+###############################################################################
+# Source files
+###############################################################################
+
+*.js        text eol=lf
+*.jsx       text eol=lf
+*.ts        text eol=lf
+*.tsx       text eol=lf
+*.mjs       text eol=lf
+*.cjs       text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.scss      text eol=lf
+*.sass      text eol=lf
+*.less      text eol=lf
+
+###############################################################################
+# Config and documentation
+###############################################################################
+
+*.json      text eol=lf
+*.jsonc     text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.toml      text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.editorconfig text eol=lf
+*.gitignore    text eol=lf
+*.gitattributes text eol=lf
+
+###############################################################################
+# Scripts
+###############################################################################
+
+*.ps1       text eol=crlf
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+*.sh        text eol=lf
+
+###############################################################################
+# Lock files
+###############################################################################
+
+package-lock.json  text eol=lf
+yarn.lock          text eol=lf
+pnpm-lock.yaml     text eol=lf
+bun.lockb          binary
+
+###############################################################################
+# Binary assets
+###############################################################################
+
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.ico       binary
+*.webp      binary
+*.avif      binary
+*.svg       text eol=lf
+*.pdf       binary
+*.zip       binary
+*.7z        binary
+*.rar       binary
+*.gz        binary
+*.tar       binary
+*.mp4       binary
+*.mov       binary
+*.avi       binary
+*.mkv       binary
+*.mp3       binary
+*.wav       binary
+*.woff      binary
+*.woff2     binary
+*.ttf       binary
+*.otf       binary
