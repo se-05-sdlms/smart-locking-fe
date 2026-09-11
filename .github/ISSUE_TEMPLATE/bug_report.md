@@ -1,12 +1,3 @@
----
-
-name: 🐛 Báo lỗi Frontend
-about: Báo cáo lỗi giao diện hoặc chức năng phía Frontend
-title: "[FE][Bug] "
-labels: bug
-assignees: ''
--------------
-
 # 🔐 SMART LOCKING — FRONTEND
 
 ## 📌 Mô tả lỗi

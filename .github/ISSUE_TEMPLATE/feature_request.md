@@ -1,12 +1,3 @@
----
-
-name: ✨ Yêu cầu tính năng Frontend
-about: Đề xuất tính năng mới hoặc cải tiến phía Frontend
-title: "[FE][Feature] "
-labels: enhancement
-assignees: ''
--------------
-
 # 🔐 SMART LOCKING — FRONTEND
 
 ## 📌 Mô tả tính năng
