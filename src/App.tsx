@@ -1,19 +1,41 @@
+import type { AppRole } from '@/config/navigation';
+
 import { Route, Routes } from 'react-router-dom';
 
-import LoginPage from '@/pages/login';
-import AdminPage from '@/pages/admin';
-import OperatorPage from '@/pages/operator';
-import DocsPage from '@/pages/docs';
-import PricingPage from '@/pages/pricing';
-import BlogPage from '@/pages/blog';
 import AboutPage from '@/pages/about';
+import BlogPage from '@/pages/blog';
+import EmptyRoutePage from '@/pages/empty-route';
+import DocsPage from '@/pages/docs';
+import LoginPage from '@/pages/login';
+import PricingPage from '@/pages/pricing';
+import ApplicationLayout from '@/layouts/application-layout';
+import { getNavigationItems } from '@/config/navigation';
+
+function roleRoute(role: AppRole) {
+  const basePath = `/${role}`;
+
+  return (
+    <Route element={<ApplicationLayout role={role} />} path={basePath}>
+      {getNavigationItems(role).map((item) =>
+        item.path === basePath ? (
+          <Route key={item.path} index element={<EmptyRoutePage />} />
+        ) : (
+          <Route
+            key={item.path}
+            element={<EmptyRoutePage />}
+            path={item.path.slice(`${basePath}/`.length)}
+          />
+        ),
+      )}
+    </Route>
+  );
+}
 
 function App() {
   return (
     <Routes>
       <Route element={<LoginPage />} path="/" />
-      <Route element={<AdminPage />} path="/admin" />
-      <Route element={<OperatorPage />} path="/operator" />
+      {(['admin', 'operator'] as const).map(roleRoute)}
       <Route element={<DocsPage />} path="/docs" />
       <Route element={<PricingPage />} path="/pricing" />
       <Route element={<BlogPage />} path="/blog" />
