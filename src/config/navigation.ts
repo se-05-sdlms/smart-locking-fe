@@ -82,6 +82,12 @@ const operatorNavigation: NavigationItem[] = [
     icon: Hourglass,
     role: 'operator',
   },
+  {
+    label: 'Cài đặt',
+    path: '/operator/settings',
+    icon: Gear,
+    role: 'operator',
+  },
 ];
 
 export const navigationByRole: Record<AppRole, NavigationItem[]> = {

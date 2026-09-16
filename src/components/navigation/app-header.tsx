@@ -15,6 +15,7 @@ export function AppHeader({ role }: { role: AppRole }) {
   const [now, setNow] = useState(() => new Date());
   const currentItem = getNavigationItem(pathname, role);
   const isOperatorDashboard = pathname === '/operator';
+  const isOperatorSettings = pathname === '/operator/settings';
   const lockerId =
     currentItem?.path === '/operator/lockers'
       ? pathname.slice('/operator/lockers/'.length).split('/')[0]
@@ -52,6 +53,15 @@ export function AppHeader({ role }: { role: AppRole }) {
           </h1>
           <p className="truncate text-sm text-muted">
             Tổng quan tình trạng các tủ bạn đang quản lý hôm nay.
+          </p>
+        </div>
+      ) : isOperatorSettings ? (
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-semibold tracking-tight text-neutral-950">
+            Cài đặt
+          </h1>
+          <p className="truncate text-sm text-muted">
+            Thông tin tài khoản Operator
           </p>
         </div>
       ) : currentItem?.path === '/operator/lockers' ||
