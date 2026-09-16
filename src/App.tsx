@@ -8,6 +8,7 @@ import EmptyRoutePage from '@/pages/empty-route';
 import DocsPage from '@/pages/docs';
 import LoginPage from '@/pages/login';
 import PricingPage from '@/pages/pricing';
+import UserManagementPage from '@/pages/admin/user-management-page';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
 
@@ -22,7 +23,13 @@ function roleRoute(role: AppRole) {
         ) : (
           <Route
             key={item.path}
-            element={<EmptyRoutePage />}
+            element={
+              item.path === '/admin/users' ? (
+                <UserManagementPage />
+              ) : (
+                <EmptyRoutePage />
+              )
+            }
             path={item.path.slice(`${basePath}/`.length)}
           />
         ),
