@@ -15,20 +15,33 @@ export function AppHeader({ role }: { role: AppRole }) {
     currentItem?.path === '/operator/lockers'
       ? pathname.slice('/operator/lockers/'.length).split('/')[0]
       : '';
+  const overdueParcelId =
+    currentItem?.path === '/operator/overdue-clearance'
+      ? pathname.slice('/operator/overdue-clearance/'.length).split('/')[0]
+      : '';
 
   return (
     <Surface className="flex h-20 shrink-0 items-center justify-between bg-background px-8">
-      {currentItem?.path === '/operator/lockers' ? (
-        <Breadcrumbs aria-label="Đường dẫn tủ">
+      {currentItem?.path === '/operator/lockers' ||
+      currentItem?.path === '/operator/overdue-clearance' ? (
+        <Breadcrumbs aria-label="Đường dẫn trang">
           <Breadcrumbs.Item
             className="!text-xl font-semibold tracking-tight"
-            onPress={lockerId ? () => navigate('/operator/lockers') : undefined}
+            onPress={
+              lockerId
+                ? () => navigate('/operator/lockers')
+                : overdueParcelId
+                  ? () => navigate('/operator/overdue-clearance')
+                  : undefined
+            }
           >
-            Tủ của tôi
+            {currentItem.path === '/operator/lockers'
+              ? 'Tủ của tôi'
+              : 'Xử lý quá hạn'}
           </Breadcrumbs.Item>
-          {lockerId ? (
+          {lockerId || overdueParcelId ? (
             <Breadcrumbs.Item className="!text-xl font-semibold tracking-tight">
-              {lockerId}
+              {lockerId || overdueParcelId}
             </Breadcrumbs.Item>
           ) : null}
         </Breadcrumbs>

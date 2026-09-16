@@ -10,6 +10,7 @@ import LoginPage from '@/pages/login';
 import PricingPage from '@/pages/pricing';
 import OperatorLockersPage from '@/pages/operator/lockers';
 import OperatorLockerDetailPage from '@/pages/operator/locker-detail';
+import OperatorOverdueClearancePage from '@/pages/operator/overdue-clearance';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
 
@@ -25,6 +26,14 @@ function roleRoute(role: AppRole) {
           <Route key={item.path} path="lockers">
             <Route index element={<OperatorLockersPage />} />
             <Route path=":lockerId" element={<OperatorLockerDetailPage />} />
+          </Route>
+        ) : item.path === '/operator/overdue-clearance' ? (
+          <Route key={item.path} path="overdue-clearance">
+            <Route index element={<OperatorOverdueClearancePage />} />
+            <Route
+              path=":parcelId"
+              element={<OperatorOverdueClearancePage />}
+            />
           </Route>
         ) : (
           <Route
