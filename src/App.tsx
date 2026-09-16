@@ -11,6 +11,7 @@ import PricingPage from '@/pages/pricing';
 import OperatorLockersPage from '@/pages/operator/lockers';
 import OperatorLockerDetailPage from '@/pages/operator/locker-detail';
 import OperatorOverdueClearancePage from '@/pages/operator/overdue-clearance';
+import OperatorDashboardPage from '@/pages/operator/dashboard';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
 
@@ -21,7 +22,13 @@ function roleRoute(role: AppRole) {
     <Route element={<ApplicationLayout role={role} />} path={basePath}>
       {getNavigationItems(role).map((item) =>
         item.path === basePath ? (
-          <Route key={item.path} index element={<EmptyRoutePage />} />
+          <Route
+            key={item.path}
+            index
+            element={
+              role === 'operator' ? <OperatorDashboardPage /> : <EmptyRoutePage />
+            }
+          />
         ) : item.path === '/operator/lockers' ? (
           <Route key={item.path} path="lockers">
             <Route index element={<OperatorLockersPage />} />
