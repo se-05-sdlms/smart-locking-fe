@@ -73,39 +73,39 @@ const adminNavigation: NavigationItem[] = [
 ];
 
 const operatorNavigation: NavigationItem[] = [
-  { label: 'Dashboard', path: '/operator', icon: House, role: 'operator' },
+  { label: 'Tổng quan', path: '/operator', icon: House, role: 'operator' },
   {
-    label: 'Locker Systems',
+    label: 'Tủ của tôi',
     path: '/operator/lockers',
     icon: Boxes3,
     role: 'operator',
   },
   {
-    label: 'Operational Search',
+    label: 'Tra cứu vận hành',
     path: '/operator/search',
     icon: Magnifier,
     role: 'operator',
   },
   {
-    label: 'Incidents',
+    label: 'Sự cố',
     path: '/operator/incidents',
     icon: TriangleExclamation,
     role: 'operator',
   },
   {
-    label: 'Maintenance',
+    label: 'Bảo trì',
     path: '/operator/maintenance',
     icon: Wrench,
     role: 'operator',
   },
   {
-    label: 'Overdue Clearance',
+    label: 'Xử lý quá hạn',
     path: '/operator/overdue-clearance',
     icon: Hourglass,
     role: 'operator',
   },
   {
-    label: 'Operational History',
+    label: 'Nhật ký vận hành',
     path: '/operator/history',
     icon: Timeline,
     role: 'operator',

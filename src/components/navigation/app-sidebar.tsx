@@ -18,7 +18,7 @@ type AppSidebarProps = {
 
 const roleDetails: Record<AppRole, { identity: string; title: string }> = {
   admin: { identity: 'admin', title: 'Administrator' },
-  operator: { identity: 'operator', title: 'Locker Operator' },
+  operator: { identity: 'operator', title: 'Nhân viên vận hành' },
 };
 
 function SidebarNavigationItem({
@@ -84,7 +84,7 @@ export function AppSidebar({
             />
             <Button
               isIconOnly
-              aria-label="Expand sidebar"
+              aria-label="Mở rộng thanh điều hướng"
               className="absolute inset-0 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
               size="sm"
               variant="ghost"
@@ -101,7 +101,7 @@ export function AppSidebar({
             </span>
             <Button
               isIconOnly
-              aria-label="Collapse sidebar"
+              aria-label="Thu gọn thanh điều hướng"
               className="ml-auto shrink-0"
               size="sm"
               variant="ghost"
@@ -158,7 +158,7 @@ export function AppSidebar({
             <Tooltip.Trigger className="mt-2 w-full">
               <Button
                 isIconOnly
-                aria-label="Log out"
+                aria-label="Đăng xuất"
                 className="w-full"
                 size="sm"
                 variant="ghost"
@@ -167,7 +167,7 @@ export function AppSidebar({
                 <ArrowRightFromSquare aria-hidden="true" className="size-5" />
               </Button>
             </Tooltip.Trigger>
-            <Tooltip.Content>Log out</Tooltip.Content>
+            <Tooltip.Content>Đăng xuất</Tooltip.Content>
           </Tooltip>
         ) : (
           <Button
@@ -177,7 +177,7 @@ export function AppSidebar({
             onPress={() => navigate('/')}
           >
             <ArrowRightFromSquare aria-hidden="true" className="size-5" />
-            Log out
+            Đăng xuất
           </Button>
         )}
       </div>
