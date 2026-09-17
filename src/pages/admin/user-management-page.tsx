@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import type {
   ManagedUserView,
   PaginatedResult,
@@ -37,11 +36,6 @@ const emptyResult: PaginatedResult<ManagedUserView> = {
   page: 1,
   pageSize: DEFAULT_PAGE_SIZE,
 };
-
-const tabPanelStyle = {
-  marginTop: 0,
-  padding: '1.25rem 0 0',
-} satisfies CSSProperties;
 
 function getDefaultSortDescriptor(role: UserRole): UserSortDescriptor {
   return {
@@ -143,17 +137,13 @@ export default function UserManagementPage({
     setPage(1);
   };
 
-  const handleOperatorCreated = (
-    operator: Extract<ManagedUserView, { role: 'LOCKER_OPERATOR' }>,
-  ) => {
+  const handleOperatorCreated = () => {
     setRole('LOCKER_OPERATOR');
     setSearch('');
     setStatus('ALL');
     setSortDescriptor(getDefaultSortDescriptor('LOCKER_OPERATOR'));
     setPage(1);
-    setSuccessMessage(
-      `Đã thêm nhân viên vận hành. Mã nhân viên: ${operator.employeeCode}.`,
-    );
+    setSuccessMessage('Đã thêm nhân viên vận hành.');
     setRetryCount((current) => current + 1);
   };
 
@@ -184,96 +174,86 @@ export default function UserManagementPage({
   );
 
   return (
-    <div className="-m-8 min-h-[calc(100%+4rem)] overflow-x-clip bg-[var(--um-page)] p-5 font-sans text-[var(--um-ink)] [--accent:var(--um-primary)] [--focus:var(--um-focus)] [--segment-foreground:var(--um-on-primary)] [--segment:var(--um-primary)] [--um-border:#e0e0e0] [--um-focus:#0071e3] [--um-ink:#1d1d1f] [--um-on-primary:#ffffff] [--um-page:#f5f5f7] [--um-primary-border:#b8d8f8] [--um-primary-soft:#eaf3ff] [--um-primary-strong:#004a99] [--um-primary:#0066cc] [--um-row-hover:#f0f7ff] [--um-surface:#ffffff] sm:p-6 lg:p-8">
-      <section className="mx-auto w-full max-w-[1440px]">
-        <div className="mb-5">
-          <h1 className="text-2xl font-semibold tracking-[-0.02em] sm:text-[30px]">
-            Quản lý người dùng
-          </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-neutral-600 sm:text-base">
-            Theo dõi tài khoản nhân viên vận hành và cư dân trong hệ thống.
-          </p>
-        </div>
+    <section className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
+      {successMessage ? (
+        <Alert status="success">
+          <Alert.Content>
+            <Alert.Title>{successMessage}</Alert.Title>
+          </Alert.Content>
+        </Alert>
+      ) : null}
 
-        {successMessage ? (
-          <Alert className="mb-5" status="success">
-            <Alert.Content>
-              <Alert.Title>{successMessage}</Alert.Title>
-            </Alert.Content>
-          </Alert>
-        ) : null}
+      <Tabs
+        align="start"
+        selectedKey={role}
+        variant="secondary"
+        onSelectionChange={(key) => {
+          if (key === 'LOCKER_OPERATOR' || key === 'RESIDENT') {
+            handleRoleChange(key);
+          }
+        }}
+      >
+        <UserManagementToolbar
+          actions={
+            role === 'LOCKER_OPERATOR' ? (
+              <Button
+                variant="primary"
+                onPress={() => setIsCreateOperatorOpen(true)}
+              >
+                <CirclePlus aria-hidden="true" className="size-4" />
+                Thêm nhân viên
+              </Button>
+            ) : undefined
+          }
+          search={search}
+          status={status}
+          onSearchChange={handleSearchChange}
+          onStatusChange={handleStatusChange}
+        />
 
-        <Tabs
-          className="gap-0"
-          selectedKey={role}
-          onSelectionChange={(key) => {
-            if (key === 'LOCKER_OPERATOR' || key === 'RESIDENT') {
-              handleRoleChange(key);
-            }
-          }}
-        >
-          <UserManagementToolbar
-            actions={
-              role === 'LOCKER_OPERATOR' ? (
-                <Button
-                  className="min-h-11 bg-[var(--um-primary)] text-[var(--um-on-primary)] shadow-none"
-                  onPress={() => setIsCreateOperatorOpen(true)}
-                >
-                  <CirclePlus aria-hidden="true" className="size-4" />
-                  Thêm nhân viên
-                </Button>
-              ) : undefined
-            }
-            search={search}
-            status={status}
-            onSearchChange={handleSearchChange}
-            onStatusChange={handleStatusChange}
-          />
+        <Tabs.Panel className="pt-5" id="LOCKER_OPERATOR">
+          {role === 'LOCKER_OPERATOR' ? currentTable : null}
+        </Tabs.Panel>
+        <Tabs.Panel className="pt-5" id="RESIDENT">
+          {role === 'RESIDENT' ? currentTable : null}
+        </Tabs.Panel>
+      </Tabs>
 
-          <Tabs.Panel id="LOCKER_OPERATOR" style={tabPanelStyle}>
-            {role === 'LOCKER_OPERATOR' ? currentTable : null}
-          </Tabs.Panel>
-          <Tabs.Panel id="RESIDENT" style={tabPanelStyle}>
-            {role === 'RESIDENT' ? currentTable : null}
-          </Tabs.Panel>
-        </Tabs>
-
-        <UserDetailModal
-          service={service}
-          userId={selectedUserId}
-          onClose={() => setSelectedUserId(null)}
-          onManageLockers={(operatorId) => {
-            setSelectedUserId(null);
-            setAssignmentOperatorId(operatorId);
-          }}
-        />
-        <OperatorLockerAssignmentModal
-          operatorId={assignmentOperatorId}
-          service={service}
-          onClose={() => setAssignmentOperatorId(null)}
-          onSaved={() => {
-            setAssignmentOperatorId(null);
-            setRetryCount((current) => current + 1);
-          }}
-        />
-        <CreateOperatorModal
-          isOpen={isCreateOperatorOpen}
-          service={service}
-          onClose={() => setIsCreateOperatorOpen(false)}
-          onCreated={handleOperatorCreated}
-        />
-        <AccountStatusModal
-          isOpen={Boolean(accountStatusTarget)}
-          mode={accountStatusTarget?.mode ?? 'LOCK'}
-          service={service}
-          user={accountStatusTarget?.user ?? null}
-          onClose={() => setAccountStatusTarget(null)}
-          onSuccess={() => {
-            setAccountStatusTarget(null);
-            setRetryCount((current) => current + 1);
-          }}
-        />
-      </section>
-    </div>
+      <UserDetailModal
+        service={service}
+        userId={selectedUserId}
+        onClose={() => setSelectedUserId(null)}
+        onManageLockers={(operatorId) => {
+          setSelectedUserId(null);
+          setAssignmentOperatorId(operatorId);
+        }}
+      />
+      <OperatorLockerAssignmentModal
+        operatorId={assignmentOperatorId}
+        service={service}
+        onClose={() => setAssignmentOperatorId(null)}
+        onSaved={() => {
+          setAssignmentOperatorId(null);
+          setRetryCount((current) => current + 1);
+        }}
+      />
+      <CreateOperatorModal
+        isOpen={isCreateOperatorOpen}
+        service={service}
+        onClose={() => setIsCreateOperatorOpen(false)}
+        onCreated={handleOperatorCreated}
+      />
+      <AccountStatusModal
+        isOpen={Boolean(accountStatusTarget)}
+        mode={accountStatusTarget?.mode ?? 'LOCK'}
+        service={service}
+        user={accountStatusTarget?.user ?? null}
+        onClose={() => setAccountStatusTarget(null)}
+        onSuccess={() => {
+          setAccountStatusTarget(null);
+          setRetryCount((current) => current + 1);
+        }}
+      />
+    </section>
   );
 }

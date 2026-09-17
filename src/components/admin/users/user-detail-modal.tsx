@@ -3,10 +3,19 @@ import type {
   ManagedUserView,
   UserManagementService,
 } from '@/types/user-management';
-import type { CSSProperties } from 'react';
 
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Avatar, Button, Chip, Modal, Spinner } from '@heroui/react';
+import {
+  Alert,
+  Avatar,
+  Button,
+  Card,
+  Chip,
+  Modal,
+  Separator,
+  Spinner,
+  Typography,
+} from '@heroui/react';
 import ArrowsRotateRight from '@gravity-ui/icons/ArrowsRotateRight';
 import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 
@@ -28,23 +37,6 @@ const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   year: 'numeric',
 });
 
-const tertiaryActionStyle = {
-  '--button-bg': 'transparent',
-  '--button-bg-hover': 'var(--um-primary-soft)',
-  '--button-bg-pressed': '#d6eaff',
-  '--button-fg': 'var(--um-primary)',
-} as CSSProperties;
-
-const neutralButtonStyle = {
-  '--button-bg': '#f2f2f7',
-  '--button-bg-hover': '#e5e5ea',
-  '--button-bg-pressed': '#d9d9df',
-  '--button-fg': 'var(--um-ink)',
-} as CSSProperties;
-
-const closeTriggerClassName =
-  'bg-[#F2F2F7] text-[#1D1D1F] shadow-none hover:bg-[#E5E5EA] focus-visible:ring-2 focus-visible:ring-[#0071e3] focus-visible:ring-offset-2';
-
 function getInitials(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
 
@@ -61,11 +53,9 @@ function DetailRow({
   value: React.ReactNode;
 }) {
   return (
-    <div className="grid gap-1 border-b border-[var(--um-border)] py-3 sm:grid-cols-[11rem_1fr] sm:gap-4">
-      <dt className="text-sm text-neutral-600">{label}</dt>
-      <dd className="min-w-0 text-sm font-medium text-[var(--um-ink)]">
-        {value}
-      </dd>
+    <div className="grid gap-1 border-b border-default py-3 sm:grid-cols-[11rem_1fr] sm:gap-4">
+      <dt className="text-sm text-muted">{label}</dt>
+      <dd className="min-w-0 text-sm font-medium">{value}</dd>
     </div>
   );
 }
@@ -153,10 +143,7 @@ export function UserDetailModal({
           <Modal.Dialog>
             <Modal.Header>
               <Modal.Heading>Chi tiết người dùng</Modal.Heading>
-              <Modal.CloseTrigger
-                aria-label="Đóng chi tiết người dùng"
-                className={closeTriggerClassName}
-              />
+              <Modal.CloseTrigger aria-label="Đóng chi tiết người dùng" />
             </Modal.Header>
             <Modal.Body>
               {isLoading ? (
@@ -204,17 +191,15 @@ export function UserDetailModal({
                           src={user.avatarUrl}
                         />
                       ) : null}
-                      <Avatar.Fallback className="bg-[var(--um-primary-soft)] text-[var(--um-primary-strong)]">
+                      <Avatar.Fallback>
                         {getInitials(user.fullName)}
                       </Avatar.Fallback>
                     </Avatar>
                     <div>
-                      <p className="text-lg font-semibold text-[var(--um-ink)]">
-                        {user.fullName}
-                      </p>
-                      <p className="mt-1 text-sm text-neutral-600">
+                      <Typography type="h5">{user.fullName}</Typography>
+                      <Typography className="mt-1 text-muted">
                         {USER_ROLE_LABELS[user.role]}
-                      </p>
+                      </Typography>
                     </div>
                   </div>
 
@@ -270,12 +255,11 @@ export function UserDetailModal({
                   {user.role === 'LOCKER_OPERATOR' ? (
                     <section>
                       <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="text-sm font-semibold text-[var(--um-ink)]">
+                        <Typography className="font-semibold">
                           Locker được phân công
-                        </h3>
+                        </Typography>
                         <Button
-                          className="min-h-11 px-3 font-semibold text-[var(--um-primary)] shadow-none focus-visible:ring-2 focus-visible:ring-[var(--um-focus)] focus-visible:ring-offset-2"
-                          style={tertiaryActionStyle}
+                          size="sm"
                           variant="tertiary"
                           onPress={() => onManageLockers(user.id)}
                         >
@@ -283,24 +267,29 @@ export function UserDetailModal({
                         </Button>
                       </div>
                       {assignment?.assigned.length ? (
-                        <ul className="mt-3 space-y-2">
-                          {assignment.assigned.map((locker) => (
-                            <li
-                              key={locker.id}
-                              className="rounded-lg border border-[var(--um-border)] bg-[var(--um-surface)] px-3 py-2 text-sm"
-                            >
-                              <span className="font-medium">{locker.code}</span>
-                              <span className="text-neutral-600">
-                                {' '}
-                                · {locker.buildingName} — {locker.locationLabel}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+                        <Card className="mt-3" variant="secondary">
+                          <Card.Content>
+                            {assignment.assigned.map((locker, index) => (
+                              <div key={locker.id}>
+                                {index ? <Separator /> : null}
+                                <Typography className="py-2">
+                                  <span className="font-medium">
+                                    {locker.code}
+                                  </span>
+                                  <span className="text-muted">
+                                    {' '}
+                                    · {locker.buildingName} —{' '}
+                                    {locker.locationLabel}
+                                  </span>
+                                </Typography>
+                              </div>
+                            ))}
+                          </Card.Content>
+                        </Card>
                       ) : (
-                        <p className="mt-2 text-sm text-neutral-600">
+                        <Typography className="mt-2 text-muted">
                           Chưa được phân công Locker.
-                        </p>
+                        </Typography>
                       )}
                     </section>
                   ) : null}
@@ -308,12 +297,7 @@ export function UserDetailModal({
               ) : null}
             </Modal.Body>
             <Modal.Footer>
-              <Button
-                className="min-h-10 rounded-full border-0 px-5 text-[var(--um-ink)] shadow-none focus-visible:ring-2 focus-visible:ring-[var(--um-focus)] focus-visible:ring-offset-2"
-                style={neutralButtonStyle}
-                variant="primary"
-                onPress={onClose}
-              >
+              <Button variant="primary" onPress={onClose}>
                 Đóng
               </Button>
             </Modal.Footer>

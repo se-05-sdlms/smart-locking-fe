@@ -1,4 +1,4 @@
-import type { CSSProperties, FormEvent } from 'react';
+import type { FormEvent } from 'react';
 import type {
   LockReasonCode,
   ManagedUserView,
@@ -10,12 +10,16 @@ import { useEffect, useState } from 'react';
 import {
   Alert,
   Button,
+  Card,
   FieldError,
+  Form,
   Label,
   ListBox,
   Modal,
   Spinner,
   TextArea,
+  TextField,
+  Typography,
 } from '@heroui/react';
 import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
 import Lock from '@gravity-ui/icons/Lock';
@@ -45,13 +49,6 @@ type FormErrors = {
   reasonDetail?: string;
   form?: string;
 };
-
-const primaryButtonStyle = {
-  '--button-bg': 'var(--um-primary)',
-  '--button-bg-hover': '#005bb5',
-  '--button-bg-pressed': '#005bb5',
-  '--button-fg': 'var(--um-on-primary)',
-} as CSSProperties;
 
 function getReasonOptions(user: ManagedUserView, mode: AccountStatusMode) {
   if (mode === 'UNLOCK') return UNLOCK_REASONS;
@@ -157,54 +154,41 @@ export function AccountStatusModal({
       }}
     >
       <Modal.Backdrop isDismissable={!isSubmitting}>
-        <Modal.Container className="p-4" scroll="inside" size="sm">
-          <Modal.Dialog className="max-h-[calc(100dvh-32px)] p-0 shadow-none">
-            <Modal.Header className="shrink-0 border-b border-[var(--um-border)] bg-[var(--um-surface)] px-5 py-4">
-              <div className="flex items-center gap-3">
-                <span
-                  className={`flex size-10 items-center justify-center rounded-full ${
-                    isLocking
-                      ? 'bg-red-50 text-red-700'
-                      : 'bg-[var(--um-primary-soft)] text-[var(--um-primary)]'
-                  }`}
-                >
-                  {isLocking ? (
-                    <Lock aria-hidden="true" className="size-5" />
-                  ) : (
-                    <LockOpen aria-hidden="true" className="size-5" />
-                  )}
-                </span>
-                <Modal.Heading>{title}</Modal.Heading>
-              </div>
+        <Modal.Container scroll="inside" size="sm">
+          <Modal.Dialog>
+            <Modal.Header>
+              <Modal.Icon>
+                {isLocking ? (
+                  <Lock aria-hidden="true" className="size-5" />
+                ) : (
+                  <LockOpen aria-hidden="true" className="size-5" />
+                )}
+              </Modal.Icon>
+              <Modal.Heading>{title}</Modal.Heading>
               <Modal.CloseTrigger
                 aria-label="Đóng hộp thoại"
                 isDisabled={isSubmitting}
               />
             </Modal.Header>
-            <form
-              noValidate
-              className="flex min-h-0 flex-1 flex-col"
-              onSubmit={handleSubmit}
-            >
-              <Modal.Body className="m-0 flex-1 overflow-y-auto px-5 py-5">
+            <Form onSubmit={handleSubmit}>
+              <Modal.Body>
                 <div className="space-y-5">
-                  <div className="rounded-lg border border-[var(--um-border)] bg-[var(--um-page)] px-4 py-3">
-                    <p className="font-semibold text-[var(--um-ink)]">
-                      {user.fullName}
-                    </p>
-                    <p className="mt-1 text-sm text-neutral-600">
-                      {USER_ROLE_LABELS[user.role]}
-                    </p>
-                    <p className="mt-2 break-words text-sm text-neutral-700">
-                      {user.email || user.phoneNumber}
-                    </p>
-                  </div>
+                  <Card variant="secondary">
+                    <Card.Content>
+                      <Typography className="font-semibold">
+                        {user.fullName}
+                      </Typography>
+                      <Typography className="mt-1 text-muted">
+                        {USER_ROLE_LABELS[user.role]}
+                      </Typography>
+                      <Typography className="mt-2 break-words text-muted">
+                        {user.email || user.phoneNumber}
+                      </Typography>
+                    </Card.Content>
+                  </Card>
 
                   {isLocking ? (
-                    <Alert
-                      className="border border-red-200 shadow-none"
-                      status="danger"
-                    >
+                    <Alert status="danger">
                       <Alert.Indicator>
                         <CircleExclamation
                           aria-hidden="true"
@@ -220,13 +204,10 @@ export function AccountStatusModal({
                     </Alert>
                   ) : null}
 
-                  <div>
-                    <p className="text-sm font-medium text-[var(--um-ink)]">
-                      Lý do
-                    </p>
+                  <div className="space-y-2">
+                    <Label>Lý do</Label>
                     <ListBox
                       aria-label={`Lý do ${isLocking ? 'khóa' : 'mở khóa'} tài khoản`}
-                      className="mt-2 w-full rounded-lg border border-[var(--um-border)] bg-[var(--um-surface)] p-1 shadow-none"
                       disabledKeys={
                         isSubmitting
                           ? new Set<string>(
@@ -253,11 +234,7 @@ export function AccountStatusModal({
                       }}
                     >
                       {reasonOptions.map((option) => (
-                        <ListBox.Item
-                          key={option.code}
-                          className={`min-h-11 w-full rounded-md px-3 py-2 text-left text-sm text-[var(--um-ink)] data-[selected=true]:bg-[var(--um-primary-soft)] ${isLocking ? 'data-[selected=true]:bg-red-50' : ''}`}
-                          id={option.code}
-                        >
+                        <ListBox.Item key={option.code} id={option.code}>
                           <span className="text-wrap">{option.label}</span>
                           <ListBox.ItemIndicator />
                         </ListBox.Item>
@@ -269,36 +246,31 @@ export function AccountStatusModal({
                   </div>
 
                   {reasonCode === 'OTHER' ? (
-                    <div>
-                      <Label htmlFor="account-status-reason-detail">
-                        Chi tiết lý do
-                      </Label>
+                    <TextField
+                      fullWidth
+                      isInvalid={Boolean(errors.reasonDetail)}
+                      value={reasonDetail}
+                      onChange={(value) => {
+                        setReasonDetail(value);
+                        setErrors((current) => ({
+                          ...current,
+                          reasonDetail: undefined,
+                          form: undefined,
+                        }));
+                      }}
+                    >
+                      <Label>Chi tiết lý do</Label>
                       <TextArea
                         aria-label="Chi tiết lý do khác"
-                        className="mt-2 min-h-24 w-full rounded-lg border border-[var(--um-border)] bg-[var(--um-surface)] px-3 py-2 shadow-none outline-none focus:border-[var(--um-focus)] focus:ring-2 focus:ring-[var(--um-focus)]"
                         disabled={isSubmitting}
-                        id="account-status-reason-detail"
-                        value={reasonDetail}
-                        onChange={(event) => {
-                          setReasonDetail(event.target.value);
-                          setErrors((current) => ({
-                            ...current,
-                            reasonDetail: undefined,
-                            form: undefined,
-                          }));
-                        }}
+                        rows={4}
                       />
-                      {errors.reasonDetail ? (
-                        <FieldError>{errors.reasonDetail}</FieldError>
-                      ) : null}
-                    </div>
+                      <FieldError>{errors.reasonDetail}</FieldError>
+                    </TextField>
                   ) : null}
 
                   {errors.form ? (
-                    <Alert
-                      className="border border-red-200 shadow-none"
-                      status="danger"
-                    >
+                    <Alert status="danger">
                       <Alert.Indicator>
                         <TriangleExclamation
                           aria-hidden="true"
@@ -312,19 +284,16 @@ export function AccountStatusModal({
                   ) : null}
                 </div>
               </Modal.Body>
-              <Modal.Footer className="shrink-0 border-t border-[var(--um-border)] bg-[var(--um-surface)] px-5 py-3">
+              <Modal.Footer>
                 <Button
-                  className="min-h-11 rounded-full border-[var(--um-border)] bg-[var(--um-surface)] px-5 text-[var(--um-ink)] shadow-none"
                   isDisabled={isSubmitting}
-                  variant="outline"
+                  variant="ghost"
                   onPress={closeModal}
                 >
                   Hủy
                 </Button>
                 <Button
-                  className="min-h-11 rounded-full px-5 font-semibold shadow-none focus-visible:ring-2 focus-visible:ring-[var(--um-focus)] focus-visible:ring-offset-2"
                   isDisabled={isSubmitting}
-                  style={isLocking ? undefined : primaryButtonStyle}
                   type="submit"
                   variant={isLocking ? 'danger' : 'primary'}
                 >
@@ -352,7 +321,7 @@ export function AccountStatusModal({
                       : 'Xác nhận mở khóa'}
                 </Button>
               </Modal.Footer>
-            </form>
+            </Form>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>

@@ -17,7 +17,7 @@ export const USER_ROLE_LABELS: Record<UserRole, string> = {
   RESIDENT: 'Cư dân',
 };
 
-export const DEFAULT_PAGE_SIZE = 5;
+export const DEFAULT_PAGE_SIZE = 20;
 
 export const ACCOUNT_STATUS_FILTER_OPTIONS: ReadonlyArray<{
   value: StatusFilter;

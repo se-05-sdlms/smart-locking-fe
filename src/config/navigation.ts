@@ -7,13 +7,9 @@ import ClockArrowRotateLeft from '@gravity-ui/icons/ClockArrowRotateLeft';
 import Factory from '@gravity-ui/icons/Factory';
 import Gear from '@gravity-ui/icons/Gear';
 import House from '@gravity-ui/icons/House';
-import Magnifier from '@gravity-ui/icons/Magnifier';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
 import Persons from '@gravity-ui/icons/Persons';
 import ShieldCheck from '@gravity-ui/icons/ShieldCheck';
-import Timeline from '@gravity-ui/icons/Timeline';
-import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
-import Wrench from '@gravity-ui/icons/Wrench';
 import Hourglass from '@gravity-ui/icons/Hourglass';
 
 export type AppRole = 'admin' | 'operator';
@@ -27,7 +23,7 @@ export type NavigationItem = {
 
 const adminNavigation: NavigationItem[] = [
   { label: 'Dashboard', path: '/admin', icon: House, role: 'admin' },
-  { label: 'Users', path: '/admin/users', icon: Persons, role: 'admin' },
+  { label: 'Người dùng', path: '/admin/users', icon: Persons, role: 'admin' },
   {
     label: 'Roles & Permissions',
     path: '/admin/roles',
@@ -73,29 +69,11 @@ const adminNavigation: NavigationItem[] = [
 ];
 
 const operatorNavigation: NavigationItem[] = [
-  { label: 'Tổng quan', path: '/operator', icon: House, role: 'operator' },
+  { label: 'Dashboard', path: '/operator', icon: House, role: 'operator' },
   {
     label: 'Tủ của tôi',
     path: '/operator/lockers',
     icon: Boxes3,
-    role: 'operator',
-  },
-  {
-    label: 'Tra cứu vận hành',
-    path: '/operator/search',
-    icon: Magnifier,
-    role: 'operator',
-  },
-  {
-    label: 'Sự cố',
-    path: '/operator/incidents',
-    icon: TriangleExclamation,
-    role: 'operator',
-  },
-  {
-    label: 'Bảo trì',
-    path: '/operator/maintenance',
-    icon: Wrench,
     role: 'operator',
   },
   {
@@ -105,9 +83,9 @@ const operatorNavigation: NavigationItem[] = [
     role: 'operator',
   },
   {
-    label: 'Nhật ký vận hành',
-    path: '/operator/history',
-    icon: Timeline,
+    label: 'Cài đặt',
+    path: '/operator/settings',
+    icon: Gear,
     role: 'operator',
   },
 ];

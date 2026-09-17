@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react';
 import type {
   ManagedUserView,
   UserRole,
@@ -9,17 +8,20 @@ import type {
 import ArrowsRotateRight from '@gravity-ui/icons/ArrowsRotateRight';
 import ChevronLeft from '@gravity-ui/icons/ChevronLeft';
 import ChevronRight from '@gravity-ui/icons/ChevronRight';
+import Copy from '@gravity-ui/icons/Copy';
 import Persons from '@gravity-ui/icons/Persons';
 import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 import {
   Alert,
   Avatar,
   Button,
+  Card,
   Chip,
   EmptyState,
   Pagination,
   Spinner,
   Table,
+  Typography,
 } from '@heroui/react';
 
 import {
@@ -51,39 +53,28 @@ const dateFormatter = new Intl.DateTimeFormat('vi-VN', {
   year: 'numeric',
 });
 
-const activePageStyle = {
-  '--pagination-link-bg': 'var(--um-primary)',
-  '--pagination-link-bg-hover': 'var(--um-focus)',
-  '--pagination-link-bg-pressed': 'var(--um-focus)',
-  '--pagination-link-fg': 'var(--um-on-primary)',
-} as CSSProperties;
-
-const tableColumnClassName =
-  'bg-[var(--um-page)] px-3 text-neutral-700 after:bg-[var(--um-border)] data-[focus-visible=true]:z-10 data-[focus-visible=true]:ring-2 data-[focus-visible=true]:ring-inset data-[focus-visible=true]:ring-[var(--um-focus)]';
-const tableRowClassName =
-  'cursor-pointer [&:hover_[data-slot=table-cell]]:bg-[var(--um-row-hover)]! [&[data-focus-visible=true]_[data-slot=table-cell]]:bg-[var(--um-primary-soft)]! [&[data-hovered=true]_[data-slot=table-cell]]:bg-[var(--um-row-hover)]!';
+const tableColumnClassName = 'px-3';
+const tableRowClassName = 'cursor-pointer';
 const tableCellClassName = 'min-w-0 px-3';
 const sortableHeaderClassName =
   'w-full min-w-0 cursor-pointer gap-1 whitespace-nowrap';
 
 const operatorColumnClassNames = {
-  fullName: 'w-[18%]',
-  employeeCode: 'w-[10%]',
-  email: 'w-[19%]',
-  phoneNumber: 'w-[13%]',
-  assignedLockerCount: 'w-[7%] text-center',
-  createdAt: 'w-[11%]',
+  employeeCode: 'w-[15%]',
+  fullName: 'w-[28%]',
+  phoneNumber: 'w-[14%]',
+  assignedLockerCount: 'w-[8%] text-center',
+  createdAt: 'w-[13%]',
   status: 'w-[10%] text-center',
   action: 'w-[12%] text-center',
 } as const;
 
 const residentColumnClassNames = {
-  fullName: 'w-[22%]',
-  email: 'w-[24%]',
-  phoneNumber: 'w-[16%]',
-  registeredAt: 'w-[15%]',
-  status: 'w-[11%] text-center',
-  action: 'w-[12%] text-center',
+  fullName: 'w-[34%]',
+  phoneNumber: 'w-[18%]',
+  registeredAt: 'w-[18%]',
+  status: 'w-[14%] text-center',
+  action: 'w-[16%] text-center',
 } as const;
 
 const SORTABLE_FIELDS = new Set<UserSortField>([
@@ -126,7 +117,7 @@ function UserDate({ value }: { value: string }) {
 
   return (
     <time
-      className="block truncate whitespace-nowrap text-neutral-700"
+      className="block truncate whitespace-nowrap text-muted"
       dateTime={isValid ? value : undefined}
       title={isValid ? dateFormatter.format(timestamp) : undefined}
     >
@@ -148,39 +139,44 @@ function getInitials(fullName: string) {
 }
 
 function UserAvatar({ user }: { user: ManagedUserView }) {
+  const colors = ['accent', 'success', 'warning', 'danger'] as const;
+  const colorIndex = Array.from(user.id).reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
+
   return (
-    <Avatar className="shrink-0" size="sm">
+    <Avatar
+      className="shrink-0"
+      color={colors[colorIndex % colors.length]}
+      size="sm"
+      variant="soft"
+    >
       {user.avatarUrl ? (
         <Avatar.Image
           alt={`Ảnh đại diện của ${user.fullName}`}
           src={user.avatarUrl}
         />
       ) : null}
-      <Avatar.Fallback className="bg-[var(--um-primary-soft)] text-[var(--um-primary-strong)]">
-        {getInitials(user.fullName)}
-      </Avatar.Fallback>
+      <Avatar.Fallback>{getInitials(user.fullName)}</Avatar.Fallback>
     </Avatar>
   );
 }
 
 function LoadingState() {
   return (
-    <div
-      aria-live="polite"
-      className="flex min-h-72 flex-col items-center justify-center gap-3 rounded-[18px] border border-[var(--um-border)] bg-[var(--um-surface)] px-6 text-center"
-    >
-      <Spinner aria-label="Đang tải danh sách người dùng" color="accent" />
-      <p className="text-sm text-neutral-600">Đang tải danh sách...</p>
-    </div>
+    <Card aria-live="polite" className="min-h-72">
+      <Card.Content className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+        <Spinner aria-label="Đang tải danh sách người dùng" color="accent" />
+        <Typography className="text-muted">Đang tải danh sách...</Typography>
+      </Card.Content>
+    </Card>
   );
 }
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <Alert
-      className="rounded-[18px] border border-red-200 shadow-none"
-      status="danger"
-    >
+    <Alert status="danger">
       <Alert.Indicator>
         <TriangleExclamation aria-hidden="true" className="size-5" />
       </Alert.Indicator>
@@ -189,12 +185,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         <Alert.Description>
           Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại.
         </Alert.Description>
-        <Button
-          className="mt-4 min-h-11"
-          size="sm"
-          variant="outline"
-          onPress={onRetry}
-        >
+        <Button className="mt-4" size="sm" variant="outline" onPress={onRetry}>
           <ArrowsRotateRight aria-hidden="true" className="size-4" />
           Thử lại
         </Button>
@@ -213,21 +204,18 @@ function UsersEmptyState({
   const roleLabel = USER_ROLE_LABELS[role].toLocaleLowerCase('vi-VN');
 
   return (
-    <EmptyState className="min-h-72 rounded-[18px] border border-[var(--um-border)] bg-[var(--um-surface)] px-6 py-12 text-center shadow-none">
-      <Persons
-        aria-hidden="true"
-        className="mx-auto size-10 text-neutral-400"
-      />
-      <h2 className="mt-4 text-lg font-semibold tracking-tight text-[var(--um-ink)]">
+    <EmptyState className="min-h-72 text-center">
+      <Persons aria-hidden="true" className="mx-auto size-10 text-muted" />
+      <Typography className="mt-4" type="h5">
         {hasActiveFilters
           ? 'Không tìm thấy người dùng phù hợp'
           : `Chưa có ${roleLabel}`}
-      </h2>
-      <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-neutral-600">
+      </Typography>
+      <Typography className="mx-auto mt-2 max-w-md text-muted">
         {hasActiveFilters
           ? 'Hãy thử thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái.'
           : `Danh sách ${roleLabel} hiện đang trống.`}
-      </p>
+      </Typography>
     </EmptyState>
   );
 }
@@ -248,10 +236,10 @@ function UsersPagination({
   return (
     <Pagination
       aria-label="Phân trang danh sách người dùng"
-      className="flex flex-col gap-3 border-t border-[var(--um-border)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
+      className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between"
       size="sm"
     >
-      <Pagination.Summary className="text-sm text-neutral-600">
+      <Pagination.Summary>
         Hiển thị {firstItem}–{lastItem} trong tổng số {totalItems} người dùng
       </Pagination.Summary>
       <Pagination.Content>
@@ -272,9 +260,7 @@ function UsersPagination({
             <Pagination.Item key={pageNumber}>
               <Pagination.Link
                 aria-label={`Trang ${pageNumber}`}
-                className="min-h-11 min-w-11"
                 isActive={pageNumber === page}
-                style={pageNumber === page ? activePageStyle : undefined}
                 onPress={() => onPageChange(pageNumber)}
               >
                 {pageNumber}
@@ -324,9 +310,9 @@ export function UserTable({
   const isOperatorTable = role === 'LOCKER_OPERATOR';
 
   return (
-    <div className="w-full max-w-full overflow-clip rounded-[18px] border border-[var(--um-border)] bg-[var(--um-surface)]">
-      <Table variant="secondary">
-        <Table.ScrollContainer className="w-full max-w-full overflow-x-auto rounded-t-[17px]">
+    <>
+      <Table>
+        <Table.ScrollContainer className="w-full max-w-full overflow-x-auto">
           <Table.Content
             aria-label={`Danh sách ${USER_ROLE_LABELS[role].toLocaleLowerCase('vi-VN')}`}
             className={`w-full table-fixed ${
@@ -346,24 +332,6 @@ export function UserTable({
             }}
           >
             <Table.Header>
-              <Table.Column
-                allowsSorting
-                isRowHeader
-                className={`${tableColumnClassName} ${
-                  isOperatorTable
-                    ? operatorColumnClassNames.fullName
-                    : residentColumnClassNames.fullName
-                }`}
-                id="fullName"
-                textValue="Họ và tên"
-              >
-                {({ sortDirection }) => (
-                  <SortableColumnLabel
-                    label="Họ và tên"
-                    sortDirection={sortDirection}
-                  />
-                )}
-              </Table.Column>
               {isOperatorTable ? (
                 <Table.Column
                   allowsSorting
@@ -381,17 +349,18 @@ export function UserTable({
               ) : null}
               <Table.Column
                 allowsSorting
+                isRowHeader
                 className={`${tableColumnClassName} ${
                   isOperatorTable
-                    ? operatorColumnClassNames.email
-                    : residentColumnClassNames.email
+                    ? operatorColumnClassNames.fullName
+                    : residentColumnClassNames.fullName
                 }`}
-                id="email"
-                textValue="Email"
+                id="fullName"
+                textValue="Họ và tên"
               >
                 {({ sortDirection }) => (
                   <SortableColumnLabel
-                    label="Email"
+                    label="Họ và tên"
                     sortDirection={sortDirection}
                   />
                 )}
@@ -495,38 +464,56 @@ export function UserTable({
                   className={tableRowClassName}
                   id={user.id}
                 >
-                  <Table.Cell className={tableCellClassName}>
-                    <div className="flex min-w-0 items-center gap-3">
-                      <UserAvatar user={user} />
-                      <span
-                        className="block min-w-0 truncate font-semibold text-[var(--um-ink)]"
-                        title={user.fullName}
-                      >
-                        {user.fullName}
-                      </span>
-                    </div>
-                  </Table.Cell>
                   {isOperatorTable && user.role === 'LOCKER_OPERATOR' ? (
                     <Table.Cell className={tableCellClassName}>
-                      <span
-                        className="block truncate font-mono text-sm text-neutral-700"
-                        title={user.employeeCode}
-                      >
-                        {user.employeeCode}
-                      </span>
+                      <div className="flex min-w-0 items-center gap-1">
+                        <span
+                          className="truncate font-mono text-sm font-medium"
+                          title={`#${user.employeeCode}`}
+                        >
+                          #{user.employeeCode}
+                        </span>
+                        <Button
+                          isIconOnly
+                          aria-label={`Sao chép mã nhân viên ${user.employeeCode}`}
+                          className="shrink-0"
+                          size="sm"
+                          variant="ghost"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                          onPress={() =>
+                            void navigator.clipboard.writeText(
+                              user.employeeCode,
+                            )
+                          }
+                        >
+                          <Copy aria-hidden="true" className="size-4" />
+                        </Button>
+                      </div>
                     </Table.Cell>
                   ) : null}
                   <Table.Cell className={tableCellClassName}>
-                    <span
-                      className="block truncate text-neutral-700"
-                      title={user.email}
-                    >
-                      {user.email}
-                    </span>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <UserAvatar user={user} />
+                      <span className="min-w-0">
+                        <span
+                          className="block truncate font-semibold"
+                          title={user.fullName}
+                        >
+                          {user.fullName}
+                        </span>
+                        <span
+                          className="block truncate text-sm text-muted"
+                          title={user.email}
+                        >
+                          {user.email}
+                        </span>
+                      </span>
+                    </div>
                   </Table.Cell>
                   <Table.Cell className={tableCellClassName}>
                     <span
-                      className="block truncate whitespace-nowrap text-neutral-700"
+                      className="block truncate whitespace-nowrap text-muted"
                       title={user.phoneNumber}
                     >
                       {user.phoneNumber}
@@ -534,7 +521,7 @@ export function UserTable({
                   </Table.Cell>
                   {user.role === 'LOCKER_OPERATOR' ? (
                     <Table.Cell className={`${tableCellClassName} text-center`}>
-                      <span className="tabular-nums text-neutral-700">
+                      <span className="tabular-nums text-muted">
                         {user.assignedLockerCount}
                       </span>
                     </Table.Cell>
@@ -560,7 +547,7 @@ export function UserTable({
                   <Table.Cell className={`${tableCellClassName} text-center`}>
                     <Button
                       aria-label={`${user.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Mở khóa tài khoản'} ${user.fullName}`}
-                      className="h-9 min-h-9 w-24 max-w-full whitespace-nowrap px-2 shadow-none"
+                      size="sm"
                       variant={
                         user.status === 'ACTIVE' ? 'danger-soft' : 'primary'
                       }
@@ -578,7 +565,7 @@ export function UserTable({
         </Table.ScrollContainer>
       </Table>
 
-      {totalPages > 0 ? (
+      {totalPages > 1 ? (
         <UsersPagination
           page={page}
           pageSize={pageSize}
@@ -587,6 +574,6 @@ export function UserTable({
           onPageChange={onPageChange}
         />
       ) : null}
-    </div>
+    </>
   );
 }

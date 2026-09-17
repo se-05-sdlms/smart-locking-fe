@@ -1,4 +1,5 @@
-import type { CSSProperties, FormEvent } from 'react';
+import type { FormEvent } from 'react';
+import type { Selection } from '@heroui/react';
 import type {
   Locker,
   OperatorUserView,
@@ -11,23 +12,19 @@ import {
   Avatar,
   Button,
   Checkbox,
-  CheckboxGroup,
-  Chip,
+  EmptyState,
   FieldError,
+  Form,
   Input,
   Label,
   Modal,
+  Pagination,
   SearchField,
   Spinner,
+  Table,
   TextField,
+  Typography,
 } from '@heroui/react';
-import ArrowsRotateRight from '@gravity-ui/icons/ArrowsRotateRight';
-import Camera from '@gravity-ui/icons/Camera';
-import CirclePlus from '@gravity-ui/icons/CirclePlus';
-import Magnifier from '@gravity-ui/icons/Magnifier';
-import Persons from '@gravity-ui/icons/Persons';
-import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
-import TrashBin from '@gravity-ui/icons/TrashBin';
 
 type CreateOperatorModalProps = {
   isOpen: boolean;
@@ -54,22 +51,9 @@ const emptyForm: FormValues = {
 
 const acceptedAvatarTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
 const maxAvatarSize = 2 * 1024 * 1024;
+const lockersPerPage = 5;
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const phonePattern = /^\+?\d{9,15}$/;
-const inputClassName =
-  'border border-[var(--um-border)] bg-[var(--um-surface)] shadow-none [--field-background:var(--um-surface)] [--field-border:var(--um-border)] [--field-border-focus:var(--um-focus)] [--field-focus:var(--um-surface)] focus:border-[var(--um-focus)]';
-const primarySubmitButtonStyle = {
-  '--button-bg': 'var(--um-primary)',
-  '--button-bg-hover': '#005bb5',
-  '--button-bg-pressed': '#005bb5',
-  '--button-fg': 'var(--um-on-primary)',
-} as CSSProperties;
-const secondaryCancelButtonStyle = {
-  '--button-bg': 'var(--um-surface)',
-  '--button-bg-hover': 'var(--um-page)',
-  '--button-bg-pressed': 'var(--um-page)',
-  '--button-fg': 'var(--um-ink)',
-} as CSSProperties;
 
 function getInitials(fullName: string) {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
@@ -95,29 +79,6 @@ function getClientErrors(values: FormValues): FormErrors {
   return errors;
 }
 
-function LockerOption({ locker }: { locker: Locker }) {
-  return (
-    <Checkbox
-      className="[&[data-focus-visible=true]_[data-slot=checkbox-content]]:ring-2 [&[data-focus-visible=true]_[data-slot=checkbox-content]]:ring-[var(--um-focus)] [&[data-focus-visible=true]_[data-slot=checkbox-content]]:ring-offset-2 [&:hover_[data-slot=checkbox-content]]:border-[var(--um-primary-border)] [&:hover_[data-slot=checkbox-content]]:bg-[var(--um-row-hover)] [&[data-selected=true]_[data-slot=checkbox-content]]:border-[var(--um-primary)] [&[data-selected=true]_[data-slot=checkbox-content]]:bg-[var(--um-primary-soft)]"
-      value={locker.id}
-    >
-      <Checkbox.Content className="min-h-16 w-full rounded-lg border border-[var(--um-border)] bg-[var(--um-surface)] px-3 py-2 shadow-none transition-colors">
-        <Checkbox.Control className="border border-[var(--um-border)] bg-[var(--um-surface)] shadow-none">
-          <Checkbox.Indicator />
-        </Checkbox.Control>
-        <span className="ml-3 min-w-0">
-          <span className="block font-medium text-[var(--um-ink)]">
-            {locker.code}
-          </span>
-          <span className="block text-sm text-neutral-600">
-            {locker.buildingName} — {locker.locationLabel}
-          </span>
-        </span>
-      </Checkbox.Content>
-    </Checkbox>
-  );
-}
-
 export function CreateOperatorModal({
   isOpen,
   service,
@@ -131,12 +92,14 @@ export function CreateOperatorModal({
   const [isLoadingLockers, setIsLoadingLockers] = useState(false);
   const [lockerError, setLockerError] = useState<string | null>(null);
   const [lockerSearch, setLockerSearch] = useState('');
+  const [lockerPage, setLockerPage] = useState(1);
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>();
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isReadingAvatar, setIsReadingAvatar] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const lockerRequestIdRef = useRef(0);
   const avatarRequestIdRef = useRef(0);
+  const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const resetForm = () => {
     avatarRequestIdRef.current += 1;
@@ -144,6 +107,7 @@ export function CreateOperatorModal({
     setErrors({});
     setSelectedLockerIds([]);
     setLockerSearch('');
+    setLockerPage(1);
     setAvatarUrl(undefined);
     setAvatarError(null);
     setIsReadingAvatar(false);
@@ -163,6 +127,7 @@ export function CreateOperatorModal({
     lockerRequestIdRef.current = requestId;
     setIsLoadingLockers(true);
     setLockerError(null);
+    setLockerPage(1);
 
     void service
       .getAvailableLockers()
@@ -170,20 +135,28 @@ export function CreateOperatorModal({
         if (!isActive || requestId !== lockerRequestIdRef.current) return;
         if (!result.success) {
           setAvailableLockers([]);
+          setSelectedLockerIds([]);
           setLockerError(result.error.message);
 
           return;
         }
 
-        setAvailableLockers(result.data);
+        const unassignedLockers = result.data.filter(
+          (locker) => locker.assignedOperatorId === null,
+        );
+
+        setAvailableLockers(unassignedLockers);
         setSelectedLockerIds((ids) =>
-          ids.filter((id) => result.data.some((locker) => locker.id === id)),
+          ids.filter((id) =>
+            unassignedLockers.some((locker) => locker.id === id),
+          ),
         );
       })
       .catch(() => {
         if (!isActive || requestId !== lockerRequestIdRef.current) return;
         setAvailableLockers([]);
-        setLockerError('Không thể tải danh sách Locker khả dụng.');
+        setSelectedLockerIds([]);
+        setLockerError('Không thể tải danh sách tủ trống.');
       })
       .finally(() => {
         if (isActive && requestId === lockerRequestIdRef.current)
@@ -315,11 +288,42 @@ export function CreateOperatorModal({
   const filteredAvailableLockers = availableLockers.filter((locker) => {
     if (!normalizedLockerSearch) return true;
 
-    return [locker.code, locker.buildingName, locker.locationLabel].some(
-      (value) =>
-        value.toLocaleLowerCase('vi-VN').includes(normalizedLockerSearch),
+    const address = `${locker.buildingName} ${locker.locationLabel}`;
+
+    return [locker.code, address].some((value) =>
+      value.toLocaleLowerCase('vi-VN').includes(normalizedLockerSearch),
     );
   });
+  const totalLockerPages = Math.max(
+    1,
+    Math.ceil(filteredAvailableLockers.length / lockersPerPage),
+  );
+  const paginatedLockers = filteredAvailableLockers.slice(
+    (lockerPage - 1) * lockersPerPage,
+    lockerPage * lockersPerPage,
+  );
+  const visibleLockerIds = new Set(paginatedLockers.map((locker) => locker.id));
+  const visibleSelectedLockerIds = new Set(
+    selectedLockerIds.filter((id) => visibleLockerIds.has(id)),
+  );
+  const selectedLockerCodes = availableLockers
+    .filter((locker) => selectedLockerIds.includes(locker.id))
+    .map((locker) => locker.code);
+
+  const handleLockerSelectionChange = (keys: Selection) => {
+    setSelectedLockerIds((current) => {
+      const hiddenSelections = current.filter(
+        (id) => !visibleLockerIds.has(id),
+      );
+      const visibleSelections =
+        keys === 'all'
+          ? [...visibleLockerIds]
+          : [...keys].map((key) => String(key));
+
+      return [...hiddenSelections, ...visibleSelections];
+    });
+    setErrors((current) => ({ ...current, lockerIds: undefined }));
+  };
 
   return (
     <Modal
@@ -329,90 +333,63 @@ export function CreateOperatorModal({
       }}
     >
       <Modal.Backdrop isDismissable={!isSubmitting && !isReadingAvatar}>
-        <Modal.Container className="p-0 sm:p-4" scroll="inside" size="lg">
-          <Modal.Dialog className="h-[100dvh] max-h-[100dvh] w-full max-w-none rounded-none p-0 shadow-none sm:h-[min(90dvh,760px)] sm:max-h-[calc(100dvh-32px)] sm:w-[min(920px,calc(100dvw-32px))] sm:max-w-[920px] sm:rounded-[18px]">
-            <Modal.Header className="relative z-10 shrink-0 gap-1 border-b border-[var(--um-border)] bg-[var(--um-surface)] px-5 py-4 sm:px-6">
-              <div className="flex items-center gap-3">
-                <span className="flex size-10 items-center justify-center rounded-full bg-[var(--um-primary-soft)] text-[var(--um-primary)]">
-                  <Persons aria-hidden="true" className="size-5" />
-                </span>
-                <div>
-                  <Modal.Heading>Thêm nhân viên vận hành</Modal.Heading>
-                  <p className="mt-0.5 text-sm text-neutral-600">
-                    Tạo tài khoản và phân công tủ cho nhân viên mới.
-                  </p>
-                </div>
-              </div>
+        <Modal.Container scroll="inside" size="lg">
+          <Modal.Dialog className="max-w-6xl">
+            <Modal.Header>
+              <Modal.Heading>Thêm nhân viên vận hành</Modal.Heading>
               <Modal.CloseTrigger
                 aria-label="Đóng biểu mẫu"
                 isDisabled={isSubmitting || isReadingAvatar}
               />
             </Modal.Header>
-            <form
-              noValidate
-              className="flex min-h-0 flex-1 flex-col overflow-hidden"
-              onSubmit={handleSubmit}
-            >
-              <Modal.Body className="m-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 [scrollbar-gutter:stable] sm:px-6">
-                <div className="space-y-6">
-                  <section>
-                    <h3 className="border-s-2 border-[var(--um-primary)] ps-2 text-base font-semibold text-[var(--um-ink)]">
-                      Thông tin nhận diện
-                    </h3>
-                    <div className="mt-3 flex flex-wrap items-center gap-4">
-                      <Avatar size="lg">
-                        {avatarUrl ? (
-                          <Avatar.Image alt="Ảnh xem trước" src={avatarUrl} />
-                        ) : null}
-                        <Avatar.Fallback className="bg-[var(--um-primary-soft)] text-[var(--um-primary-strong)]">
-                          {getInitials(values.fullName)}
-                        </Avatar.Fallback>
-                      </Avatar>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-lg border border-[var(--um-primary-border)] bg-[var(--um-surface)] px-3 text-sm font-medium text-[var(--um-primary)]">
-                          <Camera aria-hidden="true" className="size-4" />
-                          Chọn ảnh
-                          <input
-                            accept="image/jpeg,image/png,image/webp"
-                            aria-label="Chọn ảnh đại diện"
-                            className="sr-only"
-                            disabled={isSubmitting}
-                            type="file"
-                            onChange={(event) =>
-                              handleAvatarChange(
-                                event.target.files?.[0] ?? null,
-                              )
-                            }
-                          />
-                        </label>
-                        {avatarUrl ? (
-                          <Button
-                            isDisabled={isSubmitting || isReadingAvatar}
-                            variant="outline"
-                            onPress={() => handleAvatarChange(null)}
-                          >
-                            <TrashBin aria-hidden="true" className="size-4" />
-                            Bỏ ảnh
-                          </Button>
-                        ) : null}
-                        {isReadingAvatar ? (
-                          <span className="text-sm text-neutral-600">
-                            Đang đọc ảnh...
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                    {avatarError ? (
-                      <p className="mt-2 text-sm text-red-600">{avatarError}</p>
-                    ) : null}
+            <Form onSubmit={handleSubmit}>
+              <Modal.Body>
+                <>
+                  <div className="grid items-start gap-8 lg:grid-cols-[21rem_minmax(0,1fr)]">
+                    <section className="space-y-5">
+                      <Typography type="h5">Thông tin nhân viên</Typography>
 
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                      <div className="rounded-lg border border-[var(--um-border)] bg-[var(--um-page)] px-3 py-2.5">
-                        <p className="text-sm text-neutral-600">Mã nhân viên</p>
-                        <p className="mt-1 text-sm font-medium text-[var(--um-primary-strong)]">
-                          Hệ thống tự động tạo sau khi lưu
-                        </p>
+                      <div>
+                        <Button
+                          isIconOnly
+                          aria-label="Chọn ảnh đại diện"
+                          className="size-fit rounded-full p-0"
+                          isDisabled={isSubmitting || isReadingAvatar}
+                          variant="ghost"
+                          onPress={() => avatarInputRef.current?.click()}
+                        >
+                          {isReadingAvatar ? (
+                            <Spinner aria-label="Đang đọc ảnh" size="sm" />
+                          ) : (
+                            <Avatar size="lg">
+                              {avatarUrl ? (
+                                <Avatar.Image
+                                  alt="Ảnh nhân viên"
+                                  src={avatarUrl}
+                                />
+                              ) : null}
+                              <Avatar.Fallback>
+                                {getInitials(values.fullName)}
+                              </Avatar.Fallback>
+                            </Avatar>
+                          )}
+                        </Button>
+                        <input
+                          ref={avatarInputRef}
+                          accept="image/jpeg,image/png,image/webp"
+                          aria-label="Chọn ảnh đại diện"
+                          className="sr-only"
+                          disabled={isSubmitting}
+                          type="file"
+                          onChange={(event) =>
+                            handleAvatarChange(event.target.files?.[0] ?? null)
+                          }
+                        />
                       </div>
+                      {avatarError ? (
+                        <FieldError>{avatarError}</FieldError>
+                      ) : null}
+
                       <TextField
                         isRequired
                         isInvalid={Boolean(errors.fullName)}
@@ -420,19 +397,12 @@ export function CreateOperatorModal({
                         onChange={(value) => setFieldValue('fullName', value)}
                       >
                         <Label>Họ và tên</Label>
-                        <Input className={inputClassName} />
+                        <Input fullWidth variant="primary" />
                         {errors.fullName ? (
                           <FieldError>{errors.fullName}</FieldError>
                         ) : null}
                       </TextField>
-                    </div>
-                  </section>
 
-                  <section>
-                    <h3 className="border-s-2 border-[var(--um-primary)] ps-2 text-base font-semibold text-[var(--um-ink)]">
-                      Thông tin liên hệ
-                    </h3>
-                    <div className="mt-4 grid gap-4 sm:grid-cols-2">
                       <TextField
                         isRequired
                         isInvalid={Boolean(errors.email)}
@@ -440,12 +410,13 @@ export function CreateOperatorModal({
                         value={values.email}
                         onChange={(value) => setFieldValue('email', value)}
                       >
-                        <Label>Email cá nhân</Label>
-                        <Input className={inputClassName} />
+                        <Label>Email</Label>
+                        <Input fullWidth variant="primary" />
                         {errors.email ? (
                           <FieldError>{errors.email}</FieldError>
                         ) : null}
                       </TextField>
+
                       <TextField
                         isRequired
                         isInvalid={Boolean(errors.phoneNumber)}
@@ -456,173 +427,204 @@ export function CreateOperatorModal({
                         }
                       >
                         <Label>Số điện thoại</Label>
-                        <Input className={inputClassName} />
+                        <Input fullWidth variant="primary" />
                         {errors.phoneNumber ? (
                           <FieldError>{errors.phoneNumber}</FieldError>
                         ) : null}
                       </TextField>
-                    </div>
-                  </section>
+                    </section>
 
-                  <section>
-                    <h3 className="border-s-2 border-[var(--um-primary)] ps-2 text-base font-semibold text-[var(--um-ink)]">
-                      Thông tin tài khoản
-                    </h3>
-                    <div className="mt-4 grid gap-4 rounded-lg bg-[var(--um-page)] p-4 sm:grid-cols-2">
-                      <div>
-                        <p className="text-sm text-neutral-600">Vai trò</p>
-                        <Chip
-                          className="mt-2 bg-[var(--um-primary-soft)] text-[var(--um-primary-strong)]"
-                          size="sm"
+                    <section className="min-w-0 space-y-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <Typography type="h5">Phân công tủ</Typography>
+                        <SearchField
+                          aria-label="Tìm tủ trống"
+                          className="w-full sm:w-72"
+                          value={lockerSearch}
+                          variant="primary"
+                          onChange={(value) => {
+                            setLockerSearch(value);
+                            setLockerPage(1);
+                          }}
                         >
-                          Nhân viên vận hành
-                        </Chip>
+                          <SearchField.Group>
+                            <SearchField.SearchIcon />
+                            <SearchField.Input placeholder="Mã tủ hoặc địa chỉ" />
+                            {lockerSearch ? (
+                              <SearchField.ClearButton aria-label="Xóa tìm kiếm tủ" />
+                            ) : null}
+                          </SearchField.Group>
+                        </SearchField>
                       </div>
-                      <div>
-                        <p className="text-sm text-neutral-600">
-                          Trạng thái ban đầu
-                        </p>
-                        <Chip
-                          className="mt-2"
-                          color="success"
-                          size="sm"
-                          variant="soft"
-                        >
-                          Hoạt động
-                        </Chip>
-                      </div>
-                    </div>
-                  </section>
 
-                  <section>
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <h3 className="border-s-2 border-[var(--um-primary)] ps-2 text-base font-semibold text-[var(--um-ink)]">
-                        Phân công tủ
-                      </h3>
-                      <span className="text-sm font-medium text-[var(--um-primary-strong)]">
-                        Đã chọn: {selectedLockerIds.length} tủ
-                      </span>
-                    </div>
-                    <p className="mt-1 text-sm text-neutral-600">
-                      Bạn có thể tạo nhân viên mà không cần phân công tủ.
-                    </p>
-                    {isLoadingLockers ? (
-                      <div className="mt-4 flex items-center gap-2 text-sm text-neutral-600">
-                        <Spinner
-                          aria-label="Đang tải danh sách Locker"
-                          size="sm"
-                        />
-                        Đang tải danh sách Locker...
-                      </div>
-                    ) : null}
-                    {lockerError ? (
-                      <Alert className="mt-4" status="danger">
-                        <Alert.Indicator>
-                          <TriangleExclamation
-                            aria-hidden="true"
-                            className="size-5"
-                          />
-                        </Alert.Indicator>
-                        <Alert.Content>
-                          <Alert.Title>
-                            Không thể tải danh sách Locker
-                          </Alert.Title>
-                          <Alert.Description>{lockerError}</Alert.Description>
-                          <Button
-                            className="mt-3"
-                            variant="outline"
-                            onPress={loadAvailableLockers}
-                          >
-                            <ArrowsRotateRight
-                              aria-hidden="true"
-                              className="size-4"
-                            />
-                            Thử lại
-                          </Button>
-                        </Alert.Content>
-                      </Alert>
-                    ) : null}
-                    {!isLoadingLockers && !lockerError ? (
-                      availableLockers.length ? (
-                        <>
-                          <SearchField
-                            aria-label="Tìm Locker khả dụng"
-                            className="mt-4"
-                            value={lockerSearch}
-                            onChange={setLockerSearch}
-                          >
-                            <SearchField.Group className="min-h-11 rounded-lg border border-[var(--um-border)] bg-[var(--um-surface)] shadow-none [--field-background:var(--um-surface)] [--field-border-focus:var(--um-focus)] [--field-border-hover:var(--um-border)] [--field-border:var(--um-border)] [--field-focus:var(--um-surface)] [--field-hover:var(--um-surface)] focus-within:border-[var(--um-focus)]">
-                              <Magnifier
-                                aria-hidden="true"
-                                className="ml-3 size-5 shrink-0 text-neutral-500"
-                              />
-                              <SearchField.Input placeholder="Tìm theo mã tủ, tòa nhà hoặc vị trí..." />
-                              {lockerSearch ? (
-                                <SearchField.ClearButton aria-label="Xóa tìm kiếm Locker" />
-                              ) : null}
-                            </SearchField.Group>
-                          </SearchField>
-                          {selectedLockerIds.length ? (
-                            <Button
-                              className="mt-3 h-auto min-h-0 px-0 text-sm font-medium text-[var(--um-primary)] shadow-none"
-                              variant="ghost"
-                              onPress={() => setSelectedLockerIds([])}
-                            >
-                              Bỏ chọn tất cả
-                            </Button>
-                          ) : null}
-                          {filteredAvailableLockers.length ? (
-                            <CheckboxGroup
-                              aria-label="Locker được phân công ban đầu"
-                              className="mt-3 grid max-h-80 gap-3 overflow-y-auto overscroll-contain pr-1 sm:grid-cols-2"
-                              value={selectedLockerIds}
-                              onChange={setSelectedLockerIds}
-                            >
-                              {filteredAvailableLockers.map((locker) => (
-                                <LockerOption key={locker.id} locker={locker} />
-                              ))}
-                            </CheckboxGroup>
-                          ) : (
-                            <div className="mt-4 rounded-lg border border-[var(--um-border)] bg-[var(--um-surface)] px-4 py-3 text-sm text-neutral-600">
-                              <p className="font-medium text-[var(--um-ink)]">
-                                Không tìm thấy tủ phù hợp.
-                              </p>
-                              <Button
-                                className="mt-2 h-auto min-h-0 px-0 text-sm font-medium text-[var(--um-primary)] shadow-none"
-                                variant="ghost"
-                                onPress={() => setLockerSearch('')}
-                              >
-                                Xóa tìm kiếm
-                              </Button>
-                            </div>
-                          )}
-                        </>
-                      ) : (
-                        <div className="mt-4 rounded-lg border border-[var(--um-border)] bg-[var(--um-surface)] px-4 py-3 text-sm text-neutral-600">
-                          <p className="font-medium text-[var(--um-ink)]">
-                            Hiện không có tủ khả dụng.
-                          </p>
-                          <p className="mt-1">
-                            Bạn vẫn có thể tạo nhân viên và phân công tủ sau.
-                          </p>
+                      {isLoadingLockers ? (
+                        <div className="flex min-h-48 items-center justify-center">
+                          <Spinner aria-label="Đang tải danh sách tủ" />
                         </div>
-                      )
-                    ) : null}
-                    {errors.lockerIds ? (
-                      <p className="mt-2 text-sm text-red-600">
-                        {errors.lockerIds}
-                      </p>
-                    ) : null}
-                  </section>
+                      ) : null}
+
+                      {lockerError ? (
+                        <Alert status="danger">
+                          <Alert.Indicator />
+                          <Alert.Content>
+                            <Alert.Description>{lockerError}</Alert.Description>
+                            <Button
+                              className="mt-2"
+                              size="sm"
+                              variant="outline"
+                              onPress={loadAvailableLockers}
+                            >
+                              Thử lại
+                            </Button>
+                          </Alert.Content>
+                        </Alert>
+                      ) : null}
+                      {!isLoadingLockers && !lockerError ? (
+                        availableLockers.length ? (
+                          filteredAvailableLockers.length ? (
+                            <Table>
+                              <Table.ScrollContainer className="w-full overflow-x-auto">
+                                <Table.Content
+                                  aria-label="Danh sách tủ trống"
+                                  selectedKeys={visibleSelectedLockerIds}
+                                  selectionMode="multiple"
+                                  onSelectionChange={
+                                    handleLockerSelectionChange
+                                  }
+                                >
+                                  <Table.Header>
+                                    <Table.Column
+                                      className="w-12"
+                                      id="selection"
+                                      textValue="Chọn"
+                                    >
+                                      <Checkbox
+                                        aria-label="Chọn tất cả tủ"
+                                        slot="selection"
+                                      >
+                                        <Checkbox.Content>
+                                          <Checkbox.Control>
+                                            <Checkbox.Indicator />
+                                          </Checkbox.Control>
+                                        </Checkbox.Content>
+                                      </Checkbox>
+                                    </Table.Column>
+                                    <Table.Column
+                                      className="w-32"
+                                      id="code"
+                                      isRowHeader
+                                    >
+                                      Mã tủ
+                                    </Table.Column>
+                                    <Table.Column id="address">
+                                      Địa chỉ
+                                    </Table.Column>
+                                  </Table.Header>
+                                  <Table.Body>
+                                    {paginatedLockers.map((locker) => (
+                                      <Table.Row key={locker.id} id={locker.id}>
+                                        <Table.Cell>
+                                          <Checkbox
+                                            aria-label={`Chọn tủ ${locker.code}`}
+                                            slot="selection"
+                                          >
+                                            <Checkbox.Content>
+                                              <Checkbox.Control>
+                                                <Checkbox.Indicator />
+                                              </Checkbox.Control>
+                                            </Checkbox.Content>
+                                          </Checkbox>
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                          <span className="font-mono font-semibold">
+                                            {locker.code}
+                                          </span>
+                                        </Table.Cell>
+                                        <Table.Cell>
+                                          <span className="block font-medium">
+                                            {locker.buildingName}
+                                          </span>
+                                          <span className="block text-sm text-muted">
+                                            {locker.locationLabel}
+                                          </span>
+                                        </Table.Cell>
+                                      </Table.Row>
+                                    ))}
+                                  </Table.Body>
+                                </Table.Content>
+                              </Table.ScrollContainer>
+                              <Table.Footer className="flex flex-col gap-3 px-4 py-3">
+                                <Typography className="text-sm text-muted">
+                                  Đã chọn:{' '}
+                                  <span className="font-medium text-foreground">
+                                    {selectedLockerCodes.join(', ') || '—'}
+                                  </span>
+                                </Typography>
+                                {totalLockerPages > 1 ? (
+                                  <Pagination
+                                    className="flex items-center justify-between"
+                                    size="sm"
+                                  >
+                                    <Pagination.Summary>
+                                      Trang {lockerPage}/{totalLockerPages}
+                                    </Pagination.Summary>
+                                    <Pagination.Content>
+                                      <Pagination.Item>
+                                        <Pagination.Previous
+                                          aria-label="Trang tủ trước"
+                                          isDisabled={lockerPage === 1}
+                                          onPress={() =>
+                                            setLockerPage((page) => page - 1)
+                                          }
+                                        >
+                                          <Pagination.PreviousIcon />
+                                        </Pagination.Previous>
+                                      </Pagination.Item>
+                                      <Pagination.Item>
+                                        <Pagination.Link isActive>
+                                          {lockerPage}
+                                        </Pagination.Link>
+                                      </Pagination.Item>
+                                      <Pagination.Item>
+                                        <Pagination.Next
+                                          aria-label="Trang tủ sau"
+                                          isDisabled={
+                                            lockerPage === totalLockerPages
+                                          }
+                                          onPress={() =>
+                                            setLockerPage((page) => page + 1)
+                                          }
+                                        >
+                                          <Pagination.NextIcon />
+                                        </Pagination.Next>
+                                      </Pagination.Item>
+                                    </Pagination.Content>
+                                  </Pagination>
+                                ) : null}
+                              </Table.Footer>
+                            </Table>
+                          ) : (
+                            <EmptyState className="min-h-48 py-8 text-center text-muted">
+                              Không tìm thấy tủ.
+                            </EmptyState>
+                          )
+                        ) : (
+                          <EmptyState className="min-h-48 py-8 text-center text-muted">
+                            Chưa có tủ trống.
+                          </EmptyState>
+                        )
+                      ) : null}
+                      {errors.lockerIds ? (
+                        <FieldError className="mt-2">
+                          {errors.lockerIds}
+                        </FieldError>
+                      ) : null}
+                    </section>
+                  </div>
 
                   {errors.form ? (
                     <Alert status="danger">
-                      <Alert.Indicator>
-                        <TriangleExclamation
-                          aria-hidden="true"
-                          className="size-5"
-                        />
-                      </Alert.Indicator>
+                      <Alert.Indicator />
                       <Alert.Content>
                         <Alert.Title>
                           Không thể thêm nhân viên vận hành
@@ -631,27 +633,18 @@ export function CreateOperatorModal({
                       </Alert.Content>
                     </Alert>
                   ) : null}
-                </div>
+                </>
               </Modal.Body>
-              <Modal.Footer className="shrink-0 border-t border-[var(--um-border)] bg-[var(--um-surface)] px-5 py-3 sm:px-6">
+              <Modal.Footer>
                 <Button
-                  className="min-h-12 rounded-full border-[var(--um-border)] px-5 font-medium shadow-none"
                   isDisabled={isSubmitting || isReadingAvatar}
-                  style={secondaryCancelButtonStyle}
-                  variant="outline"
+                  variant="danger"
                   onPress={closeForm}
                 >
                   Hủy
                 </Button>
                 <Button
-                  className="min-h-12 rounded-full px-6 font-semibold shadow-none focus-visible:ring-2 focus-visible:ring-[var(--um-focus)] focus-visible:ring-offset-2"
-                  isDisabled={
-                    isSubmitting ||
-                    isReadingAvatar ||
-                    isLoadingLockers ||
-                    Boolean(lockerError)
-                  }
-                  style={primarySubmitButtonStyle}
+                  isDisabled={isSubmitting || isReadingAvatar}
                   type="submit"
                   variant="primary"
                 >
@@ -661,13 +654,11 @@ export function CreateOperatorModal({
                       color="current"
                       size="sm"
                     />
-                  ) : (
-                    <CirclePlus aria-hidden="true" className="size-4" />
-                  )}
+                  ) : null}
                   {isSubmitting ? 'Đang thêm...' : 'Thêm nhân viên'}
                 </Button>
               </Modal.Footer>
-            </form>
+            </Form>
           </Modal.Dialog>
         </Modal.Container>
       </Modal.Backdrop>
