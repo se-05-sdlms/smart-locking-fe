@@ -9,6 +9,9 @@ import DocsPage from '@/pages/docs';
 import LoginPage from '@/pages/login';
 import PricingPage from '@/pages/pricing';
 import UserManagementPage from '@/pages/admin/user-management-page';
+import AdminDashboardPage from '@/pages/admin/dashboard';
+import AdminLockersPage from '@/pages/admin/lockers';
+import AdminAuditLogsPage from '@/pages/admin/audit-logs';
 import OperatorLockersPage from '@/pages/operator/lockers';
 import OperatorLockerDetailPage from '@/pages/operator/locker-detail';
 import OperatorOverdueClearancePage from '@/pages/operator/overdue-clearance';
@@ -28,7 +31,11 @@ function roleRoute(role: AppRole) {
             key={item.path}
             index
             element={
-              role === 'operator' ? <OperatorDashboardPage /> : <EmptyRoutePage />
+              role === 'operator' ? (
+                <OperatorDashboardPage />
+              ) : (
+                <AdminDashboardPage />
+              )
             }
           />
         ) : item.path === '/operator/lockers' ? (
@@ -56,6 +63,10 @@ function roleRoute(role: AppRole) {
             element={
               item.path === '/admin/users' ? (
                 <UserManagementPage />
+              ) : item.path === '/admin/lockers' ? (
+                <AdminLockersPage />
+              ) : item.path === '/admin/audit-logs' ? (
+                <AdminAuditLogsPage />
               ) : (
                 <EmptyRoutePage />
               )

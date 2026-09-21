@@ -1,0 +1,300 @@
+export type AdminLockerStatus = 'active' | 'maintenance' | 'suspended';
+
+export type AdminLocker = {
+  id: string;
+  name: string;
+  address: string;
+  recoveryAddress: string;
+  deviceId: string;
+  compartmentCount: number;
+  connection: 'online' | 'offline';
+  status: AdminLockerStatus;
+  operator: string | null;
+  occupied: number;
+};
+
+export const ADMIN_LOCKERS: AdminLocker[] = [
+  {
+    id: 'LK-01',
+    name: 'Tủ Sảnh A',
+    address: '12 Nguyễn Huệ, Quận 1',
+    recoveryAddress: 'Kho thu hồi - 12 Nguyễn Huệ, Quận 1',
+    deviceId: 'DEV-LK-001',
+    compartmentCount: 24,
+    connection: 'online',
+    status: 'active',
+    operator: 'Nguyễn Văn B',
+    occupied: 8,
+  },
+  {
+    id: 'LK-02',
+    name: 'Tủ Tầng 5',
+    address: '45 Lê Lợi, Quận 1',
+    recoveryAddress: 'Kho bảo vệ - 45 Lê Lợi, Quận 1',
+    deviceId: 'DEV-LK-002',
+    compartmentCount: 20,
+    connection: 'online',
+    status: 'active',
+    operator: 'Trần Thị C',
+    occupied: 6,
+  },
+  {
+    id: 'LK-03',
+    name: 'Tủ B1',
+    address: '22 Trần Phú, Quận 3',
+    recoveryAddress: 'Kho bảo trì - 22 Trần Phú, Quận 3',
+    deviceId: 'DEV-LK-003',
+    compartmentCount: 16,
+    connection: 'offline',
+    status: 'suspended',
+    operator: 'Lê Minh D',
+    occupied: 4,
+  },
+  {
+    id: 'LK-04',
+    name: 'Tủ Khu C',
+    address: '88 Võ Thị Sáu, Quận 3',
+    recoveryAddress: 'Quầy lễ tân - 88 Võ Thị Sáu, Quận 3',
+    deviceId: 'DEV-LK-004',
+    compartmentCount: 30,
+    connection: 'online',
+    status: 'maintenance',
+    operator: 'Phạm Thị E',
+    occupied: 10,
+  },
+  {
+    id: 'LK-05',
+    name: 'Tủ Ký túc',
+    address: '19 Nguyễn Hữu Thọ, Quận 7',
+    recoveryAddress: 'Phòng bảo vệ - 19 Nguyễn Hữu Thọ, Quận 7',
+    deviceId: 'DEV-LK-005',
+    compartmentCount: 24,
+    connection: 'online',
+    status: 'active',
+    operator: 'Hoàng Văn F',
+    occupied: 7,
+  },
+  {
+    id: 'LK-06',
+    name: 'Tủ Sảnh Tây',
+    address: '105 Pasteur, Quận 3',
+    recoveryAddress: 'Kho trung tâm - 105 Pasteur, Quận 3',
+    deviceId: 'DEV-LK-006',
+    compartmentCount: 28,
+    connection: 'online',
+    status: 'active',
+    operator: null,
+    occupied: 11,
+  },
+  {
+    id: 'LK-07',
+    name: 'Tủ Tòa B',
+    address: '27 Điện Biên Phủ, Bình Thạnh',
+    recoveryAddress: 'Quầy dịch vụ - 27 Điện Biên Phủ, Bình Thạnh',
+    deviceId: 'DEV-LK-007',
+    compartmentCount: 18,
+    connection: 'online',
+    status: 'maintenance',
+    operator: 'Vũ Minh K',
+    occupied: 5,
+  },
+  {
+    id: 'LK-08',
+    name: 'Tủ Sảnh Nam',
+    address: '68 Hoàng Văn Thụ, Phú Nhuận',
+    recoveryAddress: 'Kho vận hành - 68 Hoàng Văn Thụ, Phú Nhuận',
+    deviceId: 'DEV-LK-008',
+    compartmentCount: 32,
+    connection: 'online',
+    status: 'active',
+    operator: 'Đỗ Ngọc H',
+    occupied: 13,
+  },
+];
+
+export type AuditLog = {
+  id: string;
+  time: string;
+  actor: string;
+  role: 'Admin' | 'System' | 'Operator';
+  module: 'Locker' | 'User' | 'Security' | 'Policy' | 'Payment';
+  action: string;
+  target: string;
+  result: 'success' | 'warning' | 'failed';
+  ip: string;
+  device: string;
+  reason: string;
+  before?: string;
+  after?: string;
+};
+
+export const AUDIT_LOGS: AuditLog[] = [
+  {
+    id: 'AUD-20260918-001',
+    time: '18/09/2026 14:25',
+    actor: 'Nguyễn Văn A',
+    role: 'Admin',
+    module: 'Locker',
+    action: 'Cập nhật thông tin locker',
+    target: 'LK-03',
+    result: 'success',
+    ip: '10.10.10.24',
+    device: 'Edge trên Windows',
+    reason: 'Cập nhật địa chỉ thu hồi và trạng thái vận hành.',
+    before: 'Trạng thái: Hoạt động',
+    after: 'Trạng thái: Bảo trì',
+  },
+  {
+    id: 'AUD-20260918-002',
+    time: '18/09/2026 13:50',
+    actor: 'Admin01',
+    role: 'Admin',
+    module: 'Locker',
+    action: 'Phân công Operator',
+    target: 'LK-12',
+    result: 'success',
+    ip: '10.10.10.10',
+    device: 'Chrome trên Windows',
+    reason: 'Điều phối nhân sự vận hành.',
+  },
+  {
+    id: 'AUD-20260918-003',
+    time: '18/09/2026 11:42',
+    actor: 'Trần Thị B',
+    role: 'Admin',
+    module: 'Policy',
+    action: 'Thay đổi phí quá hạn',
+    target: 'SystemPolicy',
+    result: 'success',
+    ip: '10.10.10.51',
+    device: 'Safari trên macOS',
+    reason: 'Áp dụng biểu phí mới.',
+  },
+  {
+    id: 'AUD-20260918-004',
+    time: '18/09/2026 10:15',
+    actor: 'System',
+    role: 'System',
+    module: 'Security',
+    action: 'Ghi nhận locker offline',
+    target: 'LK-07',
+    result: 'warning',
+    ip: 'gateway',
+    device: 'Gateway service',
+    reason: 'Mất heartbeat quá 5 phút.',
+  },
+  {
+    id: 'AUD-20260918-005',
+    time: '18/09/2026 09:20',
+    actor: 'Admin01',
+    role: 'Admin',
+    module: 'User',
+    action: 'Khóa tài khoản',
+    target: 'operator.ngoc',
+    result: 'success',
+    ip: '10.10.10.10',
+    device: 'Chrome trên Windows',
+    reason: 'Tạm ngưng quyền truy cập.',
+  },
+  {
+    id: 'AUD-20260918-006',
+    time: '18/09/2026 08:55',
+    actor: 'System',
+    role: 'System',
+    module: 'Security',
+    action: 'Đăng nhập thất bại nhiều lần',
+    target: 'resident.anh',
+    result: 'failed',
+    ip: '171.244.1.88',
+    device: 'Mobile browser',
+    reason: 'Vượt ngưỡng đăng nhập thất bại.',
+  },
+  {
+    id: 'AUD-20260918-007',
+    time: '18/09/2026 08:30',
+    actor: 'Nguyễn Văn A',
+    role: 'Admin',
+    module: 'User',
+    action: 'Cập nhật người dùng',
+    target: 'user.tranb',
+    result: 'success',
+    ip: '10.10.10.24',
+    device: 'Edge trên Windows',
+    reason: 'Cập nhật số điện thoại.',
+  },
+  {
+    id: 'AUD-20260918-008',
+    time: '18/09/2026 08:12',
+    actor: 'Lê Minh D',
+    role: 'Operator',
+    module: 'Locker',
+    action: 'Mở khóa tủ xa',
+    target: 'LK-01',
+    result: 'success',
+    ip: '10.10.11.32',
+    device: 'Chrome trên Android',
+    reason: 'Hỗ trợ cư dân nhận hàng.',
+  },
+  {
+    id: 'AUD-20260918-009',
+    time: '18/09/2026 07:45',
+    actor: 'System',
+    role: 'System',
+    module: 'Payment',
+    action: 'Tạo giao dịch thanh toán',
+    target: 'TXN-20260918-001',
+    result: 'success',
+    ip: 'payment-svc',
+    device: 'Payment service',
+    reason: 'Thu phí quá hạn.',
+  },
+  {
+    id: 'AUD-20260918-010',
+    time: '18/09/2026 07:20',
+    actor: 'Admin02',
+    role: 'Admin',
+    module: 'Policy',
+    action: 'Vô hiệu hóa chính sách',
+    target: 'LateFee_v2',
+    result: 'failed',
+    ip: '10.10.10.77',
+    device: 'Firefox trên Windows',
+    reason: 'Chính sách đang được sử dụng.',
+  },
+  {
+    id: 'AUD-20260917-011',
+    time: '17/09/2026 18:10',
+    actor: 'Nguyễn Văn A',
+    role: 'Admin',
+    module: 'Locker',
+    action: 'Thêm locker',
+    target: 'LK-08',
+    result: 'success',
+    ip: '10.10.10.24',
+    device: 'Edge trên Windows',
+    reason: 'Mở rộng điểm phục vụ.',
+  },
+  {
+    id: 'AUD-20260917-012',
+    time: '17/09/2026 17:34',
+    actor: 'System',
+    role: 'System',
+    module: 'Security',
+    action: 'Khôi phục kết nối',
+    target: 'LK-02',
+    result: 'success',
+    ip: 'gateway',
+    device: 'Gateway service',
+    reason: 'Heartbeat hoạt động trở lại.',
+  },
+];
+
+export const OPERATORS = [
+  'Nguyễn Văn B',
+  'Trần Thị C',
+  'Lê Minh D',
+  'Phạm Thị E',
+  'Hoàng Văn F',
+  'Vũ Minh K',
+  'Đỗ Ngọc H',
+];
