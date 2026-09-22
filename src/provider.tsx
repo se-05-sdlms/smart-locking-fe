@@ -1,10 +1,12 @@
 import { Toast } from '@heroui/react';
 import Xmark from '@gravity-ui/icons/Xmark';
 
+import { AuthProvider } from '@/auth/auth-context';
+
 export function Provider({ children }: { children: React.ReactNode }) {
   return (
     <>
-      {children}
+      <AuthProvider>{children}</AuthProvider>
       <Toast.Provider placement="bottom end">
         {({ toast }) => {
           const { description, indicator, title, variant } = toast.content;

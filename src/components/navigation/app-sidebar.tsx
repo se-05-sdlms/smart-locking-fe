@@ -9,6 +9,7 @@ import clsx from 'clsx';
 
 import boxoraLogo from '@/assets/boxora-logo.svg';
 import { getNavigationItems } from '@/config/navigation';
+import { useAuth } from '@/auth/auth-context';
 
 type AppSidebarProps = {
   role: AppRole;
@@ -64,8 +65,14 @@ export function AppSidebar({
   onCollapsedChange,
 }: AppSidebarProps) {
   const navigate = useNavigate();
+  const { isLoggingOut, logout, user } = useAuth();
   const roleDetail = roleDetails[role];
   const navigationItems = getNavigationItems(role);
+  const identity = user?.email ?? user?.phoneNumber ?? roleDetail.identity;
+  const handleLogout = async () => {
+    await logout();
+    navigate('/', { replace: true });
+  };
 
   return (
     <Surface
@@ -141,12 +148,12 @@ export function AppSidebar({
         >
           <Avatar className="shrink-0" size="sm">
             <Avatar.Fallback>
-              {roleDetail.identity.slice(0, 2).toUpperCase()}
+              {identity.slice(0, 2).toUpperCase()}
             </Avatar.Fallback>
           </Avatar>
           <div className={clsx('min-w-0', isCollapsed && 'sr-only')}>
             <p className="truncate text-sm font-semibold text-neutral-900">
-              {roleDetail.identity}
+              {identity}
             </p>
             <p className="truncate text-xs text-neutral-500">
               {roleDetail.title}
@@ -160,9 +167,10 @@ export function AppSidebar({
                 isIconOnly
                 aria-label="Đăng xuất"
                 className="w-full"
+                isDisabled={isLoggingOut}
                 size="sm"
                 variant="ghost"
-                onPress={() => navigate('/')}
+                onPress={() => void handleLogout()}
               >
                 <ArrowRightFromSquare aria-hidden="true" className="size-5" />
               </Button>
@@ -172,12 +180,13 @@ export function AppSidebar({
         ) : (
           <Button
             className="mt-2 w-full justify-start text-neutral-600 hover:text-accent"
+            isDisabled={isLoggingOut}
             size="sm"
             variant="ghost"
-            onPress={() => navigate('/')}
+            onPress={() => void handleLogout()}
           >
             <ArrowRightFromSquare aria-hidden="true" className="size-5" />
-            Đăng xuất
+            {isLoggingOut ? 'Đang đăng xuất...' : 'Đăng xuất'}
           </Button>
         )}
       </div>
