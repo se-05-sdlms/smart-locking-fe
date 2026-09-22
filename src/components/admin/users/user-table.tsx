@@ -38,6 +38,7 @@ type UserTableProps = {
   totalPages: number;
   isLoading: boolean;
   hasError: boolean;
+  errorMessage?: string;
   hasActiveFilters: boolean;
   sortDescriptor: UserSortDescriptor;
   onPageChange: (page: number) => void;
@@ -174,7 +175,13 @@ function LoadingState() {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({
+  message,
+  onRetry,
+}: {
+  message?: string;
+  onRetry: () => void;
+}) {
   return (
     <Alert status="danger">
       <Alert.Indicator>
@@ -183,7 +190,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
       <Alert.Content>
         <Alert.Title>Không thể tải danh sách người dùng</Alert.Title>
         <Alert.Description>
-          Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại.
+          {message ?? 'Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại.'}
         </Alert.Description>
         <Button className="mt-4" size="sm" variant="outline" onPress={onRetry}>
           <ArrowsRotateRight aria-hidden="true" className="size-4" />
@@ -294,6 +301,7 @@ export function UserTable({
   totalPages,
   isLoading,
   hasError,
+  errorMessage,
   hasActiveFilters,
   sortDescriptor,
   onPageChange,
@@ -303,7 +311,7 @@ export function UserTable({
   onChangeAccountStatus,
 }: UserTableProps) {
   if (isLoading) return <LoadingState />;
-  if (hasError) return <ErrorState onRetry={onRetry} />;
+  if (hasError) return <ErrorState message={errorMessage} onRetry={onRetry} />;
   if (users.length === 0)
     return <UsersEmptyState hasActiveFilters={hasActiveFilters} role={role} />;
 

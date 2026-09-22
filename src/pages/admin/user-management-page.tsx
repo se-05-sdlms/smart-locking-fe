@@ -8,7 +8,7 @@ import type {
 } from '@/types/user-management';
 
 import { useEffect, useRef, useState } from 'react';
-import { Alert, Button, Tabs } from '@heroui/react';
+import { Button, Tabs, toast } from '@heroui/react';
 import CirclePlus from '@gravity-ui/icons/CirclePlus';
 
 import { AccountStatusModal } from '@/components/admin/users/account-status-modal';
@@ -18,7 +18,7 @@ import { UserDetailModal } from '@/components/admin/users/user-detail-modal';
 import { UserManagementToolbar } from '@/components/admin/users/user-management-toolbar';
 import { UserTable } from '@/components/admin/users/user-table';
 import { DEFAULT_PAGE_SIZE } from '@/constants/user-management';
-import { userManagementService } from '@/mocks/user-management-service';
+import { userManagementService } from '@/services/user-management-service';
 
 type UserManagementPageProps = {
   service?: UserManagementService;
@@ -49,6 +49,7 @@ export default function UserManagementPage({
 }: UserManagementPageProps) {
   const [role, setRole] = useState<UserRole>('LOCKER_OPERATOR');
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [status, setStatus] = useState<StatusFilter>('ALL');
   const [sortDescriptor, setSortDescriptor] = useState<UserSortDescriptor>(() =>
     getDefaultSortDescriptor('LOCKER_OPERATOR'),
@@ -59,15 +60,44 @@ export default function UserManagementPage({
     useState<PaginatedResult<ManagedUserView>>(emptyResult);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | undefined>();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [assignmentOperatorId, setAssignmentOperatorId] = useState<
     string | null
   >(null);
   const [isCreateOperatorOpen, setIsCreateOperatorOpen] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [accountStatusTarget, setAccountStatusTarget] =
     useState<AccountStatusTarget | null>(null);
   const latestRequestId = useRef(0);
+  const successToastId = useRef<string | null>(null);
+
+  const dismissSuccessToast = () => {
+    if (successToastId.current) toast.close(successToastId.current);
+    successToastId.current = null;
+  };
+
+  const showSuccessToast = (message: string) => {
+    // Reuse this page's toast slot without clearing other application notifications.
+    successToastId.current = successToastId.current
+      ? toast.update(successToastId.current, message, {
+          variant: 'success',
+          timeout: 3000,
+        })
+      : toast.success(message, { timeout: 3000 });
+  };
+
+  useEffect(() => {
+    return () => {
+      if (successToastId.current) toast.close(successToastId.current);
+      successToastId.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 250);
+
+    return () => window.clearTimeout(timer);
+  }, [search]);
 
   useEffect(() => {
     const requestId = latestRequestId.current + 1;
@@ -76,11 +106,12 @@ export default function UserManagementPage({
     latestRequestId.current = requestId;
     setIsLoading(true);
     setHasError(false);
+    setErrorMessage(undefined);
 
     void service
       .getUsers({
         role,
-        search,
+        search: debouncedSearch,
         status,
         sortDescriptor,
         page,
@@ -92,6 +123,7 @@ export default function UserManagementPage({
         if (!response.success) {
           setResult(emptyResult);
           setHasError(true);
+          setErrorMessage(response.error.message);
 
           return;
         }
@@ -114,7 +146,15 @@ export default function UserManagementPage({
     return () => {
       isActive = false;
     };
-  }, [page, retryCount, role, search, service, sortDescriptor, status]);
+  }, [
+    page,
+    retryCount,
+    role,
+    debouncedSearch,
+    service,
+    sortDescriptor,
+    status,
+  ]);
 
   const handleRoleChange = (nextRole: UserRole) => {
     setRole(nextRole);
@@ -143,12 +183,13 @@ export default function UserManagementPage({
     setStatus('ALL');
     setSortDescriptor(getDefaultSortDescriptor('LOCKER_OPERATOR'));
     setPage(1);
-    setSuccessMessage('Đã thêm nhân viên vận hành.');
+    showSuccessToast('Đã thêm nhân viên vận hành.');
     setRetryCount((current) => current + 1);
   };
 
   const currentTable = (
     <UserTable
+      errorMessage={errorMessage}
       hasActiveFilters={search.trim().length > 0 || status !== 'ALL'}
       hasError={hasError}
       isLoading={isLoading}
@@ -167,7 +208,10 @@ export default function UserManagementPage({
         });
       }}
       onPageChange={setPage}
-      onRetry={() => setRetryCount((current) => current + 1)}
+      onRetry={() => {
+        service.invalidateCache?.();
+        setRetryCount((current) => current + 1);
+      }}
       onSortChange={handleSortChange}
       onViewDetails={setSelectedUserId}
     />
@@ -175,14 +219,6 @@ export default function UserManagementPage({
 
   return (
     <section className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-      {successMessage ? (
-        <Alert status="success">
-          <Alert.Content>
-            <Alert.Title>{successMessage}</Alert.Title>
-          </Alert.Content>
-        </Alert>
-      ) : null}
-
       <Tabs
         align="start"
         selectedKey={role}
@@ -232,8 +268,13 @@ export default function UserManagementPage({
         operatorId={assignmentOperatorId}
         service={service}
         onClose={() => setAssignmentOperatorId(null)}
+        onDataChanged={() => {
+          dismissSuccessToast();
+          setRetryCount((current) => current + 1);
+        }}
         onSaved={() => {
           setAssignmentOperatorId(null);
+          showSuccessToast('Đã cập nhật phân công tủ.');
           setRetryCount((current) => current + 1);
         }}
       />
@@ -242,6 +283,10 @@ export default function UserManagementPage({
         service={service}
         onClose={() => setIsCreateOperatorOpen(false)}
         onCreated={handleOperatorCreated}
+        onDataChanged={() => {
+          dismissSuccessToast();
+          setRetryCount((current) => current + 1);
+        }}
       />
       <AccountStatusModal
         isOpen={Boolean(accountStatusTarget)}
@@ -249,8 +294,11 @@ export default function UserManagementPage({
         service={service}
         user={accountStatusTarget?.user ?? null}
         onClose={() => setAccountStatusTarget(null)}
-        onSuccess={() => {
+        onSuccess={(mode) => {
           setAccountStatusTarget(null);
+          showSuccessToast(
+            mode === 'LOCK' ? 'Đã khóa tài khoản.' : 'Đã mở khóa tài khoản.',
+          );
           setRetryCount((current) => current + 1);
         }}
       />
