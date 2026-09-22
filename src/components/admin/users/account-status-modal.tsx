@@ -155,8 +155,8 @@ export function AccountStatusModal({
     >
       <Modal.Backdrop isDismissable={!isSubmitting}>
         <Modal.Container scroll="inside" size="sm">
-          <Modal.Dialog>
-            <Modal.Header>
+          <Modal.Dialog className="max-h-full overflow-hidden">
+            <Modal.Header className="shrink-0 pb-3 pr-10">
               <Modal.Icon>
                 {isLocking ? (
                   <Lock aria-hidden="true" className="size-5" />
@@ -170,8 +170,11 @@ export function AccountStatusModal({
                 isDisabled={isSubmitting}
               />
             </Modal.Header>
-            <Form onSubmit={handleSubmit}>
-              <Modal.Body>
+            <Form
+              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              onSubmit={handleSubmit}
+            >
+              <Modal.Body className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <div className="space-y-5">
                   <Card variant="secondary">
                     <Card.Content>
@@ -284,8 +287,9 @@ export function AccountStatusModal({
                   ) : null}
                 </div>
               </Modal.Body>
-              <Modal.Footer>
+              <Modal.Footer className="shrink-0">
                 <Button
+                  className="min-h-11"
                   isDisabled={isSubmitting}
                   variant="ghost"
                   onPress={closeModal}
@@ -293,6 +297,7 @@ export function AccountStatusModal({
                   Hủy
                 </Button>
                 <Button
+                  className="min-h-11"
                   isDisabled={isSubmitting}
                   type="submit"
                   variant={isLocking ? 'danger' : 'primary'}
