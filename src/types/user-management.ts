@@ -80,6 +80,8 @@ export type CreateOperatorRequest = {
   phoneNumber: string;
   avatarUrl?: string;
   lockerIds: string[];
+  // Resume only an account confirmed created by a previous submit of this form.
+  createdOperatorId?: string;
 };
 
 export type OperatorLockReasonCode =
@@ -161,6 +163,9 @@ export type UserManagementErrorCode =
   | 'USER_ALREADY_LOCKED'
   | 'USER_NOT_FOUND'
   | 'VALIDATION_ERROR'
+  | 'SERVICE_ERROR'
+  | 'RATE_LIMITED'
+  | 'UNSUPPORTED_CONTRACT'
   | 'MOCK_FAILURE';
 
 export type ServiceSuccess<T> = {
@@ -173,6 +178,9 @@ export type ServiceFailure = {
   error: {
     code: UserManagementErrorCode;
     message: string;
+    reloadRequired?: boolean;
+    createdOperatorId?: string;
+    retryAfterMs?: number;
   };
 };
 
@@ -200,6 +208,10 @@ export type MockUserManagementServiceOptions = {
 };
 
 export interface UserManagementService {
+  invalidateCache?(): void;
+  getUserDetail?(
+    userId: string,
+  ): Promise<ServiceResult<{ user: ManagedUserView; assigned: Locker[] }>>;
   getUsers(
     filters: UserFilters,
   ): Promise<ServiceResult<PaginatedResult<ManagedUserView>>>;

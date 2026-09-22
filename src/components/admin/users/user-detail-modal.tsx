@@ -94,25 +94,42 @@ export function UserDetailModal({
     setUser(null);
     setAssignment(null);
 
-    void service
-      .getUserById(userId)
-      .then(async (userResult) => {
+    const request = service.getUserDetail
+      ? service.getUserDetail(userId)
+      : service.getUserById(userId).then(async (userResult) => {
+          if (!userResult.success) return userResult;
+
+          if (userResult.data.role === 'LOCKER_OPERATOR') {
+            const assignmentResult = await service.getLockerAssignment(userId);
+
+            if (!assignmentResult.success) return assignmentResult;
+
+            return {
+              success: true as const,
+              data: {
+                user: userResult.data,
+                assigned: assignmentResult.data.assigned,
+              },
+            };
+          }
+
+          return {
+            success: true as const,
+            data: { user: userResult.data, assigned: [] },
+          };
+        });
+
+    void request
+      .then((result) => {
+        if (!result.success) throw new Error(result.error.message);
+
         if (!isActive || requestId !== requestIdRef.current) return;
-        if (!userResult.success) throw new Error(userResult.error.message);
-
-        let nextAssignment: LockerAssignmentSnapshot | null = null;
-
-        if (userResult.data.role === 'LOCKER_OPERATOR') {
-          const assignmentResult = await service.getLockerAssignment(userId);
-
-          if (!assignmentResult.success)
-            throw new Error(assignmentResult.error.message);
-          nextAssignment = assignmentResult.data;
-        }
-
-        if (!isActive || requestId !== requestIdRef.current) return;
-        setUser(userResult.data);
-        setAssignment(nextAssignment);
+        setUser(result.data.user);
+        setAssignment({
+          assigned: result.data.assigned,
+          available: [],
+          assignedToOtherOperators: [],
+        });
       })
       .catch((error: unknown) => {
         if (!isActive || requestId !== requestIdRef.current) return;
@@ -169,7 +186,10 @@ export function UserDetailModal({
                     <Button
                       className="mt-4"
                       variant="outline"
-                      onPress={() => setRetryCount((count) => count + 1)}
+                      onPress={() => {
+                        service.invalidateCache?.();
+                        setRetryCount((count) => count + 1);
+                      }}
                     >
                       <ArrowsRotateRight
                         aria-hidden="true"

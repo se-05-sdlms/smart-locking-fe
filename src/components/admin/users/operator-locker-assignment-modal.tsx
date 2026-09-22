@@ -26,6 +26,7 @@ type OperatorLockerAssignmentModalProps = {
   service: UserManagementService;
   onClose: () => void;
   onSaved: () => void;
+  onDataChanged?: () => void;
 };
 
 type AssignmentData = {
@@ -80,6 +81,7 @@ export function OperatorLockerAssignmentModal({
   service,
   onClose,
   onSaved,
+  onDataChanged,
 }: OperatorLockerAssignmentModalProps) {
   const [data, setData] = useState<AssignmentData | null>(null);
   const [selectedLockerIds, setSelectedLockerIds] = useState<Set<string>>(
@@ -90,8 +92,9 @@ export function OperatorLockerAssignmentModal({
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const requestIdRef = useRef(0);
+  const savePendingRef = useRef(false);
 
-  const loadAssignment = () => {
+  const loadAssignment = (failureMessage?: string) => {
     if (!operatorId) return;
 
     const requestId = requestIdRef.current + 1;
@@ -123,6 +126,7 @@ export function OperatorLockerAssignmentModal({
         setSelectedLockerIds(
           new Set(assignmentResult.data.assigned.map((locker) => locker.id)),
         );
+        setErrorMessage(failureMessage ?? null);
       })
       .catch((error: unknown) => {
         if (!isActive || requestId !== requestIdRef.current) return;
@@ -195,7 +199,7 @@ export function OperatorLockerAssignmentModal({
     filteredGroups.assignedToOtherOperators.length === 0;
 
   const closeModal = () => {
-    if (isSaving) return;
+    if (savePendingRef.current || isSaving) return;
 
     onClose();
   };
@@ -204,6 +208,7 @@ export function OperatorLockerAssignmentModal({
     groupLockerIds: string[],
     keys: Iterable<string | number>,
   ) => {
+    if (savePendingRef.current || isLoading) return;
     setSelectedLockerIds((current) => {
       const nextSelection = new Set(current);
 
@@ -215,13 +220,15 @@ export function OperatorLockerAssignmentModal({
   };
 
   const saveAssignment = () => {
-    if (!operatorId || isSaving || !data) return;
+    if (!operatorId || savePendingRef.current || isSaving || isLoading || !data)
+      return;
     if (!hasChanges) {
       onClose();
 
       return;
     }
 
+    savePendingRef.current = true;
     setIsSaving(true);
     setErrorMessage(null);
 
@@ -233,6 +240,14 @@ export function OperatorLockerAssignmentModal({
       .then((result) => {
         if (!result.success) {
           setErrorMessage(result.error.message);
+          if (
+            result.error.reloadRequired ||
+            result.error.code === 'LOCKER_CONFLICT' ||
+            result.error.code === 'LOCKER_NOT_FOUND'
+          ) {
+            onDataChanged?.();
+            loadAssignment(result.error.message);
+          }
 
           return;
         }
@@ -242,7 +257,10 @@ export function OperatorLockerAssignmentModal({
       .catch(() => {
         setErrorMessage('Không thể lưu phân công tủ. Vui lòng thử lại.');
       })
-      .finally(() => setIsSaving(false));
+      .finally(() => {
+        savePendingRef.current = false;
+        setIsSaving(false);
+      });
   };
 
   return (
@@ -293,7 +311,7 @@ export function OperatorLockerAssignmentModal({
                     <Button
                       className="mt-4"
                       variant="outline"
-                      onPress={loadAssignment}
+                      onPress={() => loadAssignment()}
                     >
                       <ArrowsRotateRight
                         aria-hidden="true"
