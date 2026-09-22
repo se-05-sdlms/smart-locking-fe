@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   FieldError,
@@ -10,21 +10,63 @@ import {
 } from '@heroui/react';
 
 import ShapeGrid from '@/components/react-bits/shape-grid';
-import { authenticate } from '@/mocks/auth';
 import boxoraLogo from '@/assets/boxora-logo.svg';
+import { useAuth } from '@/auth/auth-context';
+import { getAppRole } from '@/types/auth';
+import { getLoginErrorMessage } from '@/services/auth-service';
+
+type LoginLocationState = {
+  from?: string;
+};
+
+function getDestination(role: 'admin' | 'operator', requestedPath?: string) {
+  const roleRoot = `/${role}`;
+
+  return requestedPath === roleRoot || requestedPath?.startsWith(`${roleRoot}/`)
+    ? requestedPath
+    : roleRoot;
+}
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isLoading, login, session } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const submit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError('');
-    const account = authenticate(username, password);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const submissionPending = useRef(false);
+  const requestedPath = (location.state as LoginLocationState | null)?.from;
 
-    if (account) navigate(`/${account.role}`);
-    else setError('Tên đăng nhập hoặc mật khẩu không đúng.');
+  useEffect(() => {
+    if (isLoading || isSubmitting || error || !session) return;
+
+    if (session.user.status !== 'Active') return;
+
+    const appRole = getAppRole(session.user.role);
+
+    if (appRole) {
+      navigate(getDestination(appRole, requestedPath), { replace: true });
+    }
+  }, [error, isLoading, isSubmitting, navigate, requestedPath, session]);
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (submissionPending.current || isLoading) return;
+
+    submissionPending.current = true;
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      await login(username.trim(), password);
+    } catch (submitError) {
+      setError(getLoginErrorMessage(submitError));
+    } finally {
+      submissionPending.current = false;
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -75,6 +117,7 @@ export default function LoginPage() {
             </div>
             <TextField
               isRequired
+              isDisabled={isSubmitting}
               name="username"
               type="text"
               validate={(value) =>
@@ -90,6 +133,7 @@ export default function LoginPage() {
             <TextField
               isRequired
               className="mt-5"
+              isDisabled={isSubmitting}
               name="password"
               type="password"
               validate={(value) =>
@@ -110,8 +154,13 @@ export default function LoginPage() {
                 {error}
               </p>
             )}
-            <Button className="mt-7 w-full" type="submit" variant="primary">
-              Đăng nhập
+            <Button
+              className="mt-7 w-full"
+              isDisabled={isSubmitting}
+              type="submit"
+              variant="primary"
+            >
+              {isSubmitting ? 'Đang đăng nhập...' : 'Đăng nhập'}
             </Button>
           </Form>
         </section>

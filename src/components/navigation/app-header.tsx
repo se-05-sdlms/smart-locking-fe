@@ -16,6 +16,10 @@ export function AppHeader({ role }: { role: AppRole }) {
   const currentItem = getNavigationItem(pathname, role);
   const isOperatorDashboard = pathname === '/operator';
   const isOperatorSettings = pathname === '/operator/settings';
+  const headerTitle =
+    pathname === '/admin/users'
+      ? 'Quản lý người dùng'
+      : (currentItem?.label ?? 'Tổng quan');
   const lockerId =
     currentItem?.path === '/operator/lockers'
       ? pathname.slice('/operator/lockers/'.length).split('/')[0]
@@ -65,7 +69,7 @@ export function AppHeader({ role }: { role: AppRole }) {
           </p>
         </div>
       ) : currentItem?.path === '/operator/lockers' ||
-      currentItem?.path === '/operator/overdue-clearance' ? (
+        currentItem?.path === '/operator/overdue-clearance' ? (
         <Breadcrumbs aria-label="Đường dẫn trang">
           <Breadcrumbs.Item
             className="!text-xl font-semibold tracking-tight"
@@ -89,7 +93,7 @@ export function AppHeader({ role }: { role: AppRole }) {
         </Breadcrumbs>
       ) : (
         <h1 className="text-xl font-semibold tracking-tight text-neutral-950">
-          {currentItem?.label ?? 'Tổng quan'}
+          {headerTitle}
         </h1>
       )}
       <Toolbar aria-label="Thao tác ứng dụng" className="gap-1">
