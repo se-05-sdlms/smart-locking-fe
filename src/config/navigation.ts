@@ -9,7 +9,6 @@ import Gear from '@gravity-ui/icons/Gear';
 import House from '@gravity-ui/icons/House';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
 import Persons from '@gravity-ui/icons/Persons';
-import ShieldCheck from '@gravity-ui/icons/ShieldCheck';
 import Hourglass from '@gravity-ui/icons/Hourglass';
 
 export type AppRole = 'admin' | 'operator';
@@ -24,12 +23,6 @@ export type NavigationItem = {
 const adminNavigation: NavigationItem[] = [
   { label: 'Dashboard', path: '/admin', icon: House, role: 'admin' },
   { label: 'Người dùng', path: '/admin/users', icon: Persons, role: 'admin' },
-  {
-    label: 'Vai trò & quyền',
-    path: '/admin/roles',
-    icon: ShieldCheck,
-    role: 'admin',
-  },
   {
     label: 'Tòa nhà',
     path: '/admin/buildings',
