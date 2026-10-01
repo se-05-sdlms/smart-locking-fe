@@ -18,6 +18,7 @@ import OperatorLockerDetailPage from '@/pages/operator/locker-detail';
 import OperatorOverdueClearancePage from '@/pages/operator/overdue-clearance';
 import OperatorDashboardPage from '@/pages/operator/dashboard';
 import OperatorSettingsPage from '@/pages/operator/settings';
+import OperatorIncidentsPage from '@/pages/operator/incidents';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
 import { RequireRole } from '@/auth/route-guards';
@@ -66,6 +67,11 @@ function roleRoute(role: AppRole) {
             element={<OperatorSettingsPage />}
             path="settings"
           />
+        ) : item.path === '/operator/incidents' ? (
+          <Route key={item.path} path="incidents">
+            <Route index element={<OperatorIncidentsPage />} />
+            <Route element={<OperatorIncidentsPage />} path=":incidentId" />
+          </Route>
         ) : (
           <Route
             key={item.path}
