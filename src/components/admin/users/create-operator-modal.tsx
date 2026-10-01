@@ -31,6 +31,7 @@ type CreateOperatorModalProps = {
   service: UserManagementService;
   onClose: () => void;
   onCreated: (operator: OperatorUserView) => void;
+  onDataChanged?: () => void;
 };
 
 type FormValues = {
@@ -84,6 +85,7 @@ export function CreateOperatorModal({
   service,
   onClose,
   onCreated,
+  onDataChanged,
 }: CreateOperatorModalProps) {
   const [values, setValues] = useState<FormValues>(emptyForm);
   const [errors, setErrors] = useState<FormErrors>({});
@@ -97,6 +99,9 @@ export function CreateOperatorModal({
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [isReadingAvatar, setIsReadingAvatar] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [createdOperatorId, setCreatedOperatorId] = useState<string>();
+  const [creationUncertain, setCreationUncertain] = useState(false);
+  const submissionRef = useRef(false);
   const lockerRequestIdRef = useRef(0);
   const avatarRequestIdRef = useRef(0);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -112,10 +117,12 @@ export function CreateOperatorModal({
     setAvatarError(null);
     setIsReadingAvatar(false);
     setLockerError(null);
+    setCreatedOperatorId(undefined);
+    setCreationUncertain(false);
   };
 
   const closeForm = () => {
-    if (isSubmitting || isReadingAvatar) return;
+    if (submissionRef.current || isSubmitting || isReadingAvatar) return;
     resetForm();
     onClose();
   };
@@ -129,8 +136,18 @@ export function CreateOperatorModal({
     setLockerError(null);
     setLockerPage(1);
 
-    void service
-      .getAvailableLockers()
+    const lockerRequest = createdOperatorId
+      ? service.getLockerAssignment(createdOperatorId).then((result) =>
+          result.success
+            ? {
+                success: true as const,
+                data: [...result.data.assigned, ...result.data.available],
+              }
+            : result,
+        )
+      : service.getAvailableLockers();
+
+    void lockerRequest
       .then((result) => {
         if (!isActive || requestId !== lockerRequestIdRef.current) return;
         if (!result.success) {
@@ -142,7 +159,9 @@ export function CreateOperatorModal({
         }
 
         const unassignedLockers = result.data.filter(
-          (locker) => locker.assignedOperatorId === null,
+          (locker) =>
+            locker.assignedOperatorId === null ||
+            locker.assignedOperatorId === createdOperatorId,
         );
 
         setAvailableLockers(unassignedLockers);
@@ -172,7 +191,7 @@ export function CreateOperatorModal({
     if (!isOpen) return;
 
     return loadAvailableLockers();
-  }, [isOpen, service]);
+  }, [isOpen, service, createdOperatorId]);
 
   const setFieldValue = (field: keyof FormValues, value: string) => {
     setValues((current) => ({ ...current, [field]: value }));
@@ -234,16 +253,24 @@ export function CreateOperatorModal({
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSubmitting || isReadingAvatar) return;
+    if (
+      submissionRef.current ||
+      isSubmitting ||
+      isReadingAvatar ||
+      creationUncertain ||
+      isLoadingLockers
+    )
+      return;
 
     const clientErrors = getClientErrors(values);
 
-    if (Object.keys(clientErrors).length > 0) {
+    if (Object.keys(clientErrors).length > 0 || avatarError) {
       setErrors(clientErrors);
 
       return;
     }
 
+    submissionRef.current = true;
     setIsSubmitting(true);
     setErrors({});
     void service
@@ -253,9 +280,16 @@ export function CreateOperatorModal({
         phoneNumber: values.phoneNumber,
         ...(avatarUrl ? { avatarUrl } : {}),
         lockerIds: selectedLockerIds,
+        createdOperatorId,
       })
       .then((result) => {
         if (!result.success) {
+          if (result.error.createdOperatorId)
+            setCreatedOperatorId(result.error.createdOperatorId);
+          if (result.error.reloadRequired) {
+            setCreationUncertain(!result.error.createdOperatorId);
+            onDataChanged?.();
+          }
           const fieldByCode: Partial<Record<string, keyof FormErrors>> = {
             DUPLICATE_EMAIL: 'email',
             DUPLICATE_PHONE: 'phoneNumber',
@@ -264,7 +298,9 @@ export function CreateOperatorModal({
             LOCKER_CONFLICT: 'lockerIds',
             LOCKER_NOT_FOUND: 'lockerIds',
           };
-          const field = fieldByCode[result.error.code] ?? 'form';
+          const field = result.error.createdOperatorId
+            ? 'form'
+            : (fieldByCode[result.error.code] ?? 'form');
 
           setErrors({ [field]: result.error.message });
           if (field === 'lockerIds') loadAvailableLockers();
@@ -281,7 +317,10 @@ export function CreateOperatorModal({
           form: 'Không thể thêm nhân viên vận hành. Vui lòng thử lại.',
         });
       })
-      .finally(() => setIsSubmitting(false));
+      .finally(() => {
+        submissionRef.current = false;
+        setIsSubmitting(false);
+      });
   };
 
   const normalizedLockerSearch = lockerSearch.trim().toLocaleLowerCase('vi-VN');
@@ -311,6 +350,7 @@ export function CreateOperatorModal({
     .map((locker) => locker.code);
 
   const handleLockerSelectionChange = (keys: Selection) => {
+    if (submissionRef.current) return;
     setSelectedLockerIds((current) => {
       const hiddenSelections = current.filter(
         (id) => !visibleLockerIds.has(id),
@@ -334,16 +374,19 @@ export function CreateOperatorModal({
     >
       <Modal.Backdrop isDismissable={!isSubmitting && !isReadingAvatar}>
         <Modal.Container scroll="inside" size="lg">
-          <Modal.Dialog className="max-w-6xl">
-            <Modal.Header>
+          <Modal.Dialog className="h-full max-h-[48rem] max-w-6xl overflow-hidden">
+            <Modal.Header className="shrink-0 pb-3 pr-10">
               <Modal.Heading>Thêm nhân viên vận hành</Modal.Heading>
               <Modal.CloseTrigger
                 aria-label="Đóng biểu mẫu"
                 isDisabled={isSubmitting || isReadingAvatar}
               />
             </Modal.Header>
-            <Form onSubmit={handleSubmit}>
-              <Modal.Body>
+            <Form
+              className="flex min-h-0 flex-1 flex-col overflow-hidden"
+              onSubmit={handleSubmit}
+            >
+              <Modal.Body className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
                 <>
                   <div className="grid items-start gap-8 lg:grid-cols-[21rem_minmax(0,1fr)]">
                     <section className="space-y-5">
@@ -354,7 +397,11 @@ export function CreateOperatorModal({
                           isIconOnly
                           aria-label="Chọn ảnh đại diện"
                           className="size-fit rounded-full p-0"
-                          isDisabled={isSubmitting || isReadingAvatar}
+                          isDisabled={
+                            isSubmitting ||
+                            isReadingAvatar ||
+                            Boolean(createdOperatorId)
+                          }
                           variant="ghost"
                           onPress={() => avatarInputRef.current?.click()}
                         >
@@ -397,7 +444,11 @@ export function CreateOperatorModal({
                         onChange={(value) => setFieldValue('fullName', value)}
                       >
                         <Label>Họ và tên</Label>
-                        <Input fullWidth variant="primary" />
+                        <Input
+                          fullWidth
+                          disabled={isSubmitting || Boolean(createdOperatorId)}
+                          variant="primary"
+                        />
                         {errors.fullName ? (
                           <FieldError>{errors.fullName}</FieldError>
                         ) : null}
@@ -411,7 +462,11 @@ export function CreateOperatorModal({
                         onChange={(value) => setFieldValue('email', value)}
                       >
                         <Label>Email</Label>
-                        <Input fullWidth variant="primary" />
+                        <Input
+                          fullWidth
+                          disabled={isSubmitting || Boolean(createdOperatorId)}
+                          variant="primary"
+                        />
                         {errors.email ? (
                           <FieldError>{errors.email}</FieldError>
                         ) : null}
@@ -427,7 +482,11 @@ export function CreateOperatorModal({
                         }
                       >
                         <Label>Số điện thoại</Label>
-                        <Input fullWidth variant="primary" />
+                        <Input
+                          fullWidth
+                          disabled={isSubmitting || Boolean(createdOperatorId)}
+                          variant="primary"
+                        />
                         {errors.phoneNumber ? (
                           <FieldError>{errors.phoneNumber}</FieldError>
                         ) : null}
@@ -510,9 +569,9 @@ export function CreateOperatorModal({
                                       </Checkbox>
                                     </Table.Column>
                                     <Table.Column
+                                      isRowHeader
                                       className="w-32"
                                       id="code"
-                                      isRowHeader
                                     >
                                       Mã tủ
                                     </Table.Column>
@@ -635,8 +694,9 @@ export function CreateOperatorModal({
                   ) : null}
                 </>
               </Modal.Body>
-              <Modal.Footer>
+              <Modal.Footer className="shrink-0">
                 <Button
+                  className="min-h-11"
                   isDisabled={isSubmitting || isReadingAvatar}
                   variant="danger"
                   onPress={closeForm}
@@ -644,7 +704,14 @@ export function CreateOperatorModal({
                   Hủy
                 </Button>
                 <Button
-                  isDisabled={isSubmitting || isReadingAvatar}
+                  className="min-h-11"
+                  isDisabled={
+                    isSubmitting ||
+                    isReadingAvatar ||
+                    creationUncertain ||
+                    isLoadingLockers ||
+                    Boolean(avatarError)
+                  }
                   type="submit"
                   variant="primary"
                 >
