@@ -1,0 +1,14 @@
+import { Button, Card, Chip, Input, Typography } from '@heroui/react';
+import { useEffect, useState } from 'react';
+import { operationsService, type MaintenanceItem, type OperationalLocker } from '@/services/operations-service';
+
+export default function OperatorMaintenancePage() {
+  const [items, setItems] = useState<MaintenanceItem[]>([]); const [lockers, setLockers] = useState<OperationalLocker[]>([]); const [description, setDescription] = useState(''); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  const load = async () => { try { const [nextItems, nextLockers] = await Promise.all([operationsService.maintenance(), operationsService.lockers()]); setItems(nextItems); setLockers(nextLockers); } catch (e) { setError(e instanceof Error ? e.message : 'Không thể tải bảo trì.'); } };
+  useEffect(() => { void load(); }, []);
+  const create = async () => { if (!lockers[0] || !description.trim()) return; setBusy(true); try { await operationsService.createMaintenance({ lockerId: lockers[0].id, priority: 1, description }); setDescription(''); await load(); } catch (e) { setError(e instanceof Error ? e.message : 'Không thể tạo yêu cầu.'); } finally { setBusy(false); } };
+  const close = async (item: MaintenanceItem) => { const summary = window.prompt('Nhập kết quả bảo trì'); if (!summary) return; await operationsService.updateMaintenance(item.id, { status: 2, resolutionSummary: summary }); await load(); };
+  const statusLabel = ['Mới tạo', 'Đang xử lý', 'Đã đóng', 'Đã hủy'];
+  const priorityLabel = ['Thấp', 'Bình thường', 'Cao', 'Khẩn cấp'];
+  return <section className="flex flex-col gap-6"><div><Typography type="h2">Bảo trì locker</Typography><p className="text-muted">Tạo, theo dõi và đóng công việc trong phạm vi tủ được phân công.</p></div><Card><Card.Header><Card.Title>Tạo yêu cầu</Card.Title></Card.Header><Card.Content className="flex flex-col gap-3 pb-6 sm:flex-row"><Input value={description} onChange={e => setDescription(e.target.value)} placeholder="Mô tả lỗi cần kiểm tra" /><Button isPending={busy} onPress={() => void create()}>Tạo yêu cầu</Button></Card.Content></Card>{error ? <p className="text-danger">{error}</p> : null}<div className="grid gap-4 lg:grid-cols-2">{items.map(item => <Card key={item.id}><Card.Header className="flex-row items-center justify-between"><Card.Title>{item.lockerCode}{item.compartmentCode ? ` · ${item.compartmentCode}` : ''}</Card.Title><Chip variant="soft">{statusLabel[item.status]}</Chip></Card.Header><Card.Content className="space-y-3 pb-6"><p>{item.description}</p><p className="text-sm text-muted">Ưu tiên: {priorityLabel[item.priority]}</p>{item.resolutionSummary ? <p className="text-success">{item.resolutionSummary}</p> : null}{item.status !== 2 ? <Button size="sm" variant="secondary" onPress={() => void close(item)}>Đóng yêu cầu</Button> : null}</Card.Content></Card>)}</div></section>;
+}
