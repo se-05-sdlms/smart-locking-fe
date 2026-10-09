@@ -15,7 +15,7 @@ import type {
   AssignOperatorDto,
   CreatedUserDto,
   CreateOperatorDto,
-  LockerSummaryDto,
+  LockersPageDto,
   UpdateUserStatusDto,
   UserDetailDto,
   UserListItemDto,
@@ -227,9 +227,10 @@ async function loadLockerSnapshot(
   fresh = false,
 ): Promise<Locker[]> {
   const [lockers, operators] = await Promise.all([
-    readUserManagement<LockerSummaryDto[]>('/api/Lockers', signal, fresh),
+    readUserManagement<LockersPageDto>('/api/Lockers?pageSize=100', signal, fresh),
     loadUsers(2, signal, fresh),
   ]);
+  const lockerItems = Array.isArray(lockers) ? lockers : lockers.items;
   const owners = new Map<string, string>();
 
   // No owner is supplied by /Lockers. Derive it only from active assignments.
@@ -261,7 +262,7 @@ async function loadLockerSnapshot(
     }
   }
 
-  const lockerIds = new Set(lockers.map((locker) => locker.id));
+  const lockerIds = new Set(lockerItems.map((locker) => locker.id));
 
   if ([...owners.keys()].some((id) => !lockerIds.has(id))) {
     throw new UserManagementError(
@@ -270,7 +271,7 @@ async function loadLockerSnapshot(
     );
   }
 
-  return lockers.map((locker) => ({
+  return lockerItems.map((locker) => ({
     id: locker.id,
     code: locker.code,
     buildingName: 'Chưa có dữ liệu',
@@ -335,7 +336,7 @@ function changeStatus(
         await apiRequest<UserDetailDto>(
           `/api/Users/${encodeURIComponent(userId)}/status`,
           {
-            method: 'PUT',
+            method: 'PATCH',
             body: JSON.stringify(body),
             signal,
           },
@@ -676,10 +677,13 @@ export const userManagementService: UserManagementService = {
       const active = detail.assignments.filter(
         (assignment) => assignment.revokedAt === null,
       );
-      const lockers =
+      const lockerResponse =
         user.role === 'LOCKER_OPERATOR' && active.length
-          ? await readUserManagement<LockerSummaryDto[]>('/api/Lockers', signal)
+          ? await readUserManagement<LockersPageDto>('/api/Lockers?pageSize=100', signal)
           : [];
+      const lockers = Array.isArray(lockerResponse)
+        ? lockerResponse
+        : lockerResponse.items;
 
       return {
         user,
