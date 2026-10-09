@@ -14,9 +14,16 @@ import CirclePlus from '@gravity-ui/icons/CirclePlus';
 import Gear from '@gravity-ui/icons/Gear';
 import Persons from '@gravity-ui/icons/Persons';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ADMIN_LOCKERS, AUDIT_LOGS } from './admin-data';
+
+import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
+import {
+  operationsService,
+  type OperationalLocker,
+} from '@/services/operations-service';
 
 const METRICS: Array<{
   label: string;
@@ -94,6 +101,7 @@ function LockerStatus({
         Tạm ngưng
       </Chip>
     );
+
   return (
     <Chip color="success" size="sm" variant="soft">
       Hoạt động
@@ -103,12 +111,71 @@ function LockerStatus({
 
 export default function AdminDashboardPage() {
   const navigate = useNavigate();
+  const [liveLockers, setLiveLockers] = useState<OperationalLocker[]>([]);
+  const loadLiveLockers = useCallback(async () => {
+    try {
+      setLiveLockers(await operationsService.lockers());
+    } catch {
+      // Existing dashboard data remains visible during a temporary outage.
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadLiveLockers();
+  }, [loadLiveLockers]);
+  useOperationsRealtime(
+    liveLockers.map((locker) => locker.id),
+    () => void loadLiveLockers(),
+  );
+
+  const liveMetrics = METRICS.map((metric) => {
+    if (!liveLockers.length) return metric;
+    if (metric.label === 'Tổng số locker')
+      return {
+        ...metric,
+        value: String(liveLockers.length),
+        meta: `${liveLockers.filter((locker) => locker.status === 'Operational').length} đang hoạt động`,
+      };
+    if (metric.label === 'Bưu kiện đang lưu')
+      return {
+        ...metric,
+        value: String(
+          liveLockers.reduce(
+            (total, locker) => total + locker.storedParcels,
+            0,
+          ),
+        ),
+        meta: 'Dữ liệu trực tiếp',
+      };
+    if (metric.label === 'Locker offline')
+      return {
+        ...metric,
+        value: String(
+          liveLockers.filter((locker) => locker.connection === 'Offline')
+            .length,
+        ),
+        meta: 'Dữ liệu trực tiếp',
+      };
+    if (metric.label === 'Sự cố mở')
+      return {
+        ...metric,
+        value: String(
+          liveLockers.reduce(
+            (total, locker) => total + locker.openIncidents,
+            0,
+          ),
+        ),
+        meta: 'Dữ liệu trực tiếp',
+      };
+
+    return metric;
+  });
   const recentLockers = ADMIN_LOCKERS.slice(0, 5);
 
   return (
     <section className="flex w-full flex-col gap-5">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {METRICS.map((metric) => (
+        {liveMetrics.map((metric) => (
           <Card key={metric.label} className="h-28">
             <Card.Header className="pb-0">
               <Card.Title className="text-sm font-normal text-muted">
