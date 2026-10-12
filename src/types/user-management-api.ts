@@ -64,3 +64,12 @@ export type LockerSummaryDto = {
   code: string;
   address: string;
 };
+
+export type LockersPageDto =
+  | LockerSummaryDto[]
+  | {
+      items: LockerSummaryDto[];
+      totalCount: number;
+      pageNumber: number;
+      pageSize: number;
+    };

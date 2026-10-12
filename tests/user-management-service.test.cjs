@@ -159,7 +159,7 @@ test('lock/unlock send numeric status and Vietnamese reason; no client audit', a
     const { service } = harness(async (url, options) => {
       if (!options.method) return detail('op', { status: currentStatus });
       assert.equal(url, '/api/Users/op/status');
-      assert.equal(options.method, 'PUT');
+      assert.equal(options.method, 'PATCH');
       writes.push(JSON.parse(options.body));
       return detail('op', { status });
     });
@@ -200,7 +200,7 @@ test('same-account double submit is rejected while first request completes', asy
 
 test('locker ownership derives from active assignments including disabled operators', async () => {
   const { service } = harness(async (url) => {
-    if (url === '/api/Lockers') return ['l1', 'l2', 'l3'].map((id) => ({ id, code: id, address: 'Địa chỉ' }));
+    if (url === '/api/Lockers?pageSize=100') return ['l1', 'l2', 'l3'].map((id) => ({ id, code: id, address: 'Địa chỉ' }));
     if (url.includes('?')) return page([row('op', { activeAssignmentsCount: 1 }), row('disabled', { status: 1, activeAssignmentsCount: 1 })]);
     if (url.endsWith('/op')) return detail('op', { assignments: [{ lockerId: 'l1', revokedAt: null }, { lockerId: 'l3', revokedAt: '2026-01-01' }] });
     return detail('disabled', { status: 1, assignments: [{ lockerId: 'l2', revokedAt: null }] });
@@ -215,7 +215,7 @@ test('locker ownership derives from active assignments including disabled operat
 
 test('conflicting assignment owners produce explicit error, not a fake owner', async () => {
   const { service } = harness(async (url) => {
-    if (url === '/api/Lockers') return [{ id: 'l1', code: 'L1', address: '' }];
+    if (url === '/api/Lockers?pageSize=100') return [{ id: 'l1', code: 'L1', address: '' }];
     if (url.includes('?')) return page([row('a', { activeAssignmentsCount: 1 }), row('b', { activeAssignmentsCount: 1 })]);
     return detail(url.endsWith('/a') ? 'a' : 'b', { assignments: [{ lockerId: 'l1', revokedAt: null }] });
   });
@@ -482,13 +482,13 @@ test('detail view reads only the selected user and locker catalog, never all ope
   const { service } = harness(async (url) => {
     calls.push(url);
     if (url === '/api/Users/op') return detail('op', { assignments: [{ lockerId: 'l1', lockerCode: 'L1', revokedAt: null }] });
-    if (url === '/api/Lockers') return [{ id: 'l1', code: 'L1', address: 'Địa chỉ' }];
+    if (url === '/api/Lockers?pageSize=100') return [{ id: 'l1', code: 'L1', address: 'Địa chỉ' }];
     throw new Error('Unnecessary API scan');
   });
   const [first, second] = await Promise.all([service.getUserDetail('op'), service.getUserDetail('op')]);
   assert.equal(data(first).assigned[0].locationLabel, 'Địa chỉ');
   assert.equal(data(second).user.id, 'op');
-  assert.deepEqual(calls, ['/api/Users/op', '/api/Lockers']);
+  assert.deepEqual(calls, ['/api/Users/op', '/api/Lockers?pageSize=100']);
 });
 
 test('short read cache avoids refetching all users on search/filter/sort/page changes', async () => {
