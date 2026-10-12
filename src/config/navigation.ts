@@ -76,6 +76,12 @@ const operatorNavigation: NavigationItem[] = [
     role: 'operator',
   },
   {
+    label: 'Bảo trì',
+    path: '/operator/maintenance',
+    icon: Gear,
+    role: 'operator',
+  },
+  {
     label: 'Cài đặt',
     path: '/operator/settings',
     icon: Gear,
