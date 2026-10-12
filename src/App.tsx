@@ -18,6 +18,7 @@ import OperatorLockerDetailPage from '@/pages/operator/locker-detail';
 import OperatorOverdueClearancePage from '@/pages/operator/overdue-clearance';
 import OperatorDashboardPage from '@/pages/operator/dashboard';
 import OperatorSettingsPage from '@/pages/operator/settings';
+import AdminReportsPage from '@/pages/admin/reports';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
 import { RequireRole } from '@/auth/route-guards';
@@ -76,6 +77,8 @@ function roleRoute(role: AppRole) {
                 <AdminLockersPage />
               ) : item.path === '/admin/audit-logs' ? (
                 <AdminAuditLogsPage />
+              ) : item.path === '/admin/reports' ? (
+                <AdminReportsPage />
               ) : (
                 <EmptyRoutePage />
               )
