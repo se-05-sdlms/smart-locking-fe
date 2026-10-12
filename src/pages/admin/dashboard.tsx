@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { ADMIN_LOCKERS, AUDIT_LOGS } from './admin-data';
 
+import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
 import {
   operationsService,
   type OperationalLocker,
@@ -122,6 +123,10 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     void loadLiveLockers();
   }, [loadLiveLockers]);
+  useOperationsRealtime(
+    liveLockers.map((locker) => locker.id),
+    () => void loadLiveLockers(),
+  );
 
   const liveMetrics = METRICS.map((metric) => {
     if (!liveLockers.length) return metric;
