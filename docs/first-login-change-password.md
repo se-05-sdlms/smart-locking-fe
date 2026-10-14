@@ -43,6 +43,8 @@ Server rules in `AuthService.ChangePasswordAsync`:
 | New password has at least 8 characters and is not whitespace only | `Password must contain at least 8 characters.` | `Mật khẩu mới phải có ít nhất 8 ký tự.` |
 | New password differs from the current one | `New password must be different from the current password.` | `Mật khẩu mới phải khác mật khẩu hiện tại.` |
 
+The two `ArgumentException` rules come back as ASP.NET ProblemDetails (`{ "title": "Bad Request", "status": 400, "detail": "..." }`) while the current-password rule returns `{ "message": "..." }`. `api-client` reads `message`, then `detail`, then `title`, so both shapes reach the Vietnamese mapping.
+
 While the token claim `must_change_password` is `true`, `PasswordChangeRequiredMiddleware` answers every other API with `403` and code `PasswordChangeRequired`. Only these endpoints stay available:
 
 - `GET /api/auth/me`

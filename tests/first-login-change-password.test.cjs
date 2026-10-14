@@ -341,3 +341,13 @@ test('unknown errors never leak raw English text', () => {
   assert.equal(authService.getChangePasswordErrorMessage('boom'), fallback);
   assert.equal(authService.getChangePasswordErrorMessage(undefined), fallback);
 });
+
+test('ProblemDetails 400 without a recognisable detail falls back to a generic Vietnamese message', () => {
+  const { authService, ApiError } = harness();
+
+  // api-client uses `detail` when present; a bare ProblemDetails only has the title.
+  assert.equal(
+    authService.getChangePasswordErrorMessage(new ApiError(400, 'Bad Request')),
+    'Thông tin đổi mật khẩu không hợp lệ.',
+  );
+});
