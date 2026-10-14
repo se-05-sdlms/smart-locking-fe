@@ -26,6 +26,9 @@ export function useOperationsRealtime(
     const connection = new HubConnectionBuilder()
       .withUrl(getApiUrl('/hubs/operations'), {
         accessTokenFactory: () => readAuthSession()?.accessToken ?? '',
+        // Auth uses the bearer token, not cookies. Sending credentials makes
+        // the browser reject the backend's wildcard CORS origin (dev config).
+        withCredentials: false,
       })
       .withAutomaticReconnect([0, 2_000, 10_000, 30_000])
       .build();
