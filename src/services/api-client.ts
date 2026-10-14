@@ -19,6 +19,7 @@ type ApiRequestOptions = RequestInit & {
 
 type ErrorPayload = {
   message?: string;
+  detail?: string;
   title?: string;
 };
 
@@ -44,6 +45,8 @@ function getErrorPayload(value: unknown): ErrorPayload {
 
   return {
     message: typeof value.message === 'string' ? value.message : undefined,
+    // ASP.NET ProblemDetails (e.g. ArgumentException -> 400) carries the reason in `detail`.
+    detail: typeof value.detail === 'string' ? value.detail : undefined,
     title: typeof value.title === 'string' ? value.title : undefined,
   };
 }
@@ -107,7 +110,10 @@ async function performRequest<T>(
 
       throw new ApiError(
         response.status,
-        errorPayload.message || errorPayload.title || response.statusText,
+        errorPayload.message ||
+          errorPayload.detail ||
+          errorPayload.title ||
+          response.statusText,
       );
     }
 
