@@ -15,6 +15,7 @@ import OperatorOverdueClearancePage from '@/pages/operator/overdue-clearance';
 import OperatorDashboardPage from '@/pages/operator/dashboard';
 import OperatorSettingsPage from '@/pages/operator/settings';
 import OperatorMaintenancePage from '@/pages/operator/maintenance';
+import OperatorOperationalHistoryPage from '@/pages/operator/operational-history';
 import AdminReportsPage from '@/pages/admin/reports';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
@@ -63,6 +64,12 @@ function roleRoute(role: AppRole) {
             key={item.path}
             element={<OperatorSettingsPage />}
             path="settings"
+          />
+        ) : item.path === '/operator/operational-history' ? (
+          <Route
+            key={item.path}
+            element={<OperatorOperationalHistoryPage />}
+            path="operational-history"
           />
         ) : item.path === '/operator/maintenance' ? (
           <Route
