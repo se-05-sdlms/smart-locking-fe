@@ -87,3 +87,79 @@ export function formatOperationalRecordStatus(kind: string, status: string) {
     OPERATIONAL_RECORD_STATUS_LABELS[kind]?.[status] ?? UNKNOWN_RECORD_LABEL
   );
 }
+
+/** Kinds accepted by the `kind` filter of GET /api/operational-records. */
+export const OPERATIONAL_RECORD_KIND_FILTERS = [
+  'Incident',
+  'MaintenanceRequest',
+  'LockerEvent',
+  'Parcel',
+  'DeliveryRequest',
+  'Return',
+  'Locker',
+  'LockerCompartment',
+] as const;
+
+/**
+ * Kinds supported by GET /api/operational-records/{kind}/{id}
+ * (OperationalRecordService.GetDetailAsync). Locker and LockerCompartment
+ * return 400, so the UI offers no detail for them.
+ */
+export const OPERATIONAL_RECORD_DETAIL_KINDS = [
+  'Parcel',
+  'Return',
+  'ReturnRequest',
+  'DeliveryRequest',
+  'Incident',
+  'MaintenanceRequest',
+  'LockerEvent',
+] as const;
+
+/** Keys of `details` in OperationalRecordDetailResponse. */
+export const OPERATIONAL_RECORD_DETAIL_LABELS: Record<string, string> = {
+  compartmentCode: 'Ngăn',
+  storedAt: 'Thời điểm gửi vào',
+  pickupDueAt: 'Hạn nhận hàng',
+  maxStorageUntil: 'Hạn lưu tối đa',
+  residentDepositedAt: 'Cư dân gửi vào lúc',
+  pickedUpAt: 'Đã lấy lúc',
+  depositedAt: 'Gửi vào lúc',
+  recipientPhone: 'Số điện thoại người nhận',
+  title: 'Tiêu đề',
+  type: 'Loại sự cố',
+  description: 'Mô tả',
+  resolution: 'Kết quả xử lý',
+  priority: 'Mức ưu tiên',
+  severity: 'Mức độ',
+  previousValue: 'Giá trị trước',
+  newValue: 'Giá trị sau',
+  reason: 'Lý do',
+  details: 'Chi tiết',
+};
+
+/** Enum values that can appear inside `details`. */
+export const OPERATIONAL_RECORD_DETAIL_VALUE_LABELS: Record<
+  string,
+  Record<string, string>
+> = {
+  priority: {
+    Low: 'Thấp',
+    Normal: 'Bình thường',
+    High: 'Cao',
+    Critical: 'Khẩn cấp',
+  },
+  severity: {
+    Info: 'Thông tin',
+    Warning: 'Cảnh báo',
+    Critical: 'Nghiêm trọng',
+  },
+  type: {
+    Locker: 'Tủ',
+    Compartment: 'Ngăn tủ',
+    Parcel: 'Bưu kiện',
+    Retrieval: 'Nhận hàng',
+    Return: 'Hàng gửi trả',
+    Payment: 'Thanh toán',
+    Other: 'Khác',
+  },
+};
