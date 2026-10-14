@@ -1,137 +1,111 @@
 import type { ReactNode } from 'react';
+import type {
+  OverdueParcelDetail,
+  OverdueTransfer,
+} from '@/types/overdue-parcel';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Button,
   Card,
+  Checkbox,
   Chip,
-  FieldError,
-  Label,
   ListBox,
   Modal,
   SearchField,
   Select,
   Separator,
+  Skeleton,
   Table,
-  TextArea,
-  TextField,
   Typography,
   toast,
   useOverlayState,
 } from '@heroui/react';
+import ArrowRotateRight from '@gravity-ui/icons/ArrowRotateRight';
 import Box from '@gravity-ui/icons/Box';
 import ChevronDown from '@gravity-ui/icons/ChevronDown';
 import ChevronRight from '@gravity-ui/icons/ChevronRight';
 import CircleCheck from '@gravity-ui/icons/CircleCheck';
+import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
 import CircleInfo from '@gravity-ui/icons/CircleInfo';
 import Clock from '@gravity-ui/icons/Clock';
-import File from '@gravity-ui/icons/File';
-import Funnel from '@gravity-ui/icons/Funnel';
 import LocationArrow from '@gravity-ui/icons/LocationArrow';
-import LockOpen from '@gravity-ui/icons/LockOpen';
 import Magnifier from '@gravity-ui/icons/Magnifier';
-import Person from '@gravity-ui/icons/Person';
-import ShieldCheck from '@gravity-ui/icons/ShieldCheck';
 import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 import Xmark from '@gravity-ui/icons/Xmark';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
-type OverdueLevel = 'under-three-days' | 'three-days-or-more';
+import { useAsyncResource } from '@/hooks/use-async-resource';
+import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
+import {
+  filterOverdueParcels,
+  formatOverdueAmount,
+  formatParcelDateTime,
+  formatTimePastDeadline,
+  getOverdueLoadErrorMessage,
+  getOverdueParcelDetail,
+  getQueueLockers,
+  getTransferErrorMessage,
+  listClearancePendingParcels,
+  OVERDUE_CHARGE_STATUS_LABELS,
+  PARCEL_STATUS_DISPLAY,
+  transferToCollectionPoint,
+} from '@/services/overdue-parcel-service';
 
-type OverdueParcel = {
-  id: string;
-  lockerId: string;
-  lockerName: string;
-  compartmentId: string;
-  storedAt: string;
-  overdueDuration: string;
-  level: OverdueLevel;
-  residentName: string;
-  residentPhone: string;
-  storageAddress: string;
-};
-
-const OVERDUE_PARCELS: OverdueParcel[] = [
-  {
-    id: 'P123456',
-    lockerId: 'LK-01',
-    lockerName: 'Tủ Nguyễn Huệ',
-    compartmentId: 'N06',
-    storedAt: '06/09/2026 10:30',
-    overdueDuration: '2 ngày 7 giờ',
-    level: 'under-three-days',
-    residentName: 'Nguyễn Minh Anh',
-    residentPhone: '090 *** 2456',
-    storageAddress: 'Tầng 1, khu lễ tân, cạnh phòng bảo vệ',
-  },
-  {
-    id: 'P123457',
-    lockerId: 'LK-01',
-    lockerName: 'Tủ Nguyễn Huệ',
-    compartmentId: 'N12',
-    storedAt: '05/09/2026 08:15',
-    overdueDuration: '3 ngày 9 giờ',
-    level: 'three-days-or-more',
-    residentName: 'Trần Hoàng Long',
-    residentPhone: '093 *** 8712',
-    storageAddress: 'Tầng 1, khu lễ tân, cạnh phòng bảo vệ',
-  },
-  {
-    id: 'P123458',
-    lockerId: 'LK-02',
-    lockerName: 'Tủ Lê Lợi',
-    compartmentId: 'N03',
-    storedAt: '07/09/2026 14:20',
-    overdueDuration: '1 ngày 3 giờ',
-    level: 'under-three-days',
-    residentName: 'Lê Khánh Linh',
-    residentPhone: '098 *** 1038',
-    storageAddress: 'Quầy hỗ trợ tầng trệt, cạnh sảnh chính',
-  },
-  {
-    id: 'P123459',
-    lockerId: 'LK-04',
-    lockerName: 'Tủ Cộng Hòa',
-    compartmentId: 'N08',
-    storedAt: '03/09/2026 16:45',
-    overdueDuration: '5 ngày 1 giờ',
-    level: 'three-days-or-more',
-    residentName: 'Phạm Quốc Bảo',
-    residentPhone: '091 *** 6945',
-    storageAddress: 'Phòng bảo vệ, cổng chính tòa nhà',
-  },
-];
-
-function getExpiryAt(storedAt: string) {
-  const [date] = storedAt.split(' ');
-  const [day, month, year] = date.split('/').map(Number);
-  const recoveryDate = new Date(year, month - 1, day + 8);
-  const pad = (value: number) => String(value).padStart(2, '0');
-
-  return `${pad(recoveryDate.getDate())}/${pad(recoveryDate.getMonth() + 1)}/${recoveryDate.getFullYear()} 00:00`;
-}
-
-function DetailRow({ label, children }: { label: string; children: ReactNode }) {
+function DetailRow({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
   return (
     <div className="grid gap-1 py-2 sm:grid-cols-[11rem_1fr] sm:gap-5">
       <dt className="text-sm text-muted">{label}</dt>
-      <dd className="min-w-0 text-sm font-medium text-foreground">
+      <dd className="min-w-0 break-words text-sm font-medium text-foreground">
         {children}
       </dd>
     </div>
   );
 }
 
-function OverdueChip({ level }: { level: OverdueLevel }) {
+function ParcelStatusChip({
+  status,
+}: {
+  status: OverdueParcelDetail['status'];
+}) {
+  const display = PARCEL_STATUS_DISPLAY[status];
+
   return (
-    <Chip
-      color={level === 'three-days-or-more' ? 'danger' : 'warning'}
-      size="sm"
-      variant="soft"
-    >
-      {level === 'three-days-or-more' ? 'Quá hạn nghiêm trọng' : 'Quá hạn'}
+    <Chip color={display.color} size="sm" variant="soft">
+      {display.label}
     </Chip>
+  );
+}
+
+function ErrorAlert({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <Alert role="alert" status="danger">
+      <Alert.Indicator>
+        <CircleExclamation aria-hidden="true" className="size-5" />
+      </Alert.Indicator>
+      <Alert.Content>
+        <Alert.Description>{message}</Alert.Description>
+      </Alert.Content>
+      {onRetry ? (
+        <Button size="sm" variant="secondary" onPress={onRetry}>
+          <ArrowRotateRight aria-hidden="true" className="size-4" />
+          Thử lại
+        </Button>
+      ) : null}
+    </Alert>
   );
 }
 
@@ -139,46 +113,168 @@ function OverdueListPage() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
   const [lockerFilter, setLockerFilter] = useState('all');
-  const [levelFilter, setLevelFilter] = useState('all');
+  const { state, reload, refresh } = useAsyncResource(
+    listClearancePendingParcels,
+    getOverdueLoadErrorMessage,
+    [],
+  );
+  const queue = useMemo(() => state.data ?? [], [state.data]);
+  const lockers = useMemo(() => getQueueLockers(queue), [queue]);
+  const parcels = useMemo(
+    () => filterOverdueParcels(queue, keyword, lockerFilter),
+    [keyword, lockerFilter, queue],
+  );
+  const oldest = queue[0];
 
-  const parcels = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLocaleLowerCase('vi');
+  // Parcel changes are published to the locker groups.
+  useOperationsRealtime(
+    lockers.map((locker) => locker.id),
+    refresh,
+  );
 
-    return OVERDUE_PARCELS.filter(
-      (parcel) =>
-        (!normalizedKeyword ||
-          parcel.id.toLocaleLowerCase('vi').includes(normalizedKeyword)) &&
-        (lockerFilter === 'all' || parcel.lockerId === lockerFilter) &&
-        (levelFilter === 'all' || parcel.level === levelFilter),
+  const renderTable = () => {
+    if (state.status === 'loading' && !state.data) {
+      return (
+        <div
+          aria-busy="true"
+          aria-label="Đang tải danh sách bưu kiện quá hạn"
+          className="flex flex-col gap-3"
+        >
+          {Array.from({ length: 3 }, (_, index) => (
+            <Skeleton key={index} className="h-12 w-full rounded-xl" />
+          ))}
+        </div>
+      );
+    }
+
+    if (state.status === 'error' && !state.data) {
+      return <ErrorAlert message={state.message} onRetry={reload} />;
+    }
+
+    if (!parcels.length) {
+      return (
+        <Alert status="default">
+          <Alert.Indicator>
+            <CircleInfo aria-hidden="true" className="size-5" />
+          </Alert.Indicator>
+          <Alert.Content>
+            <Alert.Title>
+              {queue.length
+                ? 'Không tìm thấy bưu kiện'
+                : 'Không có bưu kiện cần xử lý'}
+            </Alert.Title>
+            <Alert.Description>
+              {queue.length
+                ? 'Hãy thử đổi mã bưu kiện hoặc bộ lọc.'
+                : 'Chưa có bưu kiện nào vượt thời hạn lưu tối đa trong các tủ bạn phụ trách.'}
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      );
+    }
+
+    return (
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Danh sách bưu kiện quá hạn">
+            <Table.Header>
+              <Table.Column isRowHeader id="parcel">
+                Mã bưu kiện
+              </Table.Column>
+              <Table.Column id="locker">Tủ / Ngăn</Table.Column>
+              <Table.Column id="stored">Gửi vào</Table.Column>
+              <Table.Column id="deadline">Hạn lưu tối đa</Table.Column>
+              <Table.Column id="past">Đã quá hạn</Table.Column>
+              <Table.Column id="status">Trạng thái</Table.Column>
+              <Table.Column id="action">Thao tác</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {parcels.map((parcel) => (
+                <Table.Row key={parcel.id} id={parcel.id}>
+                  <Table.Cell>
+                    <span className="font-semibold">{parcel.parcelCode}</span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="block font-medium">
+                      {parcel.lockerCode} · {parcel.compartmentCode}
+                    </span>
+                    <span className="block max-w-64 text-wrap text-xs text-muted">
+                      {parcel.lockerAddress}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {formatParcelDateTime(parcel.storedAt)}
+                  </Table.Cell>
+                  <Table.Cell>
+                    {formatParcelDateTime(parcel.maxStorageUntil)}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="font-semibold text-danger">
+                      {formatTimePastDeadline(parcel.maxStorageUntil)}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <ParcelStatusChip status={parcel.status} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Button
+                      aria-label={`Xem chi tiết bưu kiện ${parcel.parcelCode}`}
+                      size="sm"
+                      variant="ghost"
+                      onPress={() =>
+                        navigate(`/operator/overdue-clearance/${parcel.id}`, {
+                          state: { parcelCode: parcel.parcelCode },
+                        })
+                      }
+                    >
+                      Xem chi tiết
+                      <ChevronRight aria-hidden="true" className="size-4" />
+                    </Button>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
     );
-  }, [keyword, levelFilter, lockerFilter]);
+  };
 
   return (
     <section className="mx-auto flex w-full max-w-[1440px] flex-col gap-5">
-      <Alert status="warning">
-        <Alert.Indicator>
-          <Clock aria-hidden="true" className="size-5" />
-        </Alert.Indicator>
-        <Alert.Content>
-          <Alert.Title>4 bưu kiện đang chờ xử lý</Alert.Title>
-          <Alert.Description>
-            Kiện quá hạn lâu nhất đã 5 ngày 1 giờ. Hãy kiểm tra và chuyển hàng
-            về đúng điểm lưu giữ.
-          </Alert.Description>
-        </Alert.Content>
-      </Alert>
+      {queue.length ? (
+        <Alert status="warning">
+          <Alert.Indicator>
+            <Clock aria-hidden="true" className="size-5" />
+          </Alert.Indicator>
+          <Alert.Content>
+            <Alert.Title>{queue.length} bưu kiện đang chờ xử lý</Alert.Title>
+            <Alert.Description>
+              {oldest
+                ? `Kiện quá hạn lâu nhất đã quá ${formatTimePastDeadline(oldest.maxStorageUntil)}. `
+                : ''}
+              Hãy lấy hàng khỏi ngăn và chuyển về điểm tập kết của tủ.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
+
+      {state.status === 'error' && state.data ? (
+        <ErrorAlert message={state.message} onRetry={reload} />
+      ) : null}
 
       <Card>
         <Card.Header>
           <Card.Title>Tìm kiếm và lọc</Card.Title>
           <Card.Description>
-            Tra cứu theo mã bưu kiện, tủ được phân công và mức độ quá hạn.
+            Tra cứu theo mã bưu kiện, mã tủ hoặc mã ngăn trong phạm vi được phân
+            công.
           </Card.Description>
         </Card.Header>
-        <Card.Content className="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_13rem_14rem]">
+        <Card.Content className="grid gap-3 md:grid-cols-[minmax(16rem,1fr)_13rem_auto]">
           <SearchField
             fullWidth
-            aria-label="Tìm theo mã bưu kiện"
+            aria-label="Tìm theo mã bưu kiện, mã tủ hoặc mã ngăn"
             value={keyword}
             variant="secondary"
             onChange={setKeyword}
@@ -187,7 +283,7 @@ function OverdueListPage() {
               <SearchField.SearchIcon>
                 <Magnifier aria-hidden="true" className="size-4" />
               </SearchField.SearchIcon>
-              <SearchField.Input placeholder="Nhập mã bưu kiện..." />
+              <SearchField.Input placeholder="Nhập mã bưu kiện, mã tủ..." />
               <SearchField.ClearButton aria-label="Xóa từ khóa">
                 <Xmark aria-hidden="true" className="size-4" />
               </SearchField.ClearButton>
@@ -212,156 +308,129 @@ function OverdueListPage() {
                 <ListBox.Item id="all" textValue="Tất cả tủ">
                   Tất cả tủ
                 </ListBox.Item>
-                <ListBox.Item id="LK-01" textValue="Tủ LK-01">
-                  Tủ LK-01
-                </ListBox.Item>
-                <ListBox.Item id="LK-02" textValue="Tủ LK-02">
-                  Tủ LK-02
-                </ListBox.Item>
-                <ListBox.Item id="LK-04" textValue="Tủ LK-04">
-                  Tủ LK-04
-                </ListBox.Item>
+                {lockers.map((locker) => (
+                  <ListBox.Item
+                    key={locker.id}
+                    id={locker.id}
+                    textValue={`Tủ ${locker.code}`}
+                  >
+                    Tủ {locker.code}
+                  </ListBox.Item>
+                ))}
               </ListBox>
             </Select.Popover>
           </Select>
 
-          <Select
-            aria-label="Lọc theo mức độ quá hạn"
-            value={levelFilter}
+          <Button
+            isDisabled={state.status === 'loading'}
             variant="secondary"
-            onChange={(value) => setLevelFilter(String(value ?? 'all'))}
+            onPress={refresh}
           >
-            <Select.Trigger>
-              <Funnel aria-hidden="true" className="size-4 text-accent" />
-              <Select.Value />
-              <Select.Indicator>
-                <ChevronDown aria-hidden="true" className="size-4" />
-              </Select.Indicator>
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>
-                <ListBox.Item id="all" textValue="Tất cả mức độ">
-                  Tất cả mức độ
-                </ListBox.Item>
-                <ListBox.Item
-                  id="under-three-days"
-                  textValue="Dưới 3 ngày"
-                >
-                  Dưới 3 ngày
-                </ListBox.Item>
-                <ListBox.Item
-                  id="three-days-or-more"
-                  textValue="Từ 3 ngày"
-                >
-                  Từ 3 ngày
-                </ListBox.Item>
-              </ListBox>
-            </Select.Popover>
-          </Select>
+            <ArrowRotateRight aria-hidden="true" className="size-4" />
+            Làm mới
+          </Button>
         </Card.Content>
       </Card>
 
-      {parcels.length ? (
-        <Table>
-          <Table.ScrollContainer>
-            <Table.Content aria-label="Danh sách bưu kiện quá hạn">
-              <Table.Header>
-                <Table.Column id="parcel" isRowHeader>
-                  Mã bưu kiện
-                </Table.Column>
-                <Table.Column id="locker">Tủ / Ngăn</Table.Column>
-                <Table.Column id="stored">Gửi vào</Table.Column>
-                <Table.Column id="overdue">Thời điểm hết hạn</Table.Column>
-                <Table.Column id="duration">Thời gian quá hạn</Table.Column>
-                <Table.Column id="status">Trạng thái</Table.Column>
-                <Table.Column id="action">Thao tác</Table.Column>
-              </Table.Header>
-              <Table.Body>
-                {parcels.map((parcel) => (
-                  <Table.Row key={parcel.id} id={parcel.id}>
-                    <Table.Cell>
-                      <span className="font-semibold">{parcel.id}</span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <span className="block font-medium">
-                        {parcel.lockerId} · {parcel.compartmentId}
-                      </span>
-                      <span className="block text-xs text-muted">
-                        {parcel.lockerName}
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>{parcel.storedAt}</Table.Cell>
-                    <Table.Cell>{getExpiryAt(parcel.storedAt)}</Table.Cell>
-                    <Table.Cell>
-                      <span className="font-semibold text-danger">
-                        {parcel.overdueDuration}
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <OverdueChip level={parcel.level} />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onPress={() =>
-                          navigate(`/operator/overdue-clearance/${parcel.id}`)
-                        }
-                      >
-                        Xem chi tiết
-                        <ChevronRight aria-hidden="true" className="size-4" />
-                      </Button>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-        </Table>
-      ) : (
-        <Alert status="default">
-          <Alert.Indicator>
-            <CircleInfo aria-hidden="true" className="size-5" />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>Không tìm thấy bưu kiện</Alert.Title>
-            <Alert.Description>
-              Hãy thử đổi mã bưu kiện hoặc bộ lọc.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
-      )}
+      {renderTable()}
     </section>
   );
 }
 
-function OverdueDetailPage({ parcel }: { parcel: OverdueParcel }) {
+function OverdueDetailPage({ parcelId }: { parcelId: string }) {
+  const navigate = useNavigate();
   const confirmState = useOverlayState();
-  const [note, setNote] = useState('');
-  const [isProcessed, setIsProcessed] = useState(false);
+  const [isOnSite, setIsOnSite] = useState(false);
+  const [isTransferring, setIsTransferring] = useState(false);
+  const [transferError, setTransferError] = useState('');
+  const [transfer, setTransfer] = useState<OverdueTransfer | null>(null);
+  const pending = useRef(false);
 
-  const confirmClearance = () => {
-    setIsProcessed(true);
-    confirmState.close();
-    toast.success(`Đã mở ngăn ${parcel.compartmentId}`, {
-      description: `${parcel.id} được ghi nhận đã lấy khỏi tủ và chuyển tới nơi lưu hàng quá hạn.`,
-      indicator: <CircleCheck aria-hidden="true" className="size-5" />,
-    });
+  const load = useCallback(
+    (signal: AbortSignal) => getOverdueParcelDetail(parcelId, signal),
+    [parcelId],
+  );
+  const { state, reload, refresh } = useAsyncResource(
+    load,
+    getOverdueLoadErrorMessage,
+    [parcelId],
+  );
+  const parcel = state.data;
+
+  if (!parcel) {
+    return (
+      <section className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+        {state.status === 'error' ? (
+          <>
+            <ErrorAlert message={state.message} onRetry={reload} />
+            <Button
+              className="self-start"
+              variant="ghost"
+              onPress={() => navigate('/operator/overdue-clearance')}
+            >
+              Quay lại danh sách
+            </Button>
+          </>
+        ) : (
+          <div
+            aria-busy="true"
+            aria-label="Đang tải bưu kiện"
+            className="space-y-3"
+          >
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-72 w-full rounded-xl" />
+          </div>
+        )}
+      </section>
+    );
+  }
+
+  const isDone = parcel.status === 'Removed' || parcel.status === 'Retrieved';
+
+  const openConfirm = () => {
+    setIsOnSite(false);
+    setTransferError('');
+    confirmState.open();
+  };
+
+  const confirmTransfer = async () => {
+    if (!isOnSite || pending.current) return;
+
+    pending.current = true;
+    setIsTransferring(true);
+    setTransferError('');
+
+    try {
+      const result = await transferToCollectionPoint(parcel.id);
+
+      setTransfer(result);
+      confirmState.close();
+      toast.success('Đã chuyển bưu kiện về điểm tập kết', {
+        description: `${result.parcelCode} · cư dân đã được thông báo.`,
+        indicator: <CircleCheck aria-hidden="true" className="size-5" />,
+      });
+      refresh();
+    } catch (error) {
+      setTransferError(getTransferErrorMessage(error));
+    } finally {
+      pending.current = false;
+      setIsTransferring(false);
+    }
   };
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-      {isProcessed ? (
-        <Alert status="success">
+      {transfer || isDone ? (
+        <Alert role="status" status="success">
           <Alert.Indicator>
             <CircleCheck aria-hidden="true" className="size-5" />
           </Alert.Indicator>
           <Alert.Content>
             <Alert.Title>Hoàn tất xử lý</Alert.Title>
             <Alert.Description>
-              Ngăn {parcel.compartmentId} đã được mở, bưu kiện được ghi nhận đã
-              lấy khỏi tủ, chuyển tới nơi lưu hàng quá hạn và cư dân đã nhận
-              thông báo.
+              Bưu kiện {parcel.parcelCode} đã được ghi nhận chuyển tới{' '}
+              {transfer?.collectionAddress ?? parcel.recoveryAddress}. Hệ thống
+              đã ghi nhật ký và gửi thông báo cho cư dân.
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -372,10 +441,12 @@ function OverdueDetailPage({ parcel }: { parcel: OverdueParcel }) {
           </Alert.Indicator>
           <Alert.Content>
             <Alert.Title>
-              Bưu kiện đã quá hạn {parcel.overdueDuration}
+              Bưu kiện đã quá hạn lưu tối đa{' '}
+              {formatTimePastDeadline(parcel.maxStorageUntil)}
             </Alert.Title>
             <Alert.Description>
-              Kiểm tra đủ điều kiện trước khi lấy hàng khỏi ngăn.
+              Lấy bưu kiện khỏi ngăn tại hiện trường, sau đó xác nhận chuyển về
+              điểm tập kết.
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -386,56 +457,71 @@ function OverdueDetailPage({ parcel }: { parcel: OverdueParcel }) {
           <Card.Header>
             <Card.Title>Thông tin bưu kiện quá hạn</Card.Title>
             <Card.Description>
-              Thông tin vị trí và thời hạn của {parcel.id}.
+              Vị trí, thời hạn và phí lưu của {parcel.parcelCode}.
             </Card.Description>
           </Card.Header>
           <Card.Content>
             <dl>
-              <DetailRow label="Mã bưu kiện">{parcel.id}</DetailRow>
+              <DetailRow label="Mã bưu kiện">{parcel.parcelCode}</DetailRow>
               <DetailRow label="Tủ">
-                {parcel.lockerId} · {parcel.lockerName}
+                {parcel.lockerCode} · {parcel.lockerAddress}
               </DetailRow>
-              <DetailRow label="Mã ngăn">{parcel.compartmentId}</DetailRow>
+              <DetailRow label="Mã ngăn">{parcel.compartmentCode}</DetailRow>
               <DetailRow label="Thời gian gửi vào">
-                {parcel.storedAt}
+                {formatParcelDateTime(parcel.storedAt)}
               </DetailRow>
-              <DetailRow label="Thời điểm hết hạn">
-                {getExpiryAt(parcel.storedAt)}
+              <DetailRow label="Hạn nhận hàng">
+                {formatParcelDateTime(parcel.pickupDueAt)}
               </DetailRow>
-              <DetailRow label="Thời gian quá hạn">
-                <span className="font-semibold text-danger">
-                  {parcel.overdueDuration}
-                </span>
+              <DetailRow label="Hạn lưu tối đa">
+                {formatParcelDateTime(parcel.maxStorageUntil)}
               </DetailRow>
               <DetailRow label="Trạng thái">
-                {isProcessed ? (
-                  <Chip color="success" size="sm" variant="soft">
-                    Đã xử lý
-                  </Chip>
-                ) : (
-                  <OverdueChip level={parcel.level} />
-                )}
+                <ParcelStatusChip status={parcel.status} />
               </DetailRow>
             </dl>
 
             <Separator className="my-4" />
 
             <Typography className="mb-2" type="h6">
-              Thông tin cư dân
+              Phí lưu quá hạn
             </Typography>
             <dl>
-              <DetailRow label="Họ tên">{parcel.residentName}</DetailRow>
-              <DetailRow label="Số điện thoại">
-                {parcel.residentPhone}
+              <DetailRow label="Số tiền">
+                {formatOverdueAmount(parcel.overdueAmount, parcel.currency)}
               </DetailRow>
+              {parcel.overdueChargeStatus ? (
+                <DetailRow label="Thanh toán">
+                  {OVERDUE_CHARGE_STATUS_LABELS[parcel.overdueChargeStatus]}
+                </DetailRow>
+              ) : null}
             </dl>
+
+            {parcel.shipperName || parcel.shipperPhone ? (
+              <>
+                <Separator className="my-4" />
+                <Typography className="mb-2" type="h6">
+                  Người giao hàng
+                </Typography>
+                <dl>
+                  {parcel.shipperName ? (
+                    <DetailRow label="Họ tên">{parcel.shipperName}</DetailRow>
+                  ) : null}
+                  {parcel.shipperPhone ? (
+                    <DetailRow label="Số điện thoại">
+                      {parcel.shipperPhone}
+                    </DetailRow>
+                  ) : null}
+                </dl>
+              </>
+            ) : null}
           </Card.Content>
         </Card>
 
         <div className="flex flex-col gap-4">
           <Card variant="secondary">
             <Card.Header>
-              <Card.Title>Điểm lưu hàng quá hạn</Card.Title>
+              <Card.Title>Điểm tập kết hàng quá hạn</Card.Title>
             </Card.Header>
             <Card.Content className="flex gap-3">
               <LocationArrow
@@ -443,94 +529,36 @@ function OverdueDetailPage({ parcel }: { parcel: OverdueParcel }) {
                 className="mt-0.5 size-5 shrink-0 text-accent"
               />
               <span className="text-sm font-medium">
-                {parcel.storageAddress}
+                {parcel.recoveryAddress}
               </span>
             </Card.Content>
           </Card>
 
           <Card>
             <Card.Header>
-              <Card.Title>Điều kiện xử lý</Card.Title>
+              <Card.Title>Xử lý</Card.Title>
+              <Card.Description>
+                Hệ thống chỉ hiển thị bưu kiện đã vượt hạn lưu tối đa trong tủ
+                bạn phụ trách.
+              </Card.Description>
             </Card.Header>
-            <Card.Content className="space-y-3">
-              <span className="flex items-start gap-2 text-sm">
-                <CircleCheck
-                  aria-hidden="true"
-                  className="mt-0.5 size-5 shrink-0 text-success"
-                />
-                Đã vượt thời hạn nhận tối đa
-              </span>
-              <span className="flex items-start gap-2 text-sm">
-                <ShieldCheck
-                  aria-hidden="true"
-                  className="mt-0.5 size-5 shrink-0 text-success"
-                />
-                Không thuộc trạng thái tranh chấp
-              </span>
-              <span className="flex items-start gap-2 text-sm">
-                <Person
-                  aria-hidden="true"
-                  className="mt-0.5 size-5 shrink-0 text-success"
-                />
-                Thuộc phạm vi tủ được phân công
-              </span>
-            </Card.Content>
             <Card.Footer>
               <Button
                 fullWidth
-                isDisabled={isProcessed}
+                isDisabled={isDone || Boolean(transfer)}
                 variant="primary"
-                onPress={() => {
-                  setNote('');
-                  confirmState.open();
-                }}
+                onPress={openConfirm}
               >
                 <Box aria-hidden="true" className="size-5" />
-                {isProcessed ? 'Đã xử lý' : 'Mở ngăn để xử lý'}
+                {isDone || transfer ? 'Đã xử lý' : 'Chuyển về điểm tập kết'}
               </Button>
             </Card.Footer>
           </Card>
-
-          {isProcessed ? (
-            <Card variant="secondary">
-              <Card.Header>
-                <Card.Title>Ghi nhận hệ thống</Card.Title>
-              </Card.Header>
-              <Card.Content className="space-y-3">
-                <span className="flex items-start gap-2 text-sm">
-                  <LockOpen
-                    aria-hidden="true"
-                    className="mt-0.5 size-5 shrink-0 text-accent"
-                  />
-                  Lệnh mở ngăn đã được gửi và xác nhận.
-                </span>
-                <span className="flex items-start gap-2 text-sm">
-                  <File
-                    aria-hidden="true"
-                    className="mt-0.5 size-5 shrink-0 text-accent"
-                  />
-                  Lịch sử xử lý đã được cập nhật.
-                </span>
-                <span className="flex items-start gap-2 text-sm">
-                  <CircleCheck
-                    aria-hidden="true"
-                    className="mt-0.5 size-5 shrink-0 text-success"
-                  />
-                  Đã gửi thông báo nhận hàng cho cư dân.
-                </span>
-                {note.trim() ? (
-                  <span className="block text-sm text-muted">
-                    Ghi chú: {note.trim()}
-                  </span>
-                ) : null}
-              </Card.Content>
-            </Card>
-          ) : null}
         </div>
       </div>
 
       <Modal state={confirmState}>
-        <Modal.Backdrop>
+        <Modal.Backdrop isDismissable={!isTransferring}>
           <Modal.Container size="md">
             <Modal.Dialog>
               <Modal.CloseTrigger aria-label="Đóng xác nhận xử lý">
@@ -538,60 +566,61 @@ function OverdueDetailPage({ parcel }: { parcel: OverdueParcel }) {
               </Modal.CloseTrigger>
               <Modal.Header>
                 <Modal.Icon>
-                  <TriangleExclamation
-                    aria-hidden="true"
-                    className="size-5"
-                  />
+                  <TriangleExclamation aria-hidden="true" className="size-5" />
                 </Modal.Icon>
-                <Modal.Heading>Mở ngăn để xử lý hàng quá hạn</Modal.Heading>
+                <Modal.Heading>Chuyển bưu kiện về điểm tập kết</Modal.Heading>
               </Modal.Header>
               <Modal.Body className="space-y-4">
+                <dl>
+                  <DetailRow label="Bưu kiện">{parcel.parcelCode}</DetailRow>
+                  <DetailRow label="Tủ / Ngăn">
+                    {parcel.lockerCode} · {parcel.compartmentCode}
+                  </DetailRow>
+                  <DetailRow label="Điểm tập kết">
+                    {parcel.recoveryAddress}
+                  </DetailRow>
+                </dl>
                 <Alert status="warning">
                   <Alert.Indicator>
                     <CircleInfo aria-hidden="true" className="size-5" />
                   </Alert.Indicator>
                   <Alert.Content>
-                    <Alert.Title>
-                      Mở ngăn {parcel.compartmentId} của tủ {parcel.lockerId}?
-                    </Alert.Title>
                     <Alert.Description>
-                      Ngăn sẽ mở để lấy {parcel.id}. Chỉ xác nhận khi bạn đã
-                      đứng trước tủ; sau đó chuyển hàng đến{' '}
-                      {parcel.storageAddress.toLocaleLowerCase('vi')}.
+                      Sau khi xác nhận, bưu kiện chuyển sang trạng thái Đã
+                      chuyển điểm tập kết, ngăn được giải phóng và cư dân nhận
+                      thông báo. Không thể hoàn tác.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
-
-                <dl>
-                  <DetailRow label="Mã tủ">{parcel.lockerId}</DetailRow>
-                  <DetailRow label="Mã ngăn">
-                    {parcel.compartmentId}
-                  </DetailRow>
-                  <DetailRow label="Thời gian quá hạn">
-                    {parcel.overdueDuration}
-                  </DetailRow>
-                </dl>
-
-                <TextField fullWidth value={note} onChange={setNote}>
-                  <Label>Ghi chú xử lý (không bắt buộc)</Label>
-                  <TextArea
-                    maxLength={500}
-                    placeholder="Nhập ghi chú nếu có..."
-                    rows={4}
-                  />
-                  <FieldError />
-                </TextField>
-                <span className="block text-right text-xs text-muted">
-                  {note.length}/500
-                </span>
+                <Checkbox
+                  isDisabled={isTransferring}
+                  isSelected={isOnSite}
+                  onChange={setIsOnSite}
+                >
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Checkbox.Content>
+                    Tôi đang ở tủ và đã lấy bưu kiện ra khỏi ngăn{' '}
+                    {parcel.compartmentCode}.
+                  </Checkbox.Content>
+                </Checkbox>
+                {transferError ? <ErrorAlert message={transferError} /> : null}
               </Modal.Body>
               <Modal.Footer>
-                <Button slot="close" variant="ghost">
+                <Button
+                  isDisabled={isTransferring}
+                  variant="ghost"
+                  onPress={confirmState.close}
+                >
                   Hủy
                 </Button>
-                <Button variant="danger" onPress={confirmClearance}>
-                  <LockOpen aria-hidden="true" className="size-5" />
-                  Mở ngăn và ghi nhận đã lấy
+                <Button
+                  isDisabled={!isOnSite || isTransferring}
+                  variant="primary"
+                  onPress={() => void confirmTransfer()}
+                >
+                  {isTransferring ? 'Đang xử lý...' : 'Xác nhận chuyển'}
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>
@@ -605,13 +634,9 @@ function OverdueDetailPage({ parcel }: { parcel: OverdueParcel }) {
 export default function OperatorOverdueClearancePage() {
   const { parcelId } = useParams();
 
-  if (!parcelId) return <OverdueListPage />;
-
-  const parcel = OVERDUE_PARCELS.find((item) => item.id === parcelId);
-
-  return parcel ? (
-    <OverdueDetailPage parcel={parcel} />
+  return parcelId ? (
+    <OverdueDetailPage key={parcelId} parcelId={parcelId} />
   ) : (
-    <Navigate replace to="/operator/overdue-clearance" />
+    <OverdueListPage />
   );
 }
