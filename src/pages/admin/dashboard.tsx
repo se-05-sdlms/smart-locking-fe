@@ -1,371 +1,363 @@
-import {
-  Button,
-  Card,
-  Chip,
-  Link,
-  Separator,
-  Table,
-  Typography,
-} from '@heroui/react';
-import ChartLine from '@gravity-ui/icons/ChartLine';
+import type { LoadedDashboard } from '@/services/admin-dashboard-service';
+
+import { Alert, Button, Card, Chip, Skeleton, Table } from '@heroui/react';
+import ArrowRotateRight from '@gravity-ui/icons/ArrowRotateRight';
 import ChevronRight from '@gravity-ui/icons/ChevronRight';
 import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
-import CirclePlus from '@gravity-ui/icons/CirclePlus';
-import Gear from '@gravity-ui/icons/Gear';
-import Persons from '@gravity-ui/icons/Persons';
-import PersonWorker from '@gravity-ui/icons/PersonWorker';
-import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { ADMIN_LOCKERS, AUDIT_LOGS } from './admin-data';
-
-import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
+import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
-  operationsService,
-  type OperationalLocker,
-} from '@/services/operations-service';
+  attentionReasons,
+  auditActionLabel,
+  connectionLabel,
+  getAdminDashboard,
+  getAdminDashboardErrorMessage,
+  operationalLabel,
+  percentage,
+} from '@/services/admin-dashboard-service';
 
-const METRICS: Array<{
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const numberFormat = new Intl.NumberFormat('vi-VN');
+const moneyFormat = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+});
+const dateTimeFormat = new Intl.DateTimeFormat('vi-VN', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
+
+type KpiProps = {
   label: string;
   value: string;
   meta: string;
-  tone: string;
-}> = [
-  {
-    label: 'Tổng số locker',
-    value: '24',
-    meta: '21 đang hoạt động',
-    tone: 'text-success',
-  },
-  {
-    label: 'Tổng số ngăn',
-    value: '576',
-    meta: '418 trống · 132 đang dùng',
-    tone: 'text-accent',
-  },
-  {
-    label: 'Người dùng',
-    value: '1.284',
-    meta: '1.198 cư dân · 72 operator',
-    tone: 'text-success',
-  },
-  {
-    label: 'Bưu kiện đang lưu',
-    value: '132',
-    meta: '18 mới hôm nay',
-    tone: 'text-accent',
-  },
-  {
-    label: 'Hàng quá hạn',
-    value: '17',
-    meta: 'Cần xử lý',
-    tone: 'text-danger',
-  },
-  {
-    label: 'Locker offline',
-    value: '3',
-    meta: 'Cần kiểm tra',
-    tone: 'text-warning',
-  },
-  {
-    label: 'Sự cố mở',
-    value: '6',
-    meta: '2 mức cao',
-    tone: 'text-warning',
-  },
-  {
-    label: 'Phí quá hạn',
-    value: '4.250.000đ',
-    meta: 'Trong 30 ngày',
-    tone: 'text-success',
-  },
-];
+  route: string;
+  tone?: 'danger' | 'warning';
+};
 
-const PARCELS = [18, 25, 28, 20, 32, 24, 18];
-const DAYS = ['12/9', '13/9', '14/9', '15/9', '16/9', '17/9', '18/9'];
-
-function LockerStatus({
-  status,
-}: {
-  status: (typeof ADMIN_LOCKERS)[number]['status'];
-}) {
-  if (status === 'maintenance')
-    return (
-      <Chip color="warning" size="sm" variant="soft">
-        Bảo trì
-      </Chip>
-    );
-  if (status === 'suspended')
-    return (
-      <Chip color="danger" size="sm" variant="soft">
-        Tạm ngưng
-      </Chip>
-    );
+function Kpi({ label, value, meta, route, tone }: KpiProps) {
+  const navigate = useNavigate();
 
   return (
-    <Chip color="success" size="sm" variant="soft">
-      Hoạt động
-    </Chip>
+    <Card>
+      <Card.Content className="gap-2 py-5">
+        <span className="text-sm text-muted">{label}</span>
+        <strong
+          className={`text-3xl font-semibold ${tone === 'danger' ? 'text-danger' : tone === 'warning' ? 'text-warning' : ''}`}
+        >
+          {value}
+        </strong>
+        <span className="text-xs text-muted">{meta}</span>
+        <Button
+          aria-label={`Xem ${label.toLowerCase()}`}
+          className="-ml-2 self-start"
+          size="sm"
+          variant="ghost"
+          onPress={() => navigate(route)}
+        >
+          Xem chi tiết
+          <ChevronRight aria-hidden="true" className="size-4" />
+        </Button>
+      </Card.Content>
+    </Card>
   );
 }
 
-export default function AdminDashboardPage() {
-  const navigate = useNavigate();
-  const [liveLockers, setLiveLockers] = useState<OperationalLocker[]>([]);
-  const loadLiveLockers = useCallback(async () => {
-    try {
-      setLiveLockers(await operationsService.lockers());
-    } catch {
-      // Existing dashboard data remains visible during a temporary outage.
-    }
-  }, []);
+function Distribution({
+  title,
+  total,
+  items,
+}: {
+  title: string;
+  total: number;
+  items: Array<{ label: string; value: number; color: string }>;
+}) {
+  return (
+    <Card>
+      <Card.Header>
+        <Card.Title>{title}</Card.Title>
+        <Card.Description>Tổng {numberFormat.format(total)}</Card.Description>
+      </Card.Header>
+      <Card.Content className="gap-3">
+        {items.map((item) => (
+          <div key={item.label} className="space-y-1">
+            <div className="flex justify-between text-sm">
+              <span>{item.label}</span>
+              <span className="font-medium">
+                {numberFormat.format(item.value)} ·{' '}
+                {percentage(item.value, total)}%
+              </span>
+            </div>
+            <div
+              aria-label={`${item.label}: ${percentage(item.value, total)}%`}
+              className="h-2 rounded-full bg-default"
+              role="img"
+            >
+              <div
+                className={`h-2 rounded-full ${item.color}`}
+                style={{ width: `${percentage(item.value, total)}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </Card.Content>
+    </Card>
+  );
+}
 
-  useEffect(() => {
-    void loadLiveLockers();
-  }, [loadLiveLockers]);
-  useOperationsRealtime(
-    liveLockers.map((locker) => locker.id),
-    () => void loadLiveLockers(),
+function DashboardContent({ data }: { data: LoadedDashboard }) {
+  const navigate = useNavigate();
+  const stats = data.statistics;
+  const maxTrend = Math.max(
+    1,
+    ...data.recentParcelsTrend.map((day) => day.count),
   );
 
-  const liveMetrics = METRICS.map((metric) => {
-    if (!liveLockers.length) return metric;
-    if (metric.label === 'Tổng số locker')
-      return {
-        ...metric,
-        value: String(liveLockers.length),
-        meta: `${liveLockers.filter((locker) => locker.status === 'Operational').length} đang hoạt động`,
-      };
-    if (metric.label === 'Bưu kiện đang lưu')
-      return {
-        ...metric,
-        value: String(
-          liveLockers.reduce(
-            (total, locker) => total + locker.storedParcels,
-            0,
-          ),
-        ),
-        meta: 'Dữ liệu trực tiếp',
-      };
-    if (metric.label === 'Locker offline')
-      return {
-        ...metric,
-        value: String(
-          liveLockers.filter((locker) => locker.connection === 'Offline')
-            .length,
-        ),
-        meta: 'Dữ liệu trực tiếp',
-      };
-    if (metric.label === 'Sự cố mở')
-      return {
-        ...metric,
-        value: String(
-          liveLockers.reduce(
-            (total, locker) => total + locker.openIncidents,
-            0,
-          ),
-        ),
-        meta: 'Dữ liệu trực tiếp',
-      };
-
-    return metric;
-  });
-  const recentLockers = ADMIN_LOCKERS.slice(0, 5);
-
   return (
-    <section className="flex w-full flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {liveMetrics.map((metric) => (
-          <Card key={metric.label} className="h-28">
-            <Card.Header className="pb-0">
-              <Card.Title className="text-sm font-normal text-muted">
-                {metric.label}
-              </Card.Title>
-            </Card.Header>
-            <Card.Footer className="mt-auto items-end justify-between pt-0">
-              <span className="text-3xl font-semibold leading-none tracking-tight">
-                {metric.value}
-              </span>
-              <span className="max-w-44 pb-0.5 text-right text-xs text-muted">
-                <span className={metric.tone}>●</span> {metric.meta}
-              </span>
-            </Card.Footer>
-          </Card>
-        ))}
+    <>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <Kpi
+          label="Tủ đang vận hành"
+          meta={`${numberFormat.format(stats.totalLockers)} tủ · ${numberFormat.format(stats.offlineLockersCount)} ngoại tuyến`}
+          route="/admin/lockers"
+          value={numberFormat.format(stats.activeLockers)}
+        />
+        <Kpi
+          label="Ngăn còn trống"
+          meta={`${numberFormat.format(stats.totalCompartments)} ngăn · ${numberFormat.format(stats.occupiedCompartments)} đang dùng`}
+          route="/admin/lockers"
+          value={numberFormat.format(stats.availableCompartments)}
+        />
+        <Kpi
+          label="Người dùng"
+          meta={`${numberFormat.format(stats.residentCount)} cư dân · ${numberFormat.format(stats.operatorCount)} Operator`}
+          route="/admin/users"
+          value={numberFormat.format(stats.totalUsers)}
+        />
+        <Kpi
+          label="Bưu kiện đang lưu"
+          meta={`${numberFormat.format(stats.newParcelsTodayCount)} mới hôm nay · ${numberFormat.format(stats.overdueParcelsCount)} quá hạn`}
+          route="/admin/reports"
+          tone={stats.overdueParcelsCount ? 'warning' : undefined}
+          value={numberFormat.format(stats.storedParcelsCount)}
+        />
+        <Kpi
+          label="Sự cố đang mở"
+          meta={`${numberFormat.format(stats.highPriorityIncidentsCount)} ưu tiên cao`}
+          route="/admin/reports"
+          tone={stats.highPriorityIncidentsCount ? 'danger' : undefined}
+          value={numberFormat.format(stats.openIncidentsCount)}
+        />
+        <Kpi
+          label="Phí quá hạn 30 ngày"
+          meta="Tổng phí phát sinh"
+          route="/admin/reports"
+          value={moneyFormat.format(stats.totalOverdueFeeAmountLast30Days)}
+        />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.2fr_1fr]">
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Distribution
+          items={[
+            {
+              label: 'Đang vận hành',
+              value: data.lockerStatus.operational,
+              color: 'bg-success',
+            },
+            {
+              label: 'Ngừng phục vụ',
+              value: data.lockerStatus.maintenance,
+              color: 'bg-warning',
+            },
+            {
+              label: 'Đã vô hiệu hóa',
+              value: data.lockerStatus.suspended,
+              color: 'bg-default-foreground',
+            },
+            {
+              label: 'Ngoại tuyến',
+              value: data.lockerStatus.offline,
+              color: 'bg-danger',
+            },
+          ]}
+          title="Trạng thái tủ"
+          total={data.lockerStatus.total}
+        />
+        <Distribution
+          items={[
+            {
+              label: 'Trống',
+              value: data.compartmentStatus.available,
+              color: 'bg-success',
+            },
+            {
+              label: 'Đang dùng',
+              value: data.compartmentStatus.occupied,
+              color: 'bg-accent',
+            },
+            {
+              label: 'Quá hạn',
+              value: data.compartmentStatus.overdue,
+              color: 'bg-warning',
+            },
+            {
+              label: 'Ngừng phục vụ',
+              value: data.compartmentStatus.maintenance,
+              color: 'bg-danger',
+            },
+            {
+              label: 'Vô hiệu hóa',
+              value: data.compartmentStatus.disabled,
+              color: 'bg-default-foreground',
+            },
+          ]}
+          title="Trạng thái ngăn"
+          total={data.compartmentStatus.total}
+        />
         <Card>
           <Card.Header>
-            <Card.Title>Tình trạng locker</Card.Title>
+            <Card.Title>Bưu kiện 7 ngày gần nhất</Card.Title>
+            <Card.Description>
+              Tổng{' '}
+              {numberFormat.format(
+                data.recentParcelsTrend.reduce(
+                  (sum, day) => sum + day.count,
+                  0,
+                ),
+              )}
+            </Card.Description>
           </Card.Header>
-          <Card.Content className="flex items-center justify-center gap-7 pb-6">
-            <div
-              aria-label="21 locker hoạt động, 1 bảo trì, 3 offline"
-              className="relative flex size-36 shrink-0 items-center justify-center rounded-full"
-              role="img"
-              style={{
-                background:
-                  'conic-gradient(var(--color-success) 0 84%, var(--color-warning) 84% 88%, var(--color-danger) 88% 100%)',
-              }}
+          <Card.Content>
+            <ol
+              aria-label="Số bưu kiện theo ngày"
+              className="flex h-36 items-end gap-2"
             >
-              <span className="flex size-20 flex-col items-center justify-center rounded-full bg-background shadow-sm">
-                <strong className="text-2xl">24</strong>
-                <span className="text-xs text-muted">Locker</span>
-              </span>
-            </div>
-            <div className="space-y-3 text-sm">
-              <p>
-                <span className="text-success">●</span> Hoạt động{' '}
-                <strong className="ml-2">21</strong>
-              </p>
-              <p>
-                <span className="text-warning">●</span> Bảo trì{' '}
-                <strong className="ml-2">1</strong>
-              </p>
-              <p>
-                <span className="text-danger">●</span> Offline{' '}
-                <strong className="ml-2">3</strong>
-              </p>
-            </div>
-          </Card.Content>
-        </Card>
-
-        <Card>
-          <Card.Header>
-            <Card.Title>Bưu kiện 7 ngày</Card.Title>
-          </Card.Header>
-          <Card.Content className="pb-6">
-            <div
-              aria-label="Biểu đồ số bưu kiện trong 7 ngày"
-              className="flex h-48 items-end gap-3 border-b border-default px-2"
-              role="img"
-            >
-              {PARCELS.map((value, index) => (
-                <span
-                  key={DAYS[index]}
-                  className="flex h-full flex-1 flex-col items-center justify-end gap-2"
+              {data.recentParcelsTrend.map((day) => (
+                <li
+                  key={day.date}
+                  className="flex flex-1 flex-col items-center gap-1"
                 >
-                  <span className="text-xs font-medium">{value}</span>
-                  <span
-                    className="w-full max-w-10 rounded-t-md bg-accent"
-                    style={{ height: `${value * 4}px` }}
+                  <span className="text-xs font-medium">{day.count}</span>
+                  <div
+                    className="w-full rounded-t-md bg-accent"
+                    style={{
+                      height: `${Math.max(4, (day.count / maxTrend) * 96)}px`,
+                    }}
                   />
-                  <span className="pb-2 text-xs text-muted">{DAYS[index]}</span>
-                </span>
+                  <span className="text-xs text-muted">{day.dayLabel}</span>
+                </li>
               ))}
-            </div>
+            </ol>
           </Card.Content>
         </Card>
+      </div>
 
+      <div className="grid gap-4 xl:grid-cols-2">
         <Card>
           <Card.Header className="flex-row items-center justify-between">
-            <Card.Title>Locker cần chú ý</Card.Title>
+            <Card.Title>
+              Tủ cần chú ý ({data.attentionLockers.length})
+            </Card.Title>
             <Button
               size="sm"
               variant="ghost"
               onPress={() => navigate('/admin/lockers')}
             >
-              Xem tất cả
-              <ChevronRight className="size-4" />
+              Quản lý tủ
+              <ChevronRight aria-hidden="true" className="size-4" />
             </Button>
           </Card.Header>
           <Card.Content>
-            {ADMIN_LOCKERS.filter(
-              (locker) =>
-                locker.status !== 'active' || locker.connection === 'offline',
-            ).map((locker, index) => (
-              <div key={locker.id}>
-                {index ? <Separator /> : null}
-                <Link
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-foreground no-underline hover:bg-default"
-                  href="/admin/lockers"
-                >
-                  <CircleExclamation
-                    className={
-                      locker.connection === 'offline'
-                        ? 'size-5 text-danger'
-                        : 'size-5 text-warning'
-                    }
-                  />
-                  <span className="min-w-0 flex-1">
-                    <strong className="block">{locker.id}</strong>
-                    <span className="block truncate text-xs text-muted">
-                      {locker.address}
+            {data.attentionLockers.length ? (
+              <ul className="divide-y divide-border">
+                {data.attentionLockers.slice(0, 8).map((locker) => (
+                  <li
+                    key={locker.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2"
+                  >
+                    <span className="min-w-0 text-sm">
+                      <strong>{locker.code}</strong>
+                      <span className="block truncate text-xs text-muted">
+                        {locker.address}
+                      </span>
                     </span>
-                  </span>
-                  <LockerStatus status={locker.status} />
-                </Link>
-              </div>
-            ))}
+                    <span className="flex gap-1">
+                      {attentionReasons(locker).map((reason) => (
+                        <Chip
+                          key={reason}
+                          color="warning"
+                          size="sm"
+                          variant="soft"
+                        >
+                          {reason}
+                        </Chip>
+                      ))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">
+                Tất cả tủ đang trực tuyến và vận hành bình thường.
+              </p>
+            )}
+          </Card.Content>
+        </Card>
+
+        <Card>
+          <Card.Header className="flex-row items-center justify-between">
+            <Card.Title>Hoạt động gần đây</Card.Title>
+            <Button
+              size="sm"
+              variant="ghost"
+              onPress={() => navigate('/admin/audit-logs')}
+            >
+              Xem audit log
+              <ChevronRight aria-hidden="true" className="size-4" />
+            </Button>
+          </Card.Header>
+          <Card.Content>
+            {data.recentAuditLogs.length ? (
+              <ul className="divide-y divide-border">
+                {data.recentAuditLogs.map((log) => (
+                  <li
+                    key={log.id}
+                    className="flex flex-wrap items-center justify-between gap-2 py-2"
+                  >
+                    <span className="text-sm">
+                      <strong>{auditActionLabel(log.action)}</strong>
+                      <span className="block text-xs text-muted">
+                        {log.actorName} ·{' '}
+                        {dateTimeFormat.format(new Date(log.occurredAt))}
+                      </span>
+                    </span>
+                    <Chip
+                      color={log.result === 0 ? 'success' : 'danger'}
+                      size="sm"
+                      variant="soft"
+                    >
+                      {log.result === 0 ? 'Thành công' : 'Thất bại'}
+                    </Chip>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted">Chưa có hoạt động nào.</p>
+            )}
           </Card.Content>
         </Card>
       </div>
 
       <Card>
         <Card.Header>
-          <Card.Title>Trạng thái ngăn toàn hệ thống</Card.Title>
+          <Card.Title>Tủ cập nhật gần đây</Card.Title>
         </Card.Header>
-        <Card.Content className="space-y-4 pb-6">
-          <div className="flex h-4 overflow-hidden rounded-full bg-default">
-            <span className="bg-accent" style={{ width: '72.6%' }} />
-            <span className="bg-success" style={{ width: '22.9%' }} />
-            <span className="bg-danger" style={{ width: '2.1%' }} />
-            <span className="bg-warning" style={{ width: '1.7%' }} />
-            <span className="bg-muted" style={{ width: '0.7%' }} />
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
-            {[
-              ['text-accent', '418', 'Trống'],
-              ['text-success', '132', 'Đang sử dụng'],
-              ['text-danger', '12', 'Quá hạn'],
-              ['text-warning', '10', 'Bảo trì'],
-              ['text-muted', '4', 'Khóa lỗi'],
-            ].map(([tone, value, label]) => (
-              <span key={label}>
-                <span className={tone}>●</span> <strong>{value}</strong>{' '}
-                <span className="text-muted">{label}</span>
-              </span>
-            ))}
-          </div>
-        </Card.Content>
-      </Card>
-
-      <div className="flex flex-wrap gap-3">
-        <Button variant="primary" onPress={() => navigate('/admin/lockers')}>
-          <CirclePlus className="size-4" />
-          Thêm locker
-        </Button>
-        <Button variant="outline" onPress={() => navigate('/admin/users')}>
-          <Persons className="size-4" />
-          Tạo người dùng
-        </Button>
-        <Button variant="outline" onPress={() => navigate('/admin/operators')}>
-          <PersonWorker className="size-4" />
-          Phân công Operator
-        </Button>
-        <Button variant="outline" onPress={() => navigate('/admin/reports')}>
-          <ChartLine className="size-4" />
-          Xuất báo cáo
-        </Button>
-      </div>
-
-      <div className="grid items-start gap-5 xl:grid-cols-[1.55fr_0.75fr]">
-        <section className="min-w-0">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <Typography type="h5">Locker cập nhật gần đây</Typography>
-            <Button
-              size="sm"
-              variant="ghost"
-              onPress={() => navigate('/admin/lockers')}
-            >
-              Xem tất cả
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-          <Table variant="secondary">
+        <Card.Content className="px-0 pb-0">
+          <Table>
             <Table.ScrollContainer>
-              <Table.Content aria-label="Locker cập nhật gần đây">
+              <Table.Content aria-label="Tủ cập nhật gần đây">
                 <Table.Header>
                   <Table.Column isRowHeader id="code">
                     Mã tủ
@@ -374,44 +366,32 @@ export default function AdminDashboardPage() {
                   <Table.Column id="operator">Operator</Table.Column>
                   <Table.Column id="connection">Kết nối</Table.Column>
                   <Table.Column id="status">Vận hành</Table.Column>
-                  <Table.Column id="action">Thao tác</Table.Column>
+                  <Table.Column id="updated">Cập nhật</Table.Column>
                 </Table.Header>
                 <Table.Body>
-                  {recentLockers.map((locker) => (
+                  {data.recentLockers.map((locker) => (
                     <Table.Row key={locker.id} id={locker.id}>
                       <Table.Cell>
-                        <strong>{locker.id}</strong>
-                      </Table.Cell>
-                      <Table.Cell>{locker.address}</Table.Cell>
-                      <Table.Cell>
-                        {locker.operator ?? 'Chưa phân công'}
+                        <strong>{locker.code}</strong>
                       </Table.Cell>
                       <Table.Cell>
-                        <Chip
-                          color={
-                            locker.connection === 'online'
-                              ? 'success'
-                              : 'danger'
-                          }
-                          size="sm"
-                          variant="soft"
-                        >
-                          {locker.connection === 'online'
-                            ? 'Online'
-                            : 'Offline'}
-                        </Chip>
+                        <span className="block max-w-72 text-wrap">
+                          {locker.address}
+                        </span>
                       </Table.Cell>
                       <Table.Cell>
-                        <LockerStatus status={locker.status} />
+                        {locker.operatorName ?? (
+                          <span className="text-warning">Chưa phân công</span>
+                        )}
                       </Table.Cell>
                       <Table.Cell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => navigate('/admin/lockers')}
-                        >
-                          Chi tiết
-                        </Button>
+                        {connectionLabel(locker.connectionStatus)}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {operationalLabel(locker.operationalStatus)}
+                      </Table.Cell>
+                      <Table.Cell>
+                        {dateTimeFormat.format(new Date(locker.updatedAt))}
                       </Table.Cell>
                     </Table.Row>
                   ))}
@@ -419,51 +399,68 @@ export default function AdminDashboardPage() {
               </Table.Content>
             </Table.ScrollContainer>
           </Table>
-        </section>
+        </Card.Content>
+      </Card>
+    </>
+  );
+}
 
-        <Card>
-          <Card.Header className="flex-row items-center justify-between">
-            <Card.Title>Audit log gần đây</Card.Title>
-            <Button
-              size="sm"
-              variant="ghost"
-              onPress={() => navigate('/admin/audit-logs')}
-            >
-              Xem tất cả
-              <ChevronRight className="size-4" />
-            </Button>
-          </Card.Header>
-          <Card.Content>
-            {AUDIT_LOGS.slice(0, 5).map((log, index) => (
-              <div key={log.id}>
-                {index ? <Separator /> : null}
-                <div className="flex items-center gap-3 py-3">
-                  <span
-                    className={`flex size-8 items-center justify-center rounded-full ${log.result === 'failed' ? 'bg-danger/10 text-danger' : log.result === 'warning' ? 'bg-warning/10 text-warning' : 'bg-accent/10 text-accent'}`}
-                  >
-                    {log.module === 'Locker' ? (
-                      <Gear className="size-4" />
-                    ) : (
-                      <ChartLine className="size-4" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {log.action}
-                    </span>
-                    <span className="block truncate text-xs text-muted">
-                      {log.actor} · {log.target}
-                    </span>
-                  </span>
-                  <span className="text-xs text-muted">
-                    {log.time.slice(11)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </Card.Content>
-        </Card>
+export default function AdminDashboardPage() {
+  const { state, reload, refresh } = useAsyncResource(
+    getAdminDashboard,
+    getAdminDashboardErrorMessage,
+    [],
+  );
+
+  return (
+    <section className="flex w-full flex-col gap-5">
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="text-sm text-muted">
+          {state.data
+            ? `Cập nhật lúc ${dateTimeFormat.format(new Date(state.data.loadedAt))} (${TIME_ZONE})`
+            : 'Đang tải số liệu hệ thống...'}
+        </p>
+        <Button
+          className="ml-auto"
+          isDisabled={state.status === 'loading'}
+          variant="secondary"
+          onPress={refresh}
+        >
+          <ArrowRotateRight aria-hidden="true" className="size-4" />
+          Làm mới
+        </Button>
       </div>
+
+      {state.status === 'error' ? (
+        <Alert role="alert" status="danger">
+          <Alert.Indicator>
+            <CircleExclamation aria-hidden="true" className="size-5" />
+          </Alert.Indicator>
+          <Alert.Content>
+            <Alert.Description>
+              {state.message}
+              {state.data ? ' Đang hiển thị số liệu lần tải trước.' : ''}
+            </Alert.Description>
+          </Alert.Content>
+          <Button size="sm" variant="secondary" onPress={reload}>
+            Thử lại
+          </Button>
+        </Alert>
+      ) : null}
+
+      {state.data ? (
+        <DashboardContent data={state.data} />
+      ) : state.status === 'loading' ? (
+        <div
+          aria-busy="true"
+          aria-label="Đang tải tổng quan"
+          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+        >
+          {Array.from({ length: 6 }, (_, index) => (
+            <Skeleton key={index} className="h-36 rounded-2xl" />
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
