@@ -9,6 +9,7 @@ import House from '@gravity-ui/icons/House';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
 import Persons from '@gravity-ui/icons/Persons';
 import Hourglass from '@gravity-ui/icons/Hourglass';
+import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 
 export type AppRole = 'admin' | 'operator';
 
@@ -60,6 +61,12 @@ const operatorNavigation: NavigationItem[] = [
     label: 'Tủ của tôi',
     path: '/operator/lockers',
     icon: Boxes3,
+    role: 'operator',
+  },
+  {
+    label: 'Sự cố',
+    path: '/operator/incidents',
+    icon: TriangleExclamation,
     role: 'operator',
   },
   {
