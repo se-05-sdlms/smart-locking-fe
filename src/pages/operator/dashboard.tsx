@@ -2,6 +2,7 @@ import { Button, Card, Chip, Typography } from '@heroui/react';
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
 import {
   operationsService,
   type OperationalLocker,
@@ -27,6 +28,10 @@ export default function OperatorDashboardPage() {
   useEffect(() => {
     void load();
   }, [load]);
+  useOperationsRealtime(
+    lockers.map((locker) => locker.id),
+    () => void load(),
+  );
 
   const available = lockers.reduce(
     (sum, locker) => sum + locker.availableCompartments,
