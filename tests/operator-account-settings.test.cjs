@@ -212,3 +212,12 @@ test('unknown load errors never leak raw English text', () => {
   assert.equal(service.getAccountLoadErrorMessage(new Error('boom')), fallback);
   assert.equal(service.getAccountLoadErrorMessage(undefined), fallback);
 });
+
+test('locker codes with numbers use natural order (LK-2 before LK-10)', async () => {
+  const { service } = harness(async () => [locker('LK-10'), locker('LK-2'), locker('lk-1')]);
+
+  assert.deepEqual(
+    (await service.getAssignedLockers()).map((item) => item.code),
+    ['lk-1', 'LK-2', 'LK-10'],
+  );
+});

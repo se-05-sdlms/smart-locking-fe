@@ -57,7 +57,7 @@ function ErrorAlert({
   onRetry?: () => void;
 }) {
   return (
-    <Alert status="danger">
+    <Alert role="alert" status="danger">
       <Alert.Indicator>
         <CircleExclamation aria-hidden="true" />
       </Alert.Indicator>

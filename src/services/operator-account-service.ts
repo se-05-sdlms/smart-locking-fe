@@ -22,7 +22,12 @@ export async function getAssignedLockers(
 
   return lockers
     .map(({ id, code, address }) => ({ id, code, address }))
-    .sort((left, right) => left.code.localeCompare(right.code, 'vi'));
+    .sort((left, right) =>
+      left.code.localeCompare(right.code, 'vi', {
+        numeric: true,
+        sensitivity: 'base',
+      }),
+    );
 }
 
 export function getAccountLoadErrorMessage(error: unknown) {

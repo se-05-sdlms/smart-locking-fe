@@ -17,6 +17,8 @@ type PasswordFieldProps = {
   isDisabled: boolean;
   placeholder?: string;
   className?: string;
+  /** Surface hierarchy: fields sit on a Card, so `secondary` is the default. */
+  variant?: 'primary' | 'secondary';
   validate: (value: string) => string | undefined;
   onChange: (value: string) => void;
 };
@@ -30,6 +32,7 @@ export function PasswordField({
   isDisabled,
   placeholder,
   className,
+  variant = 'secondary',
   validate,
   onChange,
 }: PasswordFieldProps) {
@@ -49,7 +52,7 @@ export function PasswordField({
       onChange={onChange}
     >
       <Label>{label}</Label>
-      <InputGroup fullWidth>
+      <InputGroup fullWidth variant={variant}>
         <InputGroup.Input placeholder={placeholder} />
         <InputGroup.Suffix>
           <Button
