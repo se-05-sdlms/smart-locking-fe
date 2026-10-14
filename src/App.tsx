@@ -2,13 +2,9 @@ import type { AppRole } from '@/config/navigation';
 
 import { Route, Routes } from 'react-router-dom';
 
-import AboutPage from '@/pages/about';
-import BlogPage from '@/pages/blog';
 import EmptyRoutePage from '@/pages/empty-route';
-import DocsPage from '@/pages/docs';
 import LoginPage from '@/pages/login';
 import ForbiddenPage from '@/pages/forbidden';
-import PricingPage from '@/pages/pricing';
 import UserManagementPage from '@/pages/admin/user-management-page';
 import AdminDashboardPage from '@/pages/admin/dashboard';
 import AdminLockersPage from '@/pages/admin/lockers';
@@ -105,10 +101,6 @@ function App() {
       <Route element={<LoginPage />} path="/login" />
       {(['admin', 'operator'] as const).map(roleRoute)}
       <Route element={<ForbiddenPage />} path="/forbidden" />
-      <Route element={<DocsPage />} path="/docs" />
-      <Route element={<PricingPage />} path="/pricing" />
-      <Route element={<BlogPage />} path="/blog" />
-      <Route element={<AboutPage />} path="/about" />
     </Routes>
   );
 }
