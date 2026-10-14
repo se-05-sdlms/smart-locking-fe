@@ -13,6 +13,11 @@ export type RefreshTokenRequest = {
   refreshToken: string;
 };
 
+export type ChangePasswordRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 export type AuthUser = {
   id: string;
   phoneNumber: string | null;

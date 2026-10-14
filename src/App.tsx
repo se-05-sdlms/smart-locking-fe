@@ -18,7 +18,9 @@ import OperatorMaintenancePage from '@/pages/operator/maintenance';
 import AdminReportsPage from '@/pages/admin/reports';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
-import { RequireRole } from '@/auth/route-guards';
+import { RequirePasswordChange, RequireRole } from '@/auth/route-guards';
+import { FIRST_LOGIN_CHANGE_PASSWORD_PATH } from '@/auth/password-change';
+import FirstLoginChangePasswordPage from '@/pages/operator/first-login-change-password';
 
 function roleRoute(role: AppRole) {
   const basePath = `/${role}`;
@@ -99,6 +101,14 @@ function App() {
     <Routes>
       <Route element={<LoginPage />} path="/" />
       <Route element={<LoginPage />} path="/login" />
+      <Route
+        element={
+          <RequirePasswordChange>
+            <FirstLoginChangePasswordPage />
+          </RequirePasswordChange>
+        }
+        path={FIRST_LOGIN_CHANGE_PASSWORD_PATH}
+      />
       {(['admin', 'operator'] as const).map(roleRoute)}
       <Route element={<ForbiddenPage />} path="/forbidden" />
     </Routes>
