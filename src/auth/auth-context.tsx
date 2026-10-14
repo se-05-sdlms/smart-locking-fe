@@ -21,6 +21,7 @@ import {
 } from '@/auth/auth-storage';
 import { getAppRole } from '@/types/auth';
 import {
+  changePassword as requestChangePassword,
   getCurrentUser,
   login as requestLogin,
   logout as requestLogout,
@@ -35,6 +36,10 @@ type AuthContextValue = {
   isLoggingOut: boolean;
   login: (loginIdentifier: string, password: string) => Promise<AuthSession>;
   logout: () => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string,
+  ) => Promise<AuthSession>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -185,6 +190,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return operation;
   }, []);
 
+  const changePassword = useCallback(
+    async (currentPassword: string, newPassword: string) => {
+      // Backend revokes old refresh tokens and returns a fresh session
+      // whose token no longer carries must_change_password.
+      const response = await requestChangePassword({
+        currentPassword,
+        newPassword,
+      });
+
+      authRevision.current++;
+      saveAuthSession(response);
+
+      return response;
+    },
+    [],
+  );
+
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
@@ -194,8 +216,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isLoggingOut,
       login,
       logout,
+      changePassword,
     }),
-    [isLoading, isLoggingOut, login, logout, session],
+    [changePassword, isLoading, isLoggingOut, login, logout, session],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
