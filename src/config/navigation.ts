@@ -4,7 +4,6 @@ import ArrowRightFromSquare from '@gravity-ui/icons/ArrowRightFromSquare';
 import Boxes3 from '@gravity-ui/icons/Boxes3';
 import ChartLine from '@gravity-ui/icons/ChartLine';
 import ClockArrowRotateLeft from '@gravity-ui/icons/ClockArrowRotateLeft';
-import Factory from '@gravity-ui/icons/Factory';
 import Gear from '@gravity-ui/icons/Gear';
 import House from '@gravity-ui/icons/House';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
@@ -23,12 +22,6 @@ export type NavigationItem = {
 const adminNavigation: NavigationItem[] = [
   { label: 'Dashboard', path: '/admin', icon: House, role: 'admin' },
   { label: 'Người dùng', path: '/admin/users', icon: Persons, role: 'admin' },
-  {
-    label: 'Tòa nhà',
-    path: '/admin/buildings',
-    icon: Factory,
-    role: 'admin',
-  },
   {
     label: 'Quản lý locker',
     path: '/admin/lockers',
