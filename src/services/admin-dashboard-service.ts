@@ -63,10 +63,12 @@ export type AdminDashboard = {
     result: number;
     occurredAt: string;
   }>;
+  /** Server snapshot time; older backend builds do not send it. */
+  generatedAt?: string;
 };
 
 export type LoadedDashboard = AdminDashboard & {
-  /** The backend returns no asOf; this is when the client received the data. */
+  /** `generatedAt` when available, otherwise when the client received the data. */
   loadedAt: string;
 };
 
@@ -138,7 +140,10 @@ export async function getAdminDashboard(
     signal,
   });
 
-  return { ...response, loadedAt: new Date().toISOString() };
+  return {
+    ...response,
+    loadedAt: response.generatedAt ?? new Date().toISOString(),
+  };
 }
 
 export function getAdminDashboardErrorMessage(error: unknown) {
