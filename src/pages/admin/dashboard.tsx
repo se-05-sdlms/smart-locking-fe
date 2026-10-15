@@ -1,469 +1,636 @@
-import {
-  Button,
-  Card,
-  Chip,
-  Link,
-  Separator,
-  Table,
-  Typography,
-} from '@heroui/react';
-import ChartLine from '@gravity-ui/icons/ChartLine';
+import type { LoadedDashboard } from '@/services/admin-dashboard-service';
+import type { ComponentType, ReactNode, SVGProps } from 'react';
+
+import { Alert, Button, Card, Chip, Skeleton, Table } from '@heroui/react';
+import ArrowRotateRight from '@gravity-ui/icons/ArrowRotateRight';
+import Box from '@gravity-ui/icons/Box';
 import ChevronRight from '@gravity-ui/icons/ChevronRight';
+import CircleDollar from '@gravity-ui/icons/CircleDollar';
 import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
-import CirclePlus from '@gravity-ui/icons/CirclePlus';
-import Gear from '@gravity-ui/icons/Gear';
+import LayoutCellsLarge from '@gravity-ui/icons/LayoutCellsLarge';
 import Persons from '@gravity-ui/icons/Persons';
-import PersonWorker from '@gravity-ui/icons/PersonWorker';
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import Server from '@gravity-ui/icons/Server';
+import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
+import { Link, useNavigate } from 'react-router-dom';
 
-import { ADMIN_LOCKERS, AUDIT_LOGS } from './admin-data';
-
-import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
+import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
-  operationsService,
-  type OperationalLocker,
-} from '@/services/operations-service';
+  attentionReasons,
+  auditActionLabel,
+  connectionLabel,
+  getAdminDashboard,
+  getAdminDashboardErrorMessage,
+  operationalLabel,
+  percentage,
+} from '@/services/admin-dashboard-service';
 
-const METRICS: Array<{
+const TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const ATTENTION_LIMIT = 6;
+const numberFormat = new Intl.NumberFormat('vi-VN');
+const moneyFormat = new Intl.NumberFormat('vi-VN', {
+  style: 'currency',
+  currency: 'VND',
+  maximumFractionDigits: 0,
+});
+const dateTimeFormat = new Intl.DateTimeFormat('vi-VN', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
+
+type Tone = 'neutral' | 'success' | 'warning' | 'danger';
+type ChipColor = 'default' | 'success' | 'warning' | 'danger';
+
+const TONE_TEXT: Record<Tone, string> = {
+  neutral: 'text-foreground',
+  success: 'text-success',
+  warning: 'text-warning',
+  danger: 'text-danger',
+};
+
+const CONNECTION_COLORS: ChipColor[] = ['success', 'danger', 'default'];
+const OPERATIONAL_COLORS: ChipColor[] = ['success', 'warning', 'default'];
+
+const format = (value: number) => numberFormat.format(value);
+
+type StatTileProps = {
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
   label: string;
   value: string;
   meta: string;
-  tone: string;
-}> = [
-  {
-    label: 'Tổng số locker',
-    value: '24',
-    meta: '21 đang hoạt động',
-    tone: 'text-success',
-  },
-  {
-    label: 'Tổng số ngăn',
-    value: '576',
-    meta: '418 trống · 132 đang dùng',
-    tone: 'text-accent',
-  },
-  {
-    label: 'Người dùng',
-    value: '1.284',
-    meta: '1.198 cư dân · 72 operator',
-    tone: 'text-success',
-  },
-  {
-    label: 'Bưu kiện đang lưu',
-    value: '132',
-    meta: '18 mới hôm nay',
-    tone: 'text-accent',
-  },
-  {
-    label: 'Hàng quá hạn',
-    value: '17',
-    meta: 'Cần xử lý',
-    tone: 'text-danger',
-  },
-  {
-    label: 'Locker offline',
-    value: '3',
-    meta: 'Cần kiểm tra',
-    tone: 'text-warning',
-  },
-  {
-    label: 'Sự cố mở',
-    value: '6',
-    meta: '2 mức cao',
-    tone: 'text-warning',
-  },
-  {
-    label: 'Phí quá hạn',
-    value: '4.250.000đ',
-    meta: 'Trong 30 ngày',
-    tone: 'text-success',
-  },
-];
+  route: string;
+  tone?: Tone;
+};
 
-const PARCELS = [18, 25, 28, 20, 32, 24, 18];
-const DAYS = ['12/9', '13/9', '14/9', '15/9', '16/9', '17/9', '18/9'];
+function StatTile({
+  icon: Icon,
+  label,
+  value,
+  meta,
+  route,
+  tone = 'neutral',
+}: StatTileProps) {
+  return (
+    <Link
+      aria-label={`${label}: ${value}. ${meta}. Xem chi tiết`}
+      className="group flex min-h-32 flex-col gap-3 rounded-2xl border border-border bg-surface p-4 transition-colors hover:bg-surface-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      to={route}
+    >
+      <span className="flex items-center gap-2 text-sm text-muted">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-surface-secondary text-foreground">
+          <Icon aria-hidden="true" className="size-4" />
+        </span>
+        <span className="min-w-0 flex-1">{label}</span>
+        <ChevronRight
+          aria-hidden="true"
+          className="size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+        />
+      </span>
+      <strong
+        className={`text-2xl font-semibold tabular-nums ${TONE_TEXT[tone]}`}
+      >
+        {value}
+      </strong>
+      <span className="text-xs text-muted">{meta}</span>
+    </Link>
+  );
+}
 
-function LockerStatus({
-  status,
+function Panel({
+  title,
+  description,
+  action,
+  children,
+  className = '',
 }: {
-  status: (typeof ADMIN_LOCKERS)[number]['status'];
+  title: string;
+  description?: string;
+  action?: { label: string; route: string };
+  children: ReactNode;
+  className?: string;
 }) {
-  if (status === 'maintenance')
-    return (
-      <Chip color="warning" size="sm" variant="soft">
-        Bảo trì
-      </Chip>
-    );
-  if (status === 'suspended')
-    return (
-      <Chip color="danger" size="sm" variant="soft">
-        Tạm ngưng
-      </Chip>
-    );
+  const navigate = useNavigate();
 
   return (
-    <Chip color="success" size="sm" variant="soft">
-      Hoạt động
-    </Chip>
+    <Card className={className}>
+      <Card.Header className="flex-row items-start justify-between gap-3">
+        <div className="min-w-0">
+          <Card.Title>{title}</Card.Title>
+          {description ? (
+            <Card.Description>{description}</Card.Description>
+          ) : null}
+        </div>
+        {action ? (
+          <Button
+            className="-mr-2 -mt-1 shrink-0"
+            size="sm"
+            variant="ghost"
+            onPress={() => navigate(action.route)}
+          >
+            {action.label}
+            <ChevronRight aria-hidden="true" className="size-4" />
+          </Button>
+        ) : null}
+      </Card.Header>
+      <Card.Content>{children}</Card.Content>
+    </Card>
+  );
+}
+
+type Segment = { label: string; value: number; color: string };
+
+function Distribution({
+  title,
+  total,
+  unit,
+  segments,
+}: {
+  title: string;
+  total: number;
+  unit: string;
+  segments: Segment[];
+}) {
+  return (
+    <Panel description={`Tổng ${format(total)} ${unit}`} title={title}>
+      <div
+        aria-label={segments
+          .map((item) => `${item.label} ${percentage(item.value, total)}%`)
+          .join(', ')}
+        className="flex h-3 overflow-hidden rounded-full bg-surface-secondary"
+        role="img"
+      >
+        {segments.map((item) =>
+          item.value > 0 ? (
+            <span
+              key={item.label}
+              className={`h-full border-r-2 border-surface last:border-r-0 ${item.color}`}
+              style={{ width: `${(item.value / Math.max(total, 1)) * 100}%` }}
+            />
+          ) : null,
+        )}
+      </div>
+      <dl className="mt-4 grid gap-3">
+        {segments.map((item) => (
+          <div key={item.label} className="flex items-center gap-2 text-sm">
+            <span
+              aria-hidden="true"
+              className={`size-2.5 shrink-0 rounded-full ${item.color}`}
+            />
+            <dt className="min-w-0 flex-1 truncate text-muted">{item.label}</dt>
+            <dd className="font-medium tabular-nums">
+              {format(item.value)}
+              <span className="ml-1 text-xs font-normal text-muted">
+                {percentage(item.value, total)}%
+              </span>
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </Panel>
+  );
+}
+
+function ParcelTrend({
+  days,
+}: {
+  days: LoadedDashboard['recentParcelsTrend'];
+}) {
+  const max = Math.max(1, ...days.map((day) => day.count));
+  const total = days.reduce((sum, day) => sum + day.count, 0);
+
+  return (
+    <Panel
+      className="lg:col-span-2 2xl:col-span-1"
+      description={`Tổng ${format(total)} bưu kiện được gửi vào tủ`}
+      title={`Bưu kiện ${days.length} ngày gần nhất`}
+    >
+      <ol
+        aria-label="Số bưu kiện theo ngày"
+        className="flex h-44 items-end gap-2 border-b border-separator pb-px"
+      >
+        {days.map((day, index) => {
+          const isToday = index === days.length - 1;
+
+          return (
+            <li
+              key={day.date}
+              aria-label={`${day.dayLabel}: ${format(day.count)} bưu kiện`}
+              className="flex h-full flex-1 flex-col items-center justify-end gap-1"
+            >
+              <span className="text-xs font-medium tabular-nums">
+                {day.count}
+              </span>
+              <span
+                className={`w-full max-w-10 rounded-t-md ${isToday ? 'bg-accent' : 'bg-accent-soft'}`}
+                style={{ height: `${Math.max(4, (day.count / max) * 120)}px` }}
+              />
+            </li>
+          );
+        })}
+      </ol>
+      <ol aria-hidden="true" className="mt-2 flex gap-2">
+        {days.map((day, index) => (
+          <li
+            key={day.date}
+            className={`flex-1 text-center text-xs ${index === days.length - 1 ? 'font-medium text-foreground' : 'text-muted'}`}
+          >
+            {day.dayLabel}
+          </li>
+        ))}
+      </ol>
+    </Panel>
+  );
+}
+
+function AttentionLockers({
+  lockers,
+}: {
+  lockers: LoadedDashboard['attentionLockers'];
+}) {
+  const hidden = lockers.length - ATTENTION_LIMIT;
+
+  return (
+    <Panel
+      action={{ label: 'Quản lý tủ', route: '/admin/lockers' }}
+      description={
+        lockers.length
+          ? `${format(lockers.length)} tủ ngoại tuyến hoặc ngừng vận hành`
+          : undefined
+      }
+      title="Tủ cần chú ý"
+    >
+      {lockers.length ? (
+        <>
+          <ul className="divide-y divide-separator">
+            {lockers.slice(0, ATTENTION_LIMIT).map((locker) => (
+              <li
+                key={locker.id}
+                className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-3 first:pt-0"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium">
+                    {locker.code}
+                  </span>
+                  <span className="block truncate text-xs text-muted">
+                    {locker.address}
+                  </span>
+                </span>
+                <span className="flex flex-wrap gap-1">
+                  {attentionReasons(locker).map((reason) => (
+                    <Chip
+                      key={reason}
+                      color={reason === 'Ngoại tuyến' ? 'danger' : 'warning'}
+                      size="sm"
+                      variant="soft"
+                    >
+                      {reason}
+                    </Chip>
+                  ))}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {hidden > 0 ? (
+            <p className="mt-3 text-xs text-muted">
+              Và {format(hidden)} tủ khác.
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="flex items-center gap-2 text-sm text-muted">
+          <span aria-hidden="true" className="size-2 rounded-full bg-success" />
+          Tất cả tủ đang trực tuyến và vận hành bình thường.
+        </p>
+      )}
+    </Panel>
+  );
+}
+
+function RecentActivity({
+  logs,
+}: {
+  logs: LoadedDashboard['recentAuditLogs'];
+}) {
+  return (
+    <Panel
+      action={{ label: 'Xem audit log', route: '/admin/audit-logs' }}
+      title="Hoạt động gần đây"
+    >
+      {logs.length ? (
+        <ol className="space-y-4">
+          {logs.map((log) => {
+            const succeeded = log.result === 0;
+
+            return (
+              <li key={log.id} className="flex gap-3">
+                <span
+                  aria-hidden="true"
+                  className={`mt-1.5 size-2 shrink-0 rounded-full ${succeeded ? 'bg-success' : 'bg-danger'}`}
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="text-sm font-medium">
+                      {auditActionLabel(log.action)}
+                      {succeeded ? null : (
+                        <span className="ml-2 text-xs font-normal text-danger">
+                          Thất bại
+                        </span>
+                      )}
+                    </span>
+                    <time
+                      className="text-xs text-muted tabular-nums"
+                      dateTime={log.occurredAt}
+                    >
+                      {dateTimeFormat.format(new Date(log.occurredAt))}
+                    </time>
+                  </span>
+                  <span className="block truncate text-xs text-muted">
+                    {log.actorName}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      ) : (
+        <p className="text-sm text-muted">Chưa có hoạt động nào.</p>
+      )}
+    </Panel>
+  );
+}
+
+function RecentLockers({
+  lockers,
+}: {
+  lockers: LoadedDashboard['recentLockers'];
+}) {
+  return (
+    <Panel
+      action={{ label: 'Xem tất cả', route: '/admin/lockers' }}
+      title="Tủ cập nhật gần đây"
+    >
+      {lockers.length ? (
+        <Table variant="secondary">
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Tủ cập nhật gần đây">
+              <Table.Header>
+                <Table.Column isRowHeader id="code">
+                  Mã tủ
+                </Table.Column>
+                <Table.Column id="address">Địa chỉ</Table.Column>
+                <Table.Column id="operator">Operator</Table.Column>
+                <Table.Column id="connection">Kết nối</Table.Column>
+                <Table.Column id="status">Vận hành</Table.Column>
+                <Table.Column id="updated">Cập nhật</Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {lockers.map((locker) => (
+                  <Table.Row key={locker.id} id={locker.id}>
+                    <Table.Cell>
+                      <span className="font-medium">{locker.code}</span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <span className="block max-w-72 text-wrap text-muted">
+                        {locker.address}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      {locker.operatorName ?? (
+                        <span className="text-warning">Chưa phân công</span>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Chip
+                        color={
+                          CONNECTION_COLORS[locker.connectionStatus] ??
+                          'default'
+                        }
+                        size="sm"
+                        variant="soft"
+                      >
+                        {connectionLabel(locker.connectionStatus)}
+                      </Chip>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Chip
+                        color={
+                          OPERATIONAL_COLORS[locker.operationalStatus] ??
+                          'default'
+                        }
+                        size="sm"
+                        variant="soft"
+                      >
+                        {operationalLabel(locker.operationalStatus)}
+                      </Chip>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <span className="whitespace-nowrap tabular-nums text-muted">
+                        {dateTimeFormat.format(new Date(locker.updatedAt))}
+                      </span>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
+      ) : (
+        <p className="text-sm text-muted">Chưa có tủ nào.</p>
+      )}
+    </Panel>
+  );
+}
+
+function DashboardContent({ data }: { data: LoadedDashboard }) {
+  const stats = data.statistics;
+
+  return (
+    <>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        <StatTile
+          icon={Server}
+          label="Tủ đang vận hành"
+          meta={`Trên ${format(stats.totalLockers)} tủ · ${format(stats.offlineLockersCount)} ngoại tuyến`}
+          route="/admin/lockers"
+          value={format(stats.activeLockers)}
+        />
+        <StatTile
+          icon={LayoutCellsLarge}
+          label="Ngăn còn trống"
+          meta={`Trên ${format(stats.totalCompartments)} ngăn · ${format(stats.occupiedCompartments)} đang dùng`}
+          route="/admin/lockers"
+          value={format(stats.availableCompartments)}
+        />
+        <StatTile
+          icon={Box}
+          label="Bưu kiện đang lưu"
+          meta={`${format(stats.newParcelsTodayCount)} mới hôm nay · ${format(stats.overdueParcelsCount)} quá hạn`}
+          route="/admin/reports"
+          tone={stats.overdueParcelsCount ? 'warning' : 'neutral'}
+          value={format(stats.storedParcelsCount)}
+        />
+        <StatTile
+          icon={TriangleExclamation}
+          label="Sự cố đang mở"
+          meta={`${format(stats.highPriorityIncidentsCount)} ưu tiên cao`}
+          route="/admin/reports"
+          tone={stats.highPriorityIncidentsCount ? 'danger' : 'neutral'}
+          value={format(stats.openIncidentsCount)}
+        />
+        <StatTile
+          icon={Persons}
+          label="Người dùng"
+          meta={`${format(stats.residentCount)} cư dân · ${format(stats.operatorCount)} Operator`}
+          route="/admin/users"
+          value={format(stats.totalUsers)}
+        />
+        <StatTile
+          icon={CircleDollar}
+          label="Phí quá hạn"
+          meta="Phát sinh trong 30 ngày gần nhất"
+          route="/admin/reports"
+          value={moneyFormat.format(stats.totalOverdueFeeAmountLast30Days)}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        <ParcelTrend days={data.recentParcelsTrend} />
+        <Distribution
+          segments={[
+            {
+              label: 'Đang vận hành',
+              value: data.lockerStatus.operational,
+              color: 'bg-success',
+            },
+            {
+              label: 'Ngừng phục vụ',
+              value: data.lockerStatus.maintenance,
+              color: 'bg-warning',
+            },
+            {
+              label: 'Đã vô hiệu hóa',
+              value: data.lockerStatus.suspended,
+              color: 'bg-default-foreground',
+            },
+          ]}
+          title="Trạng thái tủ"
+          total={data.lockerStatus.total}
+          unit="tủ"
+        />
+        <Distribution
+          segments={[
+            {
+              label: 'Trống',
+              value: data.compartmentStatus.available,
+              color: 'bg-success',
+            },
+            {
+              label: 'Đang dùng',
+              value: data.compartmentStatus.occupied,
+              color: 'bg-accent',
+            },
+            {
+              label: 'Quá hạn',
+              value: data.compartmentStatus.overdue,
+              color: 'bg-warning',
+            },
+            {
+              label: 'Ngừng phục vụ',
+              value: data.compartmentStatus.maintenance,
+              color: 'bg-danger',
+            },
+            {
+              label: 'Vô hiệu hóa',
+              value: data.compartmentStatus.disabled,
+              color: 'bg-default-foreground',
+            },
+          ]}
+          title="Trạng thái ngăn"
+          total={data.compartmentStatus.total}
+          unit="ngăn"
+        />
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <AttentionLockers lockers={data.attentionLockers} />
+        <RecentActivity logs={data.recentAuditLogs} />
+      </div>
+
+      <RecentLockers lockers={data.recentLockers} />
+    </>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div
+      aria-busy="true"
+      aria-label="Đang tải tổng quan"
+      className="flex flex-col gap-4"
+    >
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+        {Array.from({ length: 6 }, (_, index) => (
+          <Skeleton key={index} className="h-32 rounded-2xl" />
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => (
+          <Skeleton key={index} className="h-64 rounded-2xl" />
+        ))}
+      </div>
+    </div>
   );
 }
 
 export default function AdminDashboardPage() {
-  const navigate = useNavigate();
-  const [liveLockers, setLiveLockers] = useState<OperationalLocker[]>([]);
-  const loadLiveLockers = useCallback(async () => {
-    try {
-      setLiveLockers(await operationsService.lockers());
-    } catch {
-      // Existing dashboard data remains visible during a temporary outage.
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadLiveLockers();
-  }, [loadLiveLockers]);
-  useOperationsRealtime(
-    liveLockers.map((locker) => locker.id),
-    () => void loadLiveLockers(),
+  const { state, reload, refresh } = useAsyncResource(
+    getAdminDashboard,
+    getAdminDashboardErrorMessage,
+    [],
   );
-
-  const liveMetrics = METRICS.map((metric) => {
-    if (!liveLockers.length) return metric;
-    if (metric.label === 'Tổng số locker')
-      return {
-        ...metric,
-        value: String(liveLockers.length),
-        meta: `${liveLockers.filter((locker) => locker.status === 'Operational').length} đang hoạt động`,
-      };
-    if (metric.label === 'Bưu kiện đang lưu')
-      return {
-        ...metric,
-        value: String(
-          liveLockers.reduce(
-            (total, locker) => total + locker.storedParcels,
-            0,
-          ),
-        ),
-        meta: 'Dữ liệu trực tiếp',
-      };
-    if (metric.label === 'Locker offline')
-      return {
-        ...metric,
-        value: String(
-          liveLockers.filter((locker) => locker.connection === 'Offline')
-            .length,
-        ),
-        meta: 'Dữ liệu trực tiếp',
-      };
-    if (metric.label === 'Sự cố mở')
-      return {
-        ...metric,
-        value: String(
-          liveLockers.reduce(
-            (total, locker) => total + locker.openIncidents,
-            0,
-          ),
-        ),
-        meta: 'Dữ liệu trực tiếp',
-      };
-
-    return metric;
-  });
-  const recentLockers = ADMIN_LOCKERS.slice(0, 5);
 
   return (
     <section className="flex w-full flex-col gap-5">
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {liveMetrics.map((metric) => (
-          <Card key={metric.label} className="h-28">
-            <Card.Header className="pb-0">
-              <Card.Title className="text-sm font-normal text-muted">
-                {metric.label}
-              </Card.Title>
-            </Card.Header>
-            <Card.Footer className="mt-auto items-end justify-between pt-0">
-              <span className="text-3xl font-semibold leading-none tracking-tight">
-                {metric.value}
-              </span>
-              <span className="max-w-44 pb-0.5 text-right text-xs text-muted">
-                <span className={metric.tone}>●</span> {metric.meta}
-              </span>
-            </Card.Footer>
-          </Card>
-        ))}
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-[0.9fr_1.2fr_1fr]">
-        <Card>
-          <Card.Header>
-            <Card.Title>Tình trạng locker</Card.Title>
-          </Card.Header>
-          <Card.Content className="flex items-center justify-center gap-7 pb-6">
-            <div
-              aria-label="21 locker hoạt động, 1 bảo trì, 3 offline"
-              className="relative flex size-36 shrink-0 items-center justify-center rounded-full"
-              role="img"
-              style={{
-                background:
-                  'conic-gradient(var(--color-success) 0 84%, var(--color-warning) 84% 88%, var(--color-danger) 88% 100%)',
-              }}
-            >
-              <span className="flex size-20 flex-col items-center justify-center rounded-full bg-background shadow-sm">
-                <strong className="text-2xl">24</strong>
-                <span className="text-xs text-muted">Locker</span>
-              </span>
-            </div>
-            <div className="space-y-3 text-sm">
-              <p>
-                <span className="text-success">●</span> Hoạt động{' '}
-                <strong className="ml-2">21</strong>
-              </p>
-              <p>
-                <span className="text-warning">●</span> Bảo trì{' '}
-                <strong className="ml-2">1</strong>
-              </p>
-              <p>
-                <span className="text-danger">●</span> Offline{' '}
-                <strong className="ml-2">3</strong>
-              </p>
-            </div>
-          </Card.Content>
-        </Card>
-
-        <Card>
-          <Card.Header>
-            <Card.Title>Bưu kiện 7 ngày</Card.Title>
-          </Card.Header>
-          <Card.Content className="pb-6">
-            <div
-              aria-label="Biểu đồ số bưu kiện trong 7 ngày"
-              className="flex h-48 items-end gap-3 border-b border-default px-2"
-              role="img"
-            >
-              {PARCELS.map((value, index) => (
-                <span
-                  key={DAYS[index]}
-                  className="flex h-full flex-1 flex-col items-center justify-end gap-2"
-                >
-                  <span className="text-xs font-medium">{value}</span>
-                  <span
-                    className="w-full max-w-10 rounded-t-md bg-accent"
-                    style={{ height: `${value * 4}px` }}
-                  />
-                  <span className="pb-2 text-xs text-muted">{DAYS[index]}</span>
-                </span>
-              ))}
-            </div>
-          </Card.Content>
-        </Card>
-
-        <Card>
-          <Card.Header className="flex-row items-center justify-between">
-            <Card.Title>Locker cần chú ý</Card.Title>
-            <Button
-              size="sm"
-              variant="ghost"
-              onPress={() => navigate('/admin/lockers')}
-            >
-              Xem tất cả
-              <ChevronRight className="size-4" />
-            </Button>
-          </Card.Header>
-          <Card.Content>
-            {ADMIN_LOCKERS.filter(
-              (locker) =>
-                locker.status !== 'active' || locker.connection === 'offline',
-            ).map((locker, index) => (
-              <div key={locker.id}>
-                {index ? <Separator /> : null}
-                <Link
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-3 text-foreground no-underline hover:bg-default"
-                  href="/admin/lockers"
-                >
-                  <CircleExclamation
-                    className={
-                      locker.connection === 'offline'
-                        ? 'size-5 text-danger'
-                        : 'size-5 text-warning'
-                    }
-                  />
-                  <span className="min-w-0 flex-1">
-                    <strong className="block">{locker.id}</strong>
-                    <span className="block truncate text-xs text-muted">
-                      {locker.address}
-                    </span>
-                  </span>
-                  <LockerStatus status={locker.status} />
-                </Link>
-              </div>
-            ))}
-          </Card.Content>
-        </Card>
-      </div>
-
-      <Card>
-        <Card.Header>
-          <Card.Title>Trạng thái ngăn toàn hệ thống</Card.Title>
-        </Card.Header>
-        <Card.Content className="space-y-4 pb-6">
-          <div className="flex h-4 overflow-hidden rounded-full bg-default">
-            <span className="bg-accent" style={{ width: '72.6%' }} />
-            <span className="bg-success" style={{ width: '22.9%' }} />
-            <span className="bg-danger" style={{ width: '2.1%' }} />
-            <span className="bg-warning" style={{ width: '1.7%' }} />
-            <span className="bg-muted" style={{ width: '0.7%' }} />
-          </div>
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-5">
-            {[
-              ['text-accent', '418', 'Trống'],
-              ['text-success', '132', 'Đang sử dụng'],
-              ['text-danger', '12', 'Quá hạn'],
-              ['text-warning', '10', 'Bảo trì'],
-              ['text-muted', '4', 'Khóa lỗi'],
-            ].map(([tone, value, label]) => (
-              <span key={label}>
-                <span className={tone}>●</span> <strong>{value}</strong>{' '}
-                <span className="text-muted">{label}</span>
-              </span>
-            ))}
-          </div>
-        </Card.Content>
-      </Card>
-
-      <div className="flex flex-wrap gap-3">
-        <Button variant="primary" onPress={() => navigate('/admin/lockers')}>
-          <CirclePlus className="size-4" />
-          Thêm locker
-        </Button>
-        <Button variant="outline" onPress={() => navigate('/admin/users')}>
-          <Persons className="size-4" />
-          Tạo người dùng
-        </Button>
-        <Button variant="outline" onPress={() => navigate('/admin/operators')}>
-          <PersonWorker className="size-4" />
-          Phân công Operator
-        </Button>
-        <Button variant="outline" onPress={() => navigate('/admin/reports')}>
-          <ChartLine className="size-4" />
-          Xuất báo cáo
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-semibold">Tổng quan hệ thống</h2>
+          <p className="text-sm text-muted">
+            {state.data
+              ? `Cập nhật lúc ${dateTimeFormat.format(new Date(state.data.loadedAt))} (${TIME_ZONE})`
+              : 'Đang tải số liệu hệ thống...'}
+          </p>
+        </div>
+        <Button
+          isDisabled={state.status === 'loading'}
+          variant="secondary"
+          onPress={refresh}
+        >
+          <ArrowRotateRight aria-hidden="true" className="size-4" />
+          Làm mới
         </Button>
       </div>
 
-      <div className="grid items-start gap-5 xl:grid-cols-[1.55fr_0.75fr]">
-        <section className="min-w-0">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <Typography type="h5">Locker cập nhật gần đây</Typography>
-            <Button
-              size="sm"
-              variant="ghost"
-              onPress={() => navigate('/admin/lockers')}
-            >
-              Xem tất cả
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-          <Table variant="secondary">
-            <Table.ScrollContainer>
-              <Table.Content aria-label="Locker cập nhật gần đây">
-                <Table.Header>
-                  <Table.Column isRowHeader id="code">
-                    Mã tủ
-                  </Table.Column>
-                  <Table.Column id="address">Địa chỉ</Table.Column>
-                  <Table.Column id="operator">Operator</Table.Column>
-                  <Table.Column id="connection">Kết nối</Table.Column>
-                  <Table.Column id="status">Vận hành</Table.Column>
-                  <Table.Column id="action">Thao tác</Table.Column>
-                </Table.Header>
-                <Table.Body>
-                  {recentLockers.map((locker) => (
-                    <Table.Row key={locker.id} id={locker.id}>
-                      <Table.Cell>
-                        <strong>{locker.id}</strong>
-                      </Table.Cell>
-                      <Table.Cell>{locker.address}</Table.Cell>
-                      <Table.Cell>
-                        {locker.operator ?? 'Chưa phân công'}
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Chip
-                          color={
-                            locker.connection === 'online'
-                              ? 'success'
-                              : 'danger'
-                          }
-                          size="sm"
-                          variant="soft"
-                        >
-                          {locker.connection === 'online'
-                            ? 'Online'
-                            : 'Offline'}
-                        </Chip>
-                      </Table.Cell>
-                      <Table.Cell>
-                        <LockerStatus status={locker.status} />
-                      </Table.Cell>
-                      <Table.Cell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onPress={() => navigate('/admin/lockers')}
-                        >
-                          Chi tiết
-                        </Button>
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
-          </Table>
-        </section>
+      {state.status === 'error' ? (
+        <Alert role="alert" status="danger">
+          <Alert.Indicator>
+            <CircleExclamation aria-hidden="true" className="size-5" />
+          </Alert.Indicator>
+          <Alert.Content>
+            <Alert.Description>
+              {state.message}
+              {state.data ? ' Đang hiển thị số liệu lần tải trước.' : ''}
+            </Alert.Description>
+          </Alert.Content>
+          <Button size="sm" variant="secondary" onPress={reload}>
+            Thử lại
+          </Button>
+        </Alert>
+      ) : null}
 
-        <Card>
-          <Card.Header className="flex-row items-center justify-between">
-            <Card.Title>Audit log gần đây</Card.Title>
-            <Button
-              size="sm"
-              variant="ghost"
-              onPress={() => navigate('/admin/audit-logs')}
-            >
-              Xem tất cả
-              <ChevronRight className="size-4" />
-            </Button>
-          </Card.Header>
-          <Card.Content>
-            {AUDIT_LOGS.slice(0, 5).map((log, index) => (
-              <div key={log.id}>
-                {index ? <Separator /> : null}
-                <div className="flex items-center gap-3 py-3">
-                  <span
-                    className={`flex size-8 items-center justify-center rounded-full ${log.result === 'failed' ? 'bg-danger/10 text-danger' : log.result === 'warning' ? 'bg-warning/10 text-warning' : 'bg-accent/10 text-accent'}`}
-                  >
-                    {log.module === 'Locker' ? (
-                      <Gear className="size-4" />
-                    ) : (
-                      <ChartLine className="size-4" />
-                    )}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">
-                      {log.action}
-                    </span>
-                    <span className="block truncate text-xs text-muted">
-                      {log.actor} · {log.target}
-                    </span>
-                  </span>
-                  <span className="text-xs text-muted">
-                    {log.time.slice(11)}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </Card.Content>
-        </Card>
-      </div>
+      {state.data ? (
+        <DashboardContent data={state.data} />
+      ) : state.status === 'loading' ? (
+        <DashboardSkeleton />
+      ) : null}
     </section>
   );
 }
