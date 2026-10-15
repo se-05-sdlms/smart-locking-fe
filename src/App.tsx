@@ -19,6 +19,7 @@ import OperatorIncidentsPage from '@/pages/operator/incidents';
 import OperatorOperationalHistoryPage from '@/pages/operator/operational-history';
 import AdminReportsPage from '@/pages/admin/reports';
 import AdminOperatorAssignmentsPage from '@/pages/admin/operator-assignments';
+import AdminSystemPoliciesPage from '@/pages/admin/system-policies';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
 import { RequirePasswordChange, RequireRole } from '@/auth/route-guards';
@@ -97,6 +98,8 @@ function roleRoute(role: AppRole) {
                 <AdminLockersPage />
               ) : item.path === '/admin/operators' ? (
                 <AdminOperatorAssignmentsPage />
+              ) : item.path === '/admin/policies' ? (
+                <AdminSystemPoliciesPage />
               ) : item.path === '/admin/audit-logs' ? (
                 <AdminAuditLogsPage />
               ) : item.path === '/admin/reports' ? (
