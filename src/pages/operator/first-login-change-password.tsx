@@ -1,90 +1,18 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Alert,
-  Button,
-  Card,
-  FieldError,
-  Form,
-  InputGroup,
-  Label,
-  TextField,
-} from '@heroui/react';
+import { Alert, Button, Card, Form } from '@heroui/react';
 import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
-import Eye from '@gravity-ui/icons/Eye';
-import EyeSlash from '@gravity-ui/icons/EyeSlash';
 import Key from '@gravity-ui/icons/Key';
 
 import boxoraLogo from '@/assets/boxora-logo.svg';
 import { useAuth } from '@/auth/auth-context';
+import { PasswordField } from '@/components/auth/password-field';
 import { getChangePasswordErrorMessage } from '@/services/auth-service';
 import {
   validateConfirmPassword,
   validateCurrentPassword,
   validateNewPassword,
 } from '@/auth/password-change';
-
-type PasswordFieldProps = {
-  label: string;
-  name: string;
-  value: string;
-  autoComplete: string;
-  isDisabled: boolean;
-  validate: (value: string) => string | undefined;
-  onChange: (value: string) => void;
-};
-
-function PasswordField({
-  label,
-  name,
-  value,
-  autoComplete,
-  isDisabled,
-  validate,
-  onChange,
-}: PasswordFieldProps) {
-  const [isVisible, setIsVisible] = useState(false);
-
-  return (
-    <TextField
-      fullWidth
-      isRequired
-      autoComplete={autoComplete}
-      isDisabled={isDisabled}
-      name={name}
-      type={isVisible ? 'text' : 'password'}
-      validate={validate}
-      value={value}
-      onChange={onChange}
-    >
-      <Label>{label}</Label>
-      <InputGroup fullWidth variant="secondary">
-        <InputGroup.Input />
-        <InputGroup.Suffix>
-          <Button
-            isIconOnly
-            aria-label={
-              isVisible
-                ? `Ẩn ${label.toLowerCase()}`
-                : `Hiện ${label.toLowerCase()}`
-            }
-            isDisabled={isDisabled}
-            size="sm"
-            variant="ghost"
-            onPress={() => setIsVisible((visible) => !visible)}
-          >
-            {isVisible ? (
-              <EyeSlash aria-hidden="true" className="size-4" />
-            ) : (
-              <Eye aria-hidden="true" className="size-4" />
-            )}
-          </Button>
-        </InputGroup.Suffix>
-      </InputGroup>
-      <FieldError />
-    </TextField>
-  );
-}
 
 export default function FirstLoginChangePasswordPage() {
   const navigate = useNavigate();
