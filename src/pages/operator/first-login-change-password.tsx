@@ -76,6 +76,7 @@ export default function FirstLoginChangePasswordPage() {
             />
             <PasswordField
               autoComplete="new-password"
+              dependsOn={currentPassword}
               isDisabled={isBusy}
               label="Mật khẩu mới"
               name="newPassword"
@@ -85,6 +86,7 @@ export default function FirstLoginChangePasswordPage() {
             />
             <PasswordField
               autoComplete="new-password"
+              dependsOn={newPassword}
               isDisabled={isBusy}
               label="Xác nhận mật khẩu mới"
               name="confirmPassword"
