@@ -24,6 +24,11 @@ export function AppHeader({ role }: { role: AppRole }) {
     currentItem?.path === '/operator/lockers'
       ? pathname.slice('/operator/lockers/'.length).split('/')[0]
       : '';
+  // Locker URLs use backend UUIDs; show the code passed by the locker list
+  // (or a generic label when the page is opened from a direct link).
+  const lockerLabel = lockerId
+    ? ((state as { lockerCode?: string } | null)?.lockerCode ?? 'Chi tiết tủ')
+    : '';
   const overdueParcelId =
     currentItem?.path === '/operator/overdue-clearance'
       ? pathname.slice('/operator/overdue-clearance/'.length).split('/')[0]
@@ -93,7 +98,7 @@ export function AppHeader({ role }: { role: AppRole }) {
           </Breadcrumbs.Item>
           {lockerId || overdueParcelId ? (
             <Breadcrumbs.Item className="!text-xl font-semibold tracking-tight">
-              {lockerId || overdueParcelLabel}
+              {lockerLabel || overdueParcelLabel}
             </Breadcrumbs.Item>
           ) : null}
         </Breadcrumbs>
