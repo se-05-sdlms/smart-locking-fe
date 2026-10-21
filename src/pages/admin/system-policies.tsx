@@ -31,6 +31,7 @@ import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
 import CirclePlus from '@gravity-ui/icons/CirclePlus';
 import Xmark from '@gravity-ui/icons/Xmark';
 
+import { NotificationRulesCard } from '@/components/admin/policies/notification-rules-card';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
   activateSystemPolicy,
@@ -136,10 +137,14 @@ function ToggleField({
 }) {
   return (
     <Switch isDisabled={isDisabled} isSelected={isSelected} onChange={onChange}>
-      <Switch.Control>
-        <Switch.Thumb />
-      </Switch.Control>
-      <Switch.Content>{label}</Switch.Content>
+      {/* Switch.Content is the pressable part; keep the control inside it so
+          clicking the toggle itself works, not only the label text. */}
+      <Switch.Content className="flex items-center gap-3">
+        <Switch.Control>
+          <Switch.Thumb />
+        </Switch.Control>
+        {label}
+      </Switch.Content>
     </Switch>
   );
 }
@@ -381,17 +386,17 @@ function PolicyFormModal({
                       <ToggleField
                         isDisabled={isSaving}
                         isSelected={values.enableRemoteUnlock}
-                        label="Cho phép mở từ xa qua ứng dụng"
+                        label="Cho phép mở tủ qua máy chủ (từ ứng dụng)"
                         onChange={(enableRemoteUnlock) =>
                           update({ enableRemoteUnlock })
                         }
                       />
                       <ToggleField
                         isDisabled={isSaving}
-                        isSelected={values.enableFaceRecognition}
-                        label="Cho phép mở bằng nhận diện khuôn mặt"
-                        onChange={(enableFaceRecognition) =>
-                          update({ enableFaceRecognition })
+                        isSelected={values.enableBluetoothUnlock}
+                        label="Cho phép mở tủ bằng Bluetooth"
+                        onChange={(enableBluetoothUnlock) =>
+                          update({ enableBluetoothUnlock })
                         }
                       />
                     </div>
@@ -540,8 +545,8 @@ export default function AdminSystemPoliciesPage() {
           'Cách mở tủ',
           [
             active.enableOtp && 'OTP',
-            active.enableRemoteUnlock && 'Từ xa',
-            active.enableFaceRecognition && 'Khuôn mặt',
+            active.enableRemoteUnlock && 'Qua máy chủ',
+            active.enableBluetoothUnlock && 'Bluetooth',
           ]
             .filter(Boolean)
             .join(', ') || 'Không có',
@@ -699,6 +704,8 @@ export default function AdminSystemPoliciesPage() {
               </Table>
             </Card.Content>
           </Card>
+
+          <NotificationRulesCard policies={policies} />
         </>
       ) : null}
 

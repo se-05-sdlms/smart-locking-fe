@@ -36,7 +36,7 @@ const policyDto = (overrides = {}) => ({
   guestSessionTimeoutMinutes: 15, manualApprovalTimeoutMinutes: 30, compartmentReservationMinutes: 10,
   overdueStartAfterHours: 168, overdueFeePerHour: 2000, currency: 'VND', maxStorageHours: 336,
   clearanceEligibilityAfterHours: 336, clearanceNoticeBeforeHours: 24, pickupReminderStartDay: 5,
-  otpMaxAttempts: 5, otpLockoutMinutes: 15, enableOtp: true, enableRemoteUnlock: true, enableFaceRecognition: false,
+  otpMaxAttempts: 5, otpLockoutMinutes: 15, enableOtp: true, enableRemoteUnlock: true, enableBluetoothUnlock: false,
   effectiveFrom: '2026-10-01T03:00:00Z', effectiveTo: null, isActive: true, createdAt: '2026-10-01T00:00:00Z',
   ...overrides,
 });

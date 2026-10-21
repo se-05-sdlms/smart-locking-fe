@@ -24,7 +24,7 @@ export type SystemPolicyDto = {
   otpLockoutMinutes: number;
   enableOtp: boolean;
   enableRemoteUnlock: boolean;
-  enableFaceRecognition: boolean;
+  enableBluetoothUnlock: boolean;
   effectiveFrom: string;
   effectiveTo: string | null;
   isActive: boolean;
@@ -58,7 +58,7 @@ export type PolicyFormValues = {
   otpLockoutMinutes: string;
   enableOtp: boolean;
   enableRemoteUnlock: boolean;
-  enableFaceRecognition: boolean;
+  enableBluetoothUnlock: boolean;
   /** `YYYY-MM-DDTHH:mm` in the browser's local time zone. */
   effectiveFrom: string;
 };
@@ -132,7 +132,7 @@ export function toPolicyFormValues(
     otpLockoutMinutes: String(policy?.otpLockoutMinutes ?? 15),
     enableOtp: policy?.enableOtp ?? true,
     enableRemoteUnlock: policy?.enableRemoteUnlock ?? true,
-    enableFaceRecognition: policy?.enableFaceRecognition ?? false,
+    enableBluetoothUnlock: policy?.enableBluetoothUnlock ?? false,
     // A new version starts from "now" unless an existing draft is edited.
     effectiveFrom:
       policy && policy.state === 'draft'
@@ -221,7 +221,7 @@ export function buildPolicyRequest(
     otpLockoutMinutes: Number(values.otpLockoutMinutes),
     enableOtp: values.enableOtp,
     enableRemoteUnlock: values.enableRemoteUnlock,
-    enableFaceRecognition: values.enableFaceRecognition,
+    enableBluetoothUnlock: values.enableBluetoothUnlock,
     // datetime-local is local time; send an absolute instant.
     effectiveFrom: new Date(values.effectiveFrom).toISOString(),
   };
