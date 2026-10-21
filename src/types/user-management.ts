@@ -74,6 +74,13 @@ export type PaginatedResult<T> = {
   pageSize: number;
 };
 
+export type UpdateOperatorRequest = {
+  userId: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+};
+
 export type CreateOperatorRequest = {
   fullName: string;
   email: string;
@@ -165,6 +172,7 @@ export type UserManagementErrorCode =
   | 'VALIDATION_ERROR'
   | 'SERVICE_ERROR'
   | 'RATE_LIMITED'
+  | 'EMAIL_UNAVAILABLE'
   | 'UNSUPPORTED_CONTRACT'
   | 'MOCK_FAILURE';
 
@@ -220,6 +228,10 @@ export interface UserManagementService {
   createOperator(
     request: CreateOperatorRequest,
   ): Promise<ServiceResult<OperatorUserView>>;
+  updateOperator?(
+    request: UpdateOperatorRequest,
+  ): Promise<ServiceResult<ManagedUserView>>;
+  reissueTemporaryPassword?(userId: string): Promise<ServiceResult<void>>;
   lockAccount(
     request: LockAccountRequest,
   ): Promise<ServiceResult<ManagedUserView>>;
