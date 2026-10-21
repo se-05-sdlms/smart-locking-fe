@@ -195,6 +195,7 @@ export function ChangePasswordCard() {
           <PasswordField
             autoComplete="new-password"
             className={fieldRowClassName}
+            dependsOn={currentPassword}
             isDisabled={isSubmitting}
             label="Mật khẩu mới"
             name="newPassword"
@@ -206,6 +207,7 @@ export function ChangePasswordCard() {
           <PasswordField
             autoComplete="new-password"
             className={fieldRowClassName}
+            dependsOn={newPassword}
             isDisabled={isSubmitting}
             label="Xác nhận mật khẩu mới"
             name="confirmPassword"

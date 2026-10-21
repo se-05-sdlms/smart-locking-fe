@@ -20,6 +20,13 @@ type PasswordFieldProps = {
   /** Surface hierarchy: fields sit on a Card, so `secondary` is the default. */
   variant?: 'primary' | 'secondary';
   validate: (value: string) => string | undefined;
+  /**
+   * The other field value this validation compares against (e.g. the current
+   * password). When it changes, the field drops its committed error so a stale
+   * message such as "phải khác mật khẩu hiện tại" is not left behind; it is
+   * re-validated on the next blur or submit.
+   */
+  dependsOn?: string;
   onChange: (value: string) => void;
 };
 
@@ -34,12 +41,14 @@ export function PasswordField({
   className,
   variant = 'secondary',
   validate,
+  dependsOn,
   onChange,
 }: PasswordFieldProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   return (
     <TextField
+      key={dependsOn}
       fullWidth
       isRequired
       autoComplete={autoComplete}
