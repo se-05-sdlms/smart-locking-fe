@@ -34,6 +34,7 @@ import {
 } from '@/constants/operator-locker';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
+import { useLockerAlerts } from '@/hooks/use-locker-alerts';
 import { filterLockers } from '@/services/operator-locker-mappers';
 import {
   getLockerLoadErrorMessage,
@@ -86,9 +87,12 @@ export default function OperatorLockersPage() {
   );
   const lockers = useMemo(() => state.data ?? [], [state.data]);
 
+  const onLockerEvent = useLockerAlerts(lockers);
+
   useOperationsRealtime(
     lockers.map((locker) => locker.id),
     refresh,
+    onLockerEvent,
   );
 
   const filteredLockers = useMemo(

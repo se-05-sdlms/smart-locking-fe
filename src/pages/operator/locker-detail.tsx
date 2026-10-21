@@ -54,6 +54,8 @@ import {
 } from '@/constants/operator-locker';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
+import { useLockerAlerts } from '@/hooks/use-locker-alerts';
+import { getEmergencyUnlockAvailability } from '@/services/locker-realtime-events';
 import {
   getCompartmentStatusAction,
   matchesCompartmentFilter,
@@ -183,7 +185,16 @@ export default function OperatorLockerDetailPage() {
   );
   const locker = state.data;
 
-  useOperationsRealtime(locker ? [locker.id] : [], refresh);
+  const alertLockers = useMemo(
+    () => (locker ? [{ id: locker.id, code: locker.code }] : []),
+    [locker],
+  );
+  const onLockerEvent = useLockerAlerts(alertLockers);
+  const unlockAvailability = locker
+    ? getEmergencyUnlockAvailability(locker)
+    : ({ allowed: false, reason: '' } as const);
+
+  useOperationsRealtime(locker ? [locker.id] : [], refresh, onLockerEvent);
 
   const selectedCompartment = locker?.compartments.find(
     (compartment) => compartment.id === selectedCompartmentId,
@@ -494,6 +505,12 @@ export default function OperatorLockerDetailPage() {
                         )}
                         <Button
                           fullWidth
+                          aria-describedby={
+                            unlockAvailability.allowed
+                              ? undefined
+                              : 'emergency-unlock-blocked'
+                          }
+                          isDisabled={!unlockAvailability.allowed}
                           variant="danger"
                           onPress={() => {
                             setEmergencyKey((value) => value + 1);
@@ -503,6 +520,14 @@ export default function OperatorLockerDetailPage() {
                           <LockOpen aria-hidden="true" className="size-5" />
                           Mở khẩn cấp
                         </Button>
+                        {unlockAvailability.allowed ? null : (
+                          <p
+                            className="text-sm text-danger"
+                            id="emergency-unlock-blocked"
+                          >
+                            {unlockAvailability.reason}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
