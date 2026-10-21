@@ -30,16 +30,6 @@ export type MaintenanceItem = {
   createdAt: string;
   updatedAt: string;
 };
-export type OperationsReport = {
-  from: string;
-  to: string;
-  deliveries: number;
-  returns: number;
-  retrievedParcels: number;
-  openIncidents: number;
-  maintenanceRequests: number;
-  emergencyUnlocks: number;
-};
 export type AuditItem = {
   id: string;
   actorUserId: string | null;
@@ -103,10 +93,6 @@ export const operationsService = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  report: (from?: string, to?: string) =>
-    apiRequest<OperationsReport>(
-      `/api/reports/summary?${new URLSearchParams({ ...(from ? { from } : {}), ...(to ? { to } : {}) })}`,
-    ),
   audit: async (query = '') =>
     pageItems(
       await apiRequest<PageResponse<AuditItem>>(
