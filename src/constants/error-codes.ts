@@ -55,6 +55,10 @@ export const ErrorCodes = {
   POLICY_NOT_FOUND: 'policy/not_found',
   POLICY_IMMUTABLE: 'policy/immutable',
 
+  // Notification
+  NOTIFICATION_NOT_FOUND: 'notification/not_found',
+  NOTIFICATION_RULE_ALREADY_EXISTS: 'notification/rule_already_exists',
+
   // Maintenance
   MAINTENANCE_NOT_FOUND: 'maintenance/not_found',
   MAINTENANCE_INVALID_REQUEST: 'maintenance/invalid_request',
