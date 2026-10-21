@@ -16,10 +16,13 @@ import OperatorDashboardPage from '@/pages/operator/dashboard';
 import OperatorSettingsPage from '@/pages/operator/settings';
 import OperatorMaintenancePage from '@/pages/operator/maintenance';
 import OperatorOperationalHistoryPage from '@/pages/operator/operational-history';
+import OperatorIncidentsPage from '@/pages/operator/incidents';
 import AdminReportsPage from '@/pages/admin/reports';
 import ApplicationLayout from '@/layouts/application-layout';
 import { getNavigationItems } from '@/config/navigation';
-import { RequireRole } from '@/auth/route-guards';
+import { RequirePasswordChange, RequireRole } from '@/auth/route-guards';
+import { FIRST_LOGIN_CHANGE_PASSWORD_PATH } from '@/auth/password-change';
+import FirstLoginChangePasswordPage from '@/pages/operator/first-login-change-password';
 
 function roleRoute(role: AppRole) {
   const basePath = `/${role}`;
@@ -71,6 +74,12 @@ function roleRoute(role: AppRole) {
             element={<OperatorOperationalHistoryPage />}
             path="operational-history"
           />
+        ) : item.path === '/operator/incidents' ? (
+          <Route
+            key={item.path}
+            element={<OperatorIncidentsPage />}
+            path="incidents"
+          />
         ) : item.path === '/operator/maintenance' ? (
           <Route
             key={item.path}
@@ -106,6 +115,14 @@ function App() {
     <Routes>
       <Route element={<LoginPage />} path="/" />
       <Route element={<LoginPage />} path="/login" />
+      <Route
+        element={
+          <RequirePasswordChange>
+            <FirstLoginChangePasswordPage />
+          </RequirePasswordChange>
+        }
+        path={FIRST_LOGIN_CHANGE_PASSWORD_PATH}
+      />
       {(['admin', 'operator'] as const).map(roleRoute)}
       <Route element={<ForbiddenPage />} path="/forbidden" />
     </Routes>

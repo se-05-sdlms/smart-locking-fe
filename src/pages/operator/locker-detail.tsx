@@ -10,16 +10,12 @@ import {
   AlertDialog,
   Button,
   Drawer,
-  FieldError,
-  Label,
   ListBox,
   Modal,
   Select,
   Separator,
   Skeleton,
   Table,
-  TextArea,
-  TextField,
   Typography,
   toast,
   useOverlayState,
@@ -33,11 +29,11 @@ import CircleInfo from '@gravity-ui/icons/CircleInfo';
 import ClockArrowRotateLeft from '@gravity-ui/icons/ClockArrowRotateLeft';
 import Funnel from '@gravity-ui/icons/Funnel';
 import LockOpen from '@gravity-ui/icons/LockOpen';
-import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 import Wrench from '@gravity-ui/icons/Wrench';
 import Xmark from '@gravity-ui/icons/Xmark';
 import { useParams } from 'react-router-dom';
 
+import { EmergencyUnlockDialog } from './emergency-unlock-dialog';
 import {
   CompartmentStatusChip,
   ConnectionChip,
@@ -169,12 +165,11 @@ export default function OperatorLockerDetailPage() {
   const [statusError, setStatusError] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const statusRequestPending = useRef(false);
-  const [emergencyReason, setEmergencyReason] = useState('');
-  const [emergencySubmitted, setEmergencySubmitted] = useState(false);
 
   const drawerState = useOverlayState();
   const statusState = useOverlayState();
   const emergencyState = useOverlayState();
+  const [emergencyKey, setEmergencyKey] = useState(0);
   const historyState = useOverlayState();
 
   const load = useCallback(
@@ -265,25 +260,6 @@ export default function OperatorLockerDetailPage() {
       statusRequestPending.current = false;
       setIsUpdatingStatus(false);
     }
-  };
-
-  // Emergency unlock is still a UI placeholder; issue #15 wires it to the API.
-  const confirmEmergencyOpen = () => {
-    setEmergencySubmitted(true);
-    if (
-      locker.connectionStatus !== 'Online' ||
-      emergencyReason.trim().length < 5
-    ) {
-      return;
-    }
-
-    emergencyState.close();
-    setEmergencyReason('');
-    setEmergencySubmitted(false);
-    toast.warning('Đã gửi lệnh mở khẩn cấp', {
-      description: `Lệnh mở ${selectedCompartment?.code ?? ''} đã được ghi vào nhật ký.`,
-      indicator: <TriangleExclamation aria-hidden="true" className="size-5" />,
-    });
   };
 
   const actionText = pendingAction
@@ -520,8 +496,7 @@ export default function OperatorLockerDetailPage() {
                           fullWidth
                           variant="danger"
                           onPress={() => {
-                            setEmergencyReason('');
-                            setEmergencySubmitted(false);
+                            setEmergencyKey((value) => value + 1);
                             emergencyState.open();
                           }}
                         >
@@ -593,75 +568,15 @@ export default function OperatorLockerDetailPage() {
         </AlertDialog.Backdrop>
       </AlertDialog>
 
-      <AlertDialog>
-        <AlertDialog.Backdrop
-          isOpen={emergencyState.isOpen}
-          onOpenChange={emergencyState.setOpen}
-        >
-          <AlertDialog.Container size="sm">
-            <AlertDialog.Dialog>
-              <AlertDialog.Header>
-                <AlertDialog.Icon status="danger">
-                  <TriangleExclamation aria-hidden="true" className="size-6" />
-                </AlertDialog.Icon>
-                <AlertDialog.Heading>Mở khẩn cấp</AlertDialog.Heading>
-              </AlertDialog.Header>
-              <AlertDialog.Body className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <span className="text-sm font-medium">Kết nối của tủ</span>
-                  <ConnectionChip value={locker.connectionStatus} />
-                </div>
-                {locker.connectionStatus !== 'Online' ? (
-                  <Alert status="danger">
-                    <Alert.Indicator>
-                      <CircleExclamation
-                        aria-hidden="true"
-                        className="size-5"
-                      />
-                    </Alert.Indicator>
-                    <Alert.Content>
-                      <Alert.Title>Không thể gửi lệnh mở</Alert.Title>
-                      <Alert.Description>
-                        Tủ không trực tuyến. Hãy kiểm tra kết nối tại chỗ.
-                      </Alert.Description>
-                    </Alert.Content>
-                  </Alert>
-                ) : null}
-                <TextField
-                  fullWidth
-                  isRequired
-                  isInvalid={
-                    emergencySubmitted && emergencyReason.trim().length < 5
-                  }
-                  value={emergencyReason}
-                  onChange={setEmergencyReason}
-                >
-                  <Label>Lý do mở khẩn cấp</Label>
-                  <TextArea
-                    minLength={5}
-                    placeholder="Nhập lý do mở khẩn cấp..."
-                    rows={4}
-                  />
-                  <FieldError>Vui lòng nhập ít nhất 5 ký tự.</FieldError>
-                </TextField>
-              </AlertDialog.Body>
-              <AlertDialog.Footer>
-                <Button slot="close" variant="ghost">
-                  Hủy
-                </Button>
-                <Button
-                  isDisabled={locker.connectionStatus !== 'Online'}
-                  variant="danger"
-                  onPress={confirmEmergencyOpen}
-                >
-                  <LockOpen aria-hidden="true" className="size-5" />
-                  Xác nhận mở
-                </Button>
-              </AlertDialog.Footer>
-            </AlertDialog.Dialog>
-          </AlertDialog.Container>
-        </AlertDialog.Backdrop>
-      </AlertDialog>
+      <EmergencyUnlockDialog
+        // Fresh form and result for every compartment.
+        key={`${selectedCompartmentId ?? 'none'}-${emergencyKey}`}
+        compartment={selectedCompartment}
+        isOpen={emergencyState.isOpen}
+        locker={locker}
+        onAttempted={refresh}
+        onOpenChange={emergencyState.setOpen}
+      />
 
       <Modal state={historyState}>
         <Modal.Backdrop>

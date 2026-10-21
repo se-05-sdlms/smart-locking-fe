@@ -33,6 +33,12 @@ export function AppHeader({ role }: { role: AppRole }) {
     currentItem?.path === '/operator/overdue-clearance'
       ? pathname.slice('/operator/overdue-clearance/'.length).split('/')[0]
       : '';
+  // Parcel URLs use backend UUIDs; show the code passed by the overdue list
+  // (or a generic label when the page is opened from a direct link).
+  const overdueParcelLabel = overdueParcelId
+    ? ((state as { parcelCode?: string } | null)?.parcelCode ??
+      'Chi tiết bưu kiện')
+    : '';
 
   useEffect(() => {
     const interval = window.setInterval(() => setNow(new Date()), 1_000);
@@ -92,7 +98,7 @@ export function AppHeader({ role }: { role: AppRole }) {
           </Breadcrumbs.Item>
           {lockerId || overdueParcelId ? (
             <Breadcrumbs.Item className="!text-xl font-semibold tracking-tight">
-              {lockerLabel || overdueParcelId}
+              {lockerLabel || overdueParcelLabel}
             </Breadcrumbs.Item>
           ) : null}
         </Breadcrumbs>
