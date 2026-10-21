@@ -25,6 +25,7 @@ function harness(request, timeoutMs) {
       '@/services/user-management-query',
       '@/services/user-management-requests',
       '@/constants/user-management',
+      '@/constants/error-codes',
     ].includes(name));
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
@@ -161,7 +162,8 @@ test('lock/unlock send numeric status and Vietnamese reason; no client audit', a
     const { service } = harness(async (url, options) => {
       if (!options.method) return detail('op', { status: currentStatus });
       assert.equal(url, '/api/Users/op/status');
-      assert.equal(options.method, 'PATCH');
+      // Backend contract: PUT /api/Users/{id}/status (PATCH returned 405).
+      assert.equal(options.method, 'PUT');
       writes.push(JSON.parse(options.body));
       return detail('op', { status });
     });
@@ -568,4 +570,64 @@ test('seed-sized workflow stays below 100 requests and removal never scans other
   data(await fixture.service.updateLockerAssignments({ operatorId: created.id, lockerIds: ['l1', 'l2'] }));
   data(await fixture.service.updateLockerAssignments({ operatorId: created.id, lockerIds: [] }));
   assert.ok(fixture.calls.length < 100, `Request budget exceeded: ${fixture.calls.length}`);
+});
+
+test('updateOperator sends PUT /api/Users/{id} with a normalised profile (UC-22)', async () => {
+  const writes = [];
+  const { service } = harness(async (url, options = {}) => {
+    writes.push({ url, method: options.method, body: options.body ? JSON.parse(options.body) : undefined });
+    return detail('op', { fullName: 'Trần Văn B', email: 'b@test.vn', phoneNumber: '0912345678' });
+  });
+
+  const result = data(await service.updateOperator({ userId: ' op ', fullName: '  Trần Văn B ', email: ' B@Test.VN ', phoneNumber: '0912 345-678' }));
+
+  assert.equal(result.fullName, 'Trần Văn B');
+  assert.deepEqual(writes[0], {
+    url: '/api/Users/op',
+    method: 'PUT',
+    body: { fullName: 'Trần Văn B', phoneNumber: '0912345678', email: 'b@test.vn' },
+  });
+});
+
+test('updateOperator rejects invalid profiles before calling the API', async () => {
+  let calls = 0;
+  const { service } = harness(async () => {
+    calls += 1;
+    return {};
+  });
+
+  for (const profile of [
+    { fullName: ' ', email: 'a@b.vn', phoneNumber: '0912345678' },
+    { fullName: 'A', email: 'not-an-email', phoneNumber: '0912345678' },
+    { fullName: 'A', email: 'a@b.vn', phoneNumber: '12' },
+  ]) {
+    const result = await service.updateOperator({ userId: 'op', ...profile });
+    assert.equal(result.success, false);
+  }
+  assert.equal(calls, 0);
+});
+
+test('reissueTemporaryPassword posts to the temporary-password endpoint and returns no password', async () => {
+  const writes = [];
+  const { service } = harness(async (url, options = {}) => {
+    writes.push(`${options.method} ${url}`);
+    return undefined;
+  });
+
+  const result = await service.reissueTemporaryPassword('op 1');
+
+  assert.equal(result.success, true);
+  assert.equal(result.data, undefined);
+  assert.deepEqual(writes, ['POST /api/Users/op%201/temporary-password']);
+});
+
+test('email delivery failure is explained in Vietnamese and keeps the created account (BE #49)', async () => {
+  const { service, ApiError } = harness(async () => {
+    throw new ApiError(503, 'Email unavailable', 'user/email_unavailable');
+  });
+
+  const reissue = await service.reissueTemporaryPassword('op');
+  assert.equal(reissue.success, false);
+  assert.equal(reissue.error.code, 'EMAIL_UNAVAILABLE');
+  assert.match(reissue.error.message, /Chưa gửi được email/);
 });

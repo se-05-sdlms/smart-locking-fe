@@ -50,6 +50,7 @@ export const ErrorCodes = {
   USER_ALREADY_EXISTS: 'user/already_exists',
   USER_INACTIVE: 'user/inactive',
   USER_ASSIGNMENT_CONFLICT: 'user/assignment_conflict',
+  USER_EMAIL_UNAVAILABLE: 'user/email_unavailable',
 
   // System policy
   POLICY_NOT_FOUND: 'policy/not_found',

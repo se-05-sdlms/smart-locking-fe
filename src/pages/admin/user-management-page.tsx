@@ -183,7 +183,9 @@ export default function UserManagementPage({
     setStatus('ALL');
     setSortDescriptor(getDefaultSortDescriptor('LOCKER_OPERATOR'));
     setPage(1);
-    showSuccessToast('Đã thêm nhân viên vận hành.');
+    showSuccessToast(
+      'Đã thêm nhân viên vận hành. Thông tin đăng nhập đã được gửi tới email của nhân viên.',
+    );
     setRetryCount((current) => current + 1);
   };
 
@@ -258,6 +260,7 @@ export default function UserManagementPage({
       <UserDetailModal
         service={service}
         userId={selectedUserId}
+        onChanged={() => setRetryCount((count) => count + 1)}
         onClose={() => setSelectedUserId(null)}
         onManageLockers={(operatorId) => {
           setSelectedUserId(null);

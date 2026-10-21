@@ -1,5 +1,6 @@
 import type {
   CreateOperatorRequest,
+  UpdateOperatorRequest,
   Locker,
   LockAccountRequest,
   ManagedUserView,
@@ -28,6 +29,7 @@ import {
   UNLOCK_REASONS,
 } from '@/constants/user-management';
 import { ApiError } from '@/services/api-client';
+import { ErrorCodes } from '@/constants/error-codes';
 import { queryUserViews } from '@/services/user-management-query';
 import {
   invalidateUserManagementReads,
@@ -65,6 +67,25 @@ function failure(error: unknown): ServiceFailure {
   let message = 'Không thể tải hoặc cập nhật dữ liệu. Vui lòng thử lại.';
 
   if (error instanceof ApiError) {
+    if (error.code === ErrorCodes.USER_EMAIL_UNAVAILABLE) {
+      return {
+        success: false,
+        error: {
+          code: 'EMAIL_UNAVAILABLE',
+          message:
+            'Chưa gửi được email thông tin đăng nhập. Vui lòng thử "Cấp lại mật khẩu tạm" sau ít phút.',
+        },
+      };
+    }
+    if (error.code === ErrorCodes.USER_ALREADY_EXISTS) {
+      return {
+        success: false,
+        error: {
+          code: 'VALIDATION_ERROR',
+          message: 'Email hoặc số điện thoại đã được tài khoản khác sử dụng.',
+        },
+      };
+    }
     if (error.status === 429) {
       const retryAfterMs = userManagementRetryAfterMs() || 60_000;
 
@@ -340,7 +361,7 @@ function changeStatus(
         await apiRequest<UserDetailDto>(
           `/api/Users/${encodeURIComponent(userId)}/status`,
           {
-            method: 'PATCH',
+            method: 'PUT',
             body: JSON.stringify(body),
             signal,
           },
@@ -667,9 +688,108 @@ function createOperator(
           'Email hoặc số điện thoại đã được sử dụng. Vui lòng kiểm tra lại.';
       }
 
+      // The backend keeps the account when the credential email fails.
+      if (
+        error instanceof ApiError &&
+        error.code === ErrorCodes.USER_EMAIL_UNAVAILABLE
+      ) {
+        result.error.reloadRequired = true;
+        result.error.message =
+          'Tài khoản đã được tạo nhưng chưa gửi được email thông tin đăng nhập. Hãy mở tài khoản trong danh sách và bấm "Cấp lại mật khẩu tạm".';
+      }
+
       return result;
     },
   );
+}
+
+export type OperatorProfileErrors = Partial<
+  Record<'fullName' | 'email' | 'phoneNumber', string>
+>;
+
+/** Same rules as account creation: name required, valid email, 9–15 digit phone. */
+export function normalizeOperatorProfile(values: {
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+}) {
+  return {
+    fullName: values.fullName.trim(),
+    email: values.email.trim().toLowerCase(),
+    phoneNumber: values.phoneNumber.trim().replace(/[\s().-]/g, ''),
+  };
+}
+
+export function validateOperatorProfile(values: {
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+}): OperatorProfileErrors {
+  const profile = normalizeOperatorProfile(values);
+  const errors: OperatorProfileErrors = {};
+
+  if (!profile.fullName) errors.fullName = 'Vui lòng nhập họ và tên.';
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profile.email)) {
+    errors.email = 'Địa chỉ email không hợp lệ.';
+  }
+  if (!/^\+?\d{9,15}$/.test(profile.phoneNumber)) {
+    errors.phoneNumber = 'Số điện thoại không hợp lệ.';
+  }
+
+  return errors;
+}
+
+/** Admin edits an Operator's name, phone and email (PUT /api/Users/{id}). */
+function updateOperator(
+  request: UpdateOperatorRequest,
+): Promise<ServiceResult<ManagedUserView>> {
+  return run(async (signal) => {
+    const userId = request.userId.trim();
+    const errors = validateOperatorProfile(request);
+    const firstError = Object.values(errors)[0];
+
+    if (!userId || firstError) {
+      throw new UserManagementError(
+        'VALIDATION_ERROR',
+        firstError ?? 'Không xác định được tài khoản cần sửa.',
+      );
+    }
+
+    const { fullName, email, phoneNumber } = normalizeOperatorProfile(request);
+
+    invalidateUserManagementReads(userId);
+
+    try {
+      return mapUser(
+        await apiRequest<UserDetailDto>(
+          `/api/Users/${encodeURIComponent(userId)}`,
+          {
+            method: 'PUT',
+            body: JSON.stringify({ fullName, phoneNumber, email }),
+            signal,
+          },
+        ),
+      );
+    } finally {
+      invalidateUserManagementReads(userId);
+    }
+  });
+}
+
+/**
+ * Generates and emails a new temporary password for an Operator
+ * (POST /api/Users/{id}/temporary-password → 204). The password is never
+ * returned to the browser; the Operator must change it at next login.
+ */
+function reissueTemporaryPassword(
+  userId: string,
+): Promise<ServiceResult<void>> {
+  return run(async (signal) => {
+    await apiRequest<void>(
+      `/api/Users/${encodeURIComponent(userId.trim())}/temporary-password`,
+      { method: 'POST', signal },
+    );
+  });
 }
 
 export const userManagementService: UserManagementService = {
@@ -757,6 +877,8 @@ export const userManagementService: UserManagementService = {
   lockAccount: (request) => changeStatus(request, 2),
   unlockAccount: (request) => changeStatus(request, 0),
   createOperator,
+  updateOperator,
+  reissueTemporaryPassword,
   updateLockerAssignments,
   getAuditRecords: () =>
     run(async () => unsupported('Chưa hỗ trợ xem nhật ký trên màn hình này.')),
