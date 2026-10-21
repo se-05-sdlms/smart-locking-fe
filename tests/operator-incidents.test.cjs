@@ -8,9 +8,11 @@ const ts = require('typescript');
 function harness(request = async () => undefined) {
   const cache = new Map();
   class ApiError extends Error {
-    constructor(status, message = '') {
+    constructor(status, message = '', code, errors) {
       super(message);
       this.status = status;
+      this.code = code;
+      this.errors = errors;
     }
   }
   function load(name) {

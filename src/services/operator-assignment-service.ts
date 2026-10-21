@@ -7,6 +7,7 @@ import type {
 } from '@/types/user-management-api';
 
 import { ApiError, apiRequest } from '@/services/api-client';
+import { ErrorCodes } from '@/constants/error-codes';
 
 /** UsersController role / status enums. */
 const OPERATOR_ROLE = 2;
@@ -272,24 +273,25 @@ export async function replaceAssignment(
 // Vietnamese error messages
 // ---------------------------------------------------------------------------
 
-function hasVietnameseText(message: string) {
-  return /[à-ỹÀ-Ỹđ]/u.test(message);
-}
-
 export function getAssignmentErrorMessage(error: unknown): string {
   if (error instanceof PartialReplaceError) {
     return `Đã thu hồi Operator cũ nhưng chưa phân công được Operator mới: ${getAssignmentErrorMessage(error.cause)} Tủ hiện chưa có người phụ trách.`;
   }
 
   if (error instanceof ApiError) {
+    switch (error.code) {
+      case ErrorCodes.USER_ASSIGNMENT_CONFLICT:
+        return 'Tủ đã được phân công cho nhân viên khác hoặc phân công đã bị thu hồi. Vui lòng tải lại.';
+      case ErrorCodes.USER_NOT_FOUND:
+        return 'Không tìm thấy nhân viên hoặc phân công. Vui lòng tải lại.';
+      case ErrorCodes.USER_INACTIVE:
+        return 'Nhân viên đã bị khóa nên không thể phân công.';
+      case ErrorCodes.LOCKER_NOT_FOUND:
+        return 'Không tìm thấy tủ. Dữ liệu có thể đã thay đổi, vui lòng tải lại.';
+    }
+
     if (error.status === 409) {
       return 'Tủ đã được phân công cho nhân viên khác hoặc phân công đã bị thu hồi. Vui lòng tải lại.';
-    }
-    if (
-      (error.status === 400 || error.status === 404) &&
-      hasVietnameseText(error.message)
-    ) {
-      return error.message;
     }
 
     switch (error.status) {

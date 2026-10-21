@@ -8,9 +8,11 @@ const ts = require('typescript');
 function harness(request = async () => undefined) {
   const cache = new Map();
   class ApiError extends Error {
-    constructor(status, message = '') {
+    constructor(status, message = '', code, errors) {
       super(message);
       this.status = status;
+      this.code = code;
+      this.errors = errors;
     }
   }
   function load(name) {
@@ -20,6 +22,7 @@ function harness(request = async () => undefined) {
       '@/auth/password-change',
       '@/services/auth-service',
       '@/types/auth',
+      '@/constants/error-codes',
     ].includes(name));
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
@@ -302,21 +305,31 @@ test('change password propagates backend errors to the caller', async () => {
 // Vietnamese error messages
 // ---------------------------------------------------------------------------
 
-test('backend 400 messages are translated to Vietnamese', () => {
+test('backend error codes are mapped to Vietnamese', () => {
   const { authService, ApiError } = harness();
-  const message = (text) =>
-    authService.getChangePasswordErrorMessage(new ApiError(400, text));
+  const message = (code, errors) =>
+    authService.getChangePasswordErrorMessage(new ApiError(400, 'English detail', code, errors));
 
-  assert.equal(message('Current password is incorrect.'), 'Mật khẩu hiện tại không đúng.');
+  assert.equal(message('auth/invalid_password'), 'Mật khẩu hiện tại không đúng.');
   assert.equal(
-    message('New password must be different from the current password. (Parameter \'NewPassword\')'),
-    'Mật khẩu mới phải khác mật khẩu hiện tại.',
+    message('validation/invalid_input', { newPassword: ['Password must contain at least 8 characters.'] }),
+    'Mật khẩu mới chưa hợp lệ (tối thiểu 8 ký tự).',
   );
+  assert.equal(message('validation/invalid_input'), 'Thông tin đổi mật khẩu không hợp lệ.');
+  assert.equal(message(undefined), 'Thông tin đổi mật khẩu không hợp lệ.');
   assert.equal(
-    message('Password must contain at least 8 characters. (Parameter \'NewPassword\')'),
-    'Mật khẩu mới phải có ít nhất 8 ký tự.',
+    authService.getChangePasswordErrorMessage(new ApiError(429, 'Too many', 'common/rate_limited')),
+    'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.',
   );
-  assert.equal(message('Something else'), 'Thông tin đổi mật khẩu không hợp lệ.');
+});
+
+test('login errors are mapped by backend error code', () => {
+  const { authService, ApiError } = harness();
+  const message = (status, code) => authService.getLoginErrorMessage(new ApiError(status, 'English detail', code));
+
+  assert.equal(message(401, 'auth/invalid_credentials'), 'Tên đăng nhập hoặc mật khẩu không đúng.');
+  assert.equal(message(403, 'user/inactive'), 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.');
+  assert.equal(message(403, undefined), 'Tài khoản không có quyền đăng nhập vào hệ thống này.');
 });
 
 test('transport and server errors are translated to Vietnamese', () => {
