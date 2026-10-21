@@ -1,12 +1,12 @@
 import type { AppRole } from '@/config/navigation';
 
 import { Breadcrumbs, Button, Surface, Toolbar, Tooltip } from '@heroui/react';
-import Bell from '@gravity-ui/icons/Bell';
 import Calendar from '@gravity-ui/icons/Calendar';
 import CircleQuestion from '@gravity-ui/icons/CircleQuestion';
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
+import { NotificationInbox } from '@/components/navigation/notification-inbox';
 import { getNavigationItem } from '@/config/navigation';
 
 export function AppHeader({ role }: { role: AppRole }) {
@@ -124,14 +124,7 @@ export function AppHeader({ role }: { role: AppRole }) {
             </span>
           </time>
         ) : null}
-        <Tooltip>
-          <Tooltip.Trigger>
-            <Button isIconOnly aria-label="Thông báo" size="sm" variant="ghost">
-              <Bell aria-hidden="true" className="size-5" />
-            </Button>
-          </Tooltip.Trigger>
-          <Tooltip.Content>Thông báo</Tooltip.Content>
-        </Tooltip>
+        <NotificationInbox role={role} />
         <Tooltip>
           <Tooltip.Trigger>
             <Button isIconOnly aria-label="Trợ giúp" size="sm" variant="ghost">

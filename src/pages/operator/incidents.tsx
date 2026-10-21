@@ -1,6 +1,7 @@
 import type { IncidentListItem, IncidentStatusFilter } from '@/types/incident';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
   Button,
@@ -52,6 +53,25 @@ export default function OperatorIncidentsPage() {
   const [keyword, setKeyword] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const linkedIncidentId = searchParams.get('incident');
+
+  // Deep link from a notification (/operator/incidents?incident=<id>): open
+  // the drawer once, then drop the parameter so closing it does not reopen it.
+  useEffect(() => {
+    if (!linkedIncidentId) return;
+
+    setSelectedId(linkedIncidentId);
+    setIsDrawerOpen(true);
+    setSearchParams(
+      (params) => {
+        params.delete('incident');
+
+        return params;
+      },
+      { replace: true },
+    );
+  }, [linkedIncidentId, setSearchParams]);
 
   const load = useCallback(
     (signal: AbortSignal) => listOperatorIncidents(statusFilter, signal),
