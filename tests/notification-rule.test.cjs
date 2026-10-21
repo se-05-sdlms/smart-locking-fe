@@ -114,3 +114,21 @@ test('errors are mapped by backend error code and validation field', () => {
   assert.match(message(500), /Máy chủ đang gặp sự cố/);
   assert.equal(service.getNotificationRuleErrorMessage(undefined), 'Không thể xử lý quy tắc thông báo. Vui lòng thử lại.');
 });
+
+test('rules from another policy version are never shown or acted on (review #73)', () => {
+  const { service } = harness();
+  const rules = [rule({ id: 'a-1', systemPolicyId: 'policy-A' }), rule({ id: 'b-1', systemPolicyId: 'policy-B' })];
+
+  assert.deepEqual(service.rulesForPolicy(rules, 'policy-B').map((item) => item.id), ['b-1']);
+  assert.deepEqual(service.rulesForPolicy(rules, 'policy-C'), []);
+});
+
+test('the rules section remounts per policy version so stale data and forms are dropped (review #73)', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'components', 'admin', 'policies', 'notification-rules-card.tsx'), 'utf8');
+
+  assert.match(source, /<PolicyRulesSection key=\{policy\.id\} policy=\{policy\} \/>/);
+  // The table and the add button only render once this version's request succeeded.
+  assert.match(source, /isReady && rules\.length > 0/);
+  assert.match(source, /isDisabled=\{!isEditable \|\| !isReady\}/);
+  assert.match(source, /rule\.systemPolicyId !== policy\.id\) return;/);
+});

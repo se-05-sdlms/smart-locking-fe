@@ -44,6 +44,7 @@ import {
   NOTIFICATION_CHANNEL_LABELS,
   NOTIFICATION_CHANNELS,
   notificationEventLabel,
+  rulesForPolicy,
   toRuleFormValues,
   updateNotificationRule,
   validateRuleForm,
@@ -311,46 +312,29 @@ function RuleFormModal({
 }
 
 /**
- * Notification rules of one system policy version (SRS UC-26). Only draft
- * versions can be changed; the active and expired versions are read-only.
+ * Rules of one policy version. Rendered with `key={policy.id}` so switching
+ * versions mounts a fresh section: no rules, open form or pending toggle from
+ * the previous version can be shown or sent while the new one loads or fails.
  */
-export function NotificationRulesCard({
-  policies,
-}: {
-  policies: SystemPolicy[];
-}) {
-  const defaultPolicyId =
-    policies.find((policy) => policy.state === 'draft')?.id ??
-    policies.find((policy) => policy.state === 'active')?.id ??
-    policies[0]?.id ??
-    '';
-  const [policyId, setPolicyId] = useState(defaultPolicyId);
+function PolicyRulesSection({ policy }: { policy: SystemPolicy }) {
+  const isEditable = policy.state === 'draft';
   const [form, setForm] = useState<{
     key: number;
     rule?: NotificationRule;
   } | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
 
-  // Keep the selection valid when the version list changes (new draft, activation).
-  useEffect(() => {
-    if (!policies.some((policy) => policy.id === policyId)) {
-      setPolicyId(defaultPolicyId);
-    }
-  }, [defaultPolicyId, policies, policyId]);
-
-  const policy = policies.find((item) => item.id === policyId);
-  const isEditable = policy?.state === 'draft';
-
   const { state, reload, refresh } = useAsyncResource(
-    (signal) =>
-      policyId ? listNotificationRules(policyId, signal) : Promise.resolve([]),
+    (signal) => listNotificationRules(policy.id, signal),
     getNotificationRuleErrorMessage,
-    [policyId],
+    [policy.id],
   );
-  const rules = state.data ?? [];
+  // Defence in depth: never show or act on a rule of another policy version.
+  const rules = rulesForPolicy(state.data ?? [], policy.id);
+  const isReady = state.status === 'success';
 
   const toggleRule = async (rule: NotificationRule, isEnabled: boolean) => {
-    if (togglingId) return;
+    if (togglingId || rule.systemPolicyId !== policy.id) return;
 
     setTogglingId(rule.id);
 
@@ -371,6 +355,158 @@ export function NotificationRulesCard({
     }
   };
 
+  const stateLabel = POLICY_STATE_DISPLAY[policy.state].label.toLowerCase();
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          {isEditable
+            ? `Phiên bản ${policy.version} là bản nháp: thêm, sửa hoặc bật/tắt quy tắc trước khi áp dụng.`
+            : `Phiên bản ${policy.version} đang ở trạng thái ${stateLabel} nên chỉ xem được. Tạo phiên bản mới để thay đổi quy tắc.`}
+        </p>
+        <Button
+          isDisabled={!isEditable || !isReady}
+          variant="primary"
+          onPress={() => setForm({ key: Date.now() })}
+        >
+          <CirclePlus aria-hidden="true" className="size-4" />
+          Thêm quy tắc
+        </Button>
+      </div>
+
+      {state.status === 'loading' ? (
+        <Skeleton className="h-32 w-full rounded-xl" />
+      ) : null}
+      {state.status === 'error' ? (
+        <ErrorAlert message={state.message} onRetry={reload} />
+      ) : null}
+      {isReady && rules.length === 0 ? (
+        <p className="text-sm text-muted">
+          Phiên bản này chưa có quy tắc thông báo nào.
+        </p>
+      ) : null}
+
+      {isReady && rules.length > 0 ? (
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content
+              aria-label={`Quy tắc thông báo phiên bản ${policy.version}`}
+            >
+              <Table.Header>
+                <Table.Column isRowHeader id="event">
+                  Sự kiện
+                </Table.Column>
+                <Table.Column id="channel">Kênh gửi</Table.Column>
+                <Table.Column id="lead">Báo trước</Table.Column>
+                <Table.Column id="enabled">Trạng thái</Table.Column>
+                <Table.Column id="action">Thao tác</Table.Column>
+              </Table.Header>
+              <Table.Body>
+                {rules.map((rule) => (
+                  <Table.Row key={rule.id} id={rule.id}>
+                    <Table.Cell>
+                      <span className="block font-medium">
+                        {notificationEventLabel(rule.eventType)}
+                      </span>
+                      <span className="block text-xs text-muted">
+                        {rule.eventType}
+                      </span>
+                    </Table.Cell>
+                    <Table.Cell>
+                      {NOTIFICATION_CHANNEL_LABELS[rule.channel] ??
+                        'Không xác định'}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {formatLeadTime(rule.leadTimeMinutes)}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {isEditable ? (
+                        <Switch
+                          aria-label={`Bật quy tắc ${notificationEventLabel(rule.eventType)}`}
+                          isDisabled={togglingId !== null}
+                          isSelected={rule.isEnabled}
+                          onChange={(isEnabled) =>
+                            void toggleRule(rule, isEnabled)
+                          }
+                        >
+                          <Switch.Content className="flex items-center gap-2 text-sm">
+                            <Switch.Control>
+                              <Switch.Thumb />
+                            </Switch.Control>
+                            {rule.isEnabled ? 'Bật' : 'Tắt'}
+                          </Switch.Content>
+                        </Switch>
+                      ) : (
+                        <Chip
+                          color={rule.isEnabled ? 'success' : 'default'}
+                          size="sm"
+                          variant="soft"
+                        >
+                          {rule.isEnabled ? 'Đang bật' : 'Đang tắt'}
+                        </Chip>
+                      )}
+                    </Table.Cell>
+                    <Table.Cell>
+                      {isEditable ? (
+                        <Button
+                          aria-label={`Sửa quy tắc ${notificationEventLabel(rule.eventType)}`}
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => setForm({ key: Date.now(), rule })}
+                        >
+                          Sửa
+                        </Button>
+                      ) : (
+                        <span className="text-sm text-muted">—</span>
+                      )}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
+      ) : null}
+
+      {form ? (
+        <RuleFormModal
+          key={form.key}
+          policy={policy}
+          rule={form.rule}
+          onClose={() => setForm(null)}
+          onSaved={refresh}
+        />
+      ) : null}
+    </>
+  );
+}
+
+/**
+ * Notification rules of one system policy version (SRS UC-26). Only draft
+ * versions can be changed; the active and expired versions are read-only.
+ */
+export function NotificationRulesCard({
+  policies,
+}: {
+  policies: SystemPolicy[];
+}) {
+  const defaultPolicyId =
+    policies.find((policy) => policy.state === 'draft')?.id ??
+    policies.find((policy) => policy.state === 'active')?.id ??
+    policies[0]?.id ??
+    '';
+  const [policyId, setPolicyId] = useState(defaultPolicyId);
+
+  // Keep the selection valid when the version list changes (new draft, activation).
+  useEffect(() => {
+    if (!policies.some((policy) => policy.id === policyId)) {
+      setPolicyId(defaultPolicyId);
+    }
+  }, [defaultPolicyId, policies, policyId]);
+
+  const policy = policies.find((item) => item.id === policyId);
+
   if (!policies.length) return null;
 
   return (
@@ -384,154 +520,36 @@ export function NotificationRulesCard({
             nháp.
           </Card.Description>
         </div>
-        <div className="flex flex-wrap items-end gap-2">
-          <Select
-            aria-label="Chọn phiên bản chính sách"
-            className="w-56"
-            value={policyId}
-            variant="secondary"
-            onChange={(key) => setPolicyId(String(key))}
-          >
-            <Select.Trigger>
-              <Select.Value />
-              <Select.Indicator />
-            </Select.Trigger>
-            <Select.Popover>
-              <ListBox>
-                {policies.map((item) => (
-                  <ListBox.Item
-                    key={item.id}
-                    id={item.id}
-                    textValue={`Phiên bản ${item.version} · ${POLICY_STATE_DISPLAY[item.state].label}`}
-                  >
-                    Phiên bản {item.version} ·{' '}
-                    {POLICY_STATE_DISPLAY[item.state].label}
-                  </ListBox.Item>
-                ))}
-              </ListBox>
-            </Select.Popover>
-          </Select>
-          <Button
-            isDisabled={!isEditable || !state.data}
-            variant="primary"
-            onPress={() => setForm({ key: Date.now() })}
-          >
-            <CirclePlus aria-hidden="true" className="size-4" />
-            Thêm quy tắc
-          </Button>
-        </div>
+        <Select
+          aria-label="Chọn phiên bản chính sách"
+          className="w-56"
+          value={policyId}
+          variant="secondary"
+          onChange={(key) => setPolicyId(String(key))}
+        >
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              {policies.map((item) => (
+                <ListBox.Item
+                  key={item.id}
+                  id={item.id}
+                  textValue={`Phiên bản ${item.version} · ${POLICY_STATE_DISPLAY[item.state].label}`}
+                >
+                  Phiên bản {item.version} ·{' '}
+                  {POLICY_STATE_DISPLAY[item.state].label}
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
       </Card.Header>
       <Card.Content className="gap-4">
-        {policy && !isEditable ? (
-          <p className="text-sm text-muted">
-            Phiên bản {policy.version} đang ở trạng thái{' '}
-            {POLICY_STATE_DISPLAY[policy.state].label.toLowerCase()} nên chỉ xem
-            được. Tạo phiên bản mới để thay đổi quy tắc.
-          </p>
-        ) : null}
-
-        {state.status === 'loading' && !state.data ? (
-          <Skeleton className="h-32 w-full rounded-xl" />
-        ) : null}
-        {state.status === 'error' ? (
-          <ErrorAlert message={state.message} onRetry={reload} />
-        ) : null}
-        {state.data && rules.length === 0 ? (
-          <p className="text-sm text-muted">
-            Phiên bản này chưa có quy tắc thông báo nào.
-          </p>
-        ) : null}
-
-        {rules.length > 0 ? (
-          <Table>
-            <Table.ScrollContainer>
-              <Table.Content aria-label="Quy tắc thông báo">
-                <Table.Header>
-                  <Table.Column isRowHeader id="event">
-                    Sự kiện
-                  </Table.Column>
-                  <Table.Column id="channel">Kênh gửi</Table.Column>
-                  <Table.Column id="lead">Báo trước</Table.Column>
-                  <Table.Column id="enabled">Trạng thái</Table.Column>
-                  <Table.Column id="action">Thao tác</Table.Column>
-                </Table.Header>
-                <Table.Body>
-                  {rules.map((rule) => (
-                    <Table.Row key={rule.id} id={rule.id}>
-                      <Table.Cell>
-                        <span className="block font-medium">
-                          {notificationEventLabel(rule.eventType)}
-                        </span>
-                        <span className="block text-xs text-muted">
-                          {rule.eventType}
-                        </span>
-                      </Table.Cell>
-                      <Table.Cell>
-                        {NOTIFICATION_CHANNEL_LABELS[rule.channel] ??
-                          'Không xác định'}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {formatLeadTime(rule.leadTimeMinutes)}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {isEditable ? (
-                          <Switch
-                            aria-label={`Bật quy tắc ${notificationEventLabel(rule.eventType)}`}
-                            isDisabled={togglingId !== null}
-                            isSelected={rule.isEnabled}
-                            onChange={(isEnabled) =>
-                              void toggleRule(rule, isEnabled)
-                            }
-                          >
-                            <Switch.Content className="flex items-center gap-2 text-sm">
-                              <Switch.Control>
-                                <Switch.Thumb />
-                              </Switch.Control>
-                              {rule.isEnabled ? 'Bật' : 'Tắt'}
-                            </Switch.Content>
-                          </Switch>
-                        ) : (
-                          <Chip
-                            color={rule.isEnabled ? 'success' : 'default'}
-                            size="sm"
-                            variant="soft"
-                          >
-                            {rule.isEnabled ? 'Đang bật' : 'Đang tắt'}
-                          </Chip>
-                        )}
-                      </Table.Cell>
-                      <Table.Cell>
-                        {isEditable ? (
-                          <Button
-                            aria-label={`Sửa quy tắc ${notificationEventLabel(rule.eventType)}`}
-                            size="sm"
-                            variant="ghost"
-                            onPress={() => setForm({ key: Date.now(), rule })}
-                          >
-                            Sửa
-                          </Button>
-                        ) : (
-                          <span className="text-sm text-muted">—</span>
-                        )}
-                      </Table.Cell>
-                    </Table.Row>
-                  ))}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
-          </Table>
-        ) : null}
+        {policy ? <PolicyRulesSection key={policy.id} policy={policy} /> : null}
       </Card.Content>
-
-      {form && policy ? (
-        <RuleFormModal
-          key={form.key}
-          policy={policy}
-          rule={form.rule}
-          onClose={() => setForm(null)}
-          onSaved={refresh}
-        />
-      ) : null}
     </Card>
   );
 }

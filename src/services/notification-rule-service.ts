@@ -198,3 +198,11 @@ export function getNotificationRuleErrorMessage(error: unknown) {
 
   return 'Không thể xử lý quy tắc thông báo. Vui lòng thử lại.';
 }
+
+/** Rules that belong to `systemPolicyId`; anything else is dropped. */
+export function rulesForPolicy(
+  rules: readonly NotificationRule[],
+  systemPolicyId: string,
+) {
+  return rules.filter((rule) => rule.systemPolicyId === systemPolicyId);
+}
