@@ -1,4 +1,5 @@
 import type {
+  AdminCompartment,
   AdminLockerDetail,
   CompartmentFormErrors,
   CompartmentFormValues,
@@ -35,9 +36,12 @@ import {
   ADMIN_OPERATIONAL_STATUS_DISPLAY,
   LOCKER_FIELD_LIMITS,
 } from '@/constants/admin-locker';
+import { CompartmentEditModal } from '@/components/admin/lockers/compartment-edit-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
   createCompartment,
+  getCompartmentStatusTarget,
+  setCompartmentStatus,
   deactivateLocker,
   getAdminLockerDetail,
   getAdminLockerErrorMessage,
@@ -130,6 +134,43 @@ export function LockerDetailDrawer({
   const [deactivateError, setDeactivateError] = useState('');
   const [isDeactivating, setIsDeactivating] = useState(false);
   const pending = useRef(false);
+  const [editing, setEditing] = useState<AdminCompartment | null>(null);
+  const [statusTarget, setStatusTarget] = useState<AdminCompartment | null>(
+    null,
+  );
+  const [statusError, setStatusError] = useState('');
+  const [isChangingStatus, setIsChangingStatus] = useState(false);
+
+  const changeCompartmentStatus = async (item: AdminCompartment) => {
+    if (!locker || pending.current) return;
+
+    const target = getCompartmentStatusTarget(item.operationalStatus);
+
+    pending.current = true;
+    setIsChangingStatus(true);
+    setStatusError('');
+
+    try {
+      await setCompartmentStatus(locker.id, item.id, target);
+      toast.success(
+        target === 'Inactive'
+          ? 'Đã ngừng hoạt động ngăn'
+          : 'Đã kích hoạt lại ngăn',
+        {
+          description: `Ngăn ${item.code} · tủ ${locker.code}`,
+          indicator: <CircleCheck aria-hidden="true" className="size-5" />,
+        },
+      );
+      setStatusTarget(null);
+      refresh();
+      onChanged();
+    } catch (error) {
+      setStatusError(getAdminLockerErrorMessage(error));
+    } finally {
+      pending.current = false;
+      setIsChangingStatus(false);
+    }
+  };
 
   const isInactive = locker?.operationalStatus === 'Inactive';
 
@@ -351,6 +392,51 @@ export function LockerDetailDrawer({
                                 <Chip size="sm" variant="soft">
                                   {ADMIN_DOOR_STATUS_LABELS[item.doorStatus]}
                                 </Chip>
+                                {isInactive ? null : (
+                                  <>
+                                    <Button
+                                      aria-label={`Sửa ngăn ${item.code}`}
+                                      isDisabled={isChangingStatus}
+                                      size="sm"
+                                      variant="ghost"
+                                      onPress={() => setEditing(item)}
+                                    >
+                                      <Pencil
+                                        aria-hidden="true"
+                                        className="size-4"
+                                      />
+                                      Sửa
+                                    </Button>
+                                    <Button
+                                      aria-label={
+                                        item.operationalStatus === 'Inactive'
+                                          ? `Kích hoạt lại ngăn ${item.code}`
+                                          : `Ngừng hoạt động ngăn ${item.code}`
+                                      }
+                                      isDisabled={isChangingStatus}
+                                      size="sm"
+                                      variant={
+                                        item.operationalStatus === 'Inactive'
+                                          ? 'secondary'
+                                          : 'danger-soft'
+                                      }
+                                      onPress={() => {
+                                        setStatusError('');
+                                        if (
+                                          item.operationalStatus === 'Inactive'
+                                        ) {
+                                          void changeCompartmentStatus(item);
+                                        } else {
+                                          setStatusTarget(item);
+                                        }
+                                      }}
+                                    >
+                                      {item.operationalStatus === 'Inactive'
+                                        ? 'Kích hoạt lại'
+                                        : 'Ngừng hoạt động'}
+                                    </Button>
+                                  </>
+                                )}
                               </span>
                             </li>
                           ))}
@@ -360,6 +446,17 @@ export function LockerDetailDrawer({
                           Tủ chưa có ngăn nào.
                         </p>
                       )}
+
+                      {statusError && !statusTarget ? (
+                        <Alert role="alert" status="danger">
+                          <Alert.Indicator>
+                            <CircleExclamation aria-hidden="true" />
+                          </Alert.Indicator>
+                          <Alert.Content>
+                            <Alert.Description>{statusError}</Alert.Description>
+                          </Alert.Content>
+                        </Alert>
+                      ) : null}
 
                       {isInactive ? (
                         <p className="text-sm text-muted">
@@ -510,6 +607,77 @@ export function LockerDetailDrawer({
                   onPress={() => void confirmDeactivate()}
                 >
                   {isDeactivating ? 'Đang xử lý...' : 'Vô hiệu hóa'}
+                </Button>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
+      </AlertDialog>
+
+      {editing && locker ? (
+        <CompartmentEditModal
+          key={editing.id}
+          compartment={editing}
+          lockerCode={locker.code}
+          lockerId={locker.id}
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            refresh();
+            onChanged();
+          }}
+        />
+      ) : null}
+
+      <AlertDialog>
+        <AlertDialog.Backdrop
+          isDismissable={!isChangingStatus}
+          isOpen={statusTarget !== null}
+          onOpenChange={(open) =>
+            !open && !isChangingStatus && setStatusTarget(null)
+          }
+        >
+          <AlertDialog.Container size="sm">
+            <AlertDialog.Dialog>
+              <AlertDialog.Header>
+                <AlertDialog.Icon status="danger">
+                  <CircleExclamation aria-hidden="true" className="size-6" />
+                </AlertDialog.Icon>
+                <AlertDialog.Heading>
+                  Ngừng hoạt động ngăn {statusTarget?.code}?
+                </AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body className="space-y-3">
+                <p className="text-sm">
+                  Ngăn sẽ không được cấp cho lượt gửi hàng mới. Hệ thống từ chối
+                  nếu ngăn còn bưu kiện, hàng trả hoặc lượt giữ chỗ.
+                </p>
+                {statusError ? (
+                  <Alert role="alert" status="danger">
+                    <Alert.Indicator>
+                      <CircleExclamation aria-hidden="true" />
+                    </Alert.Indicator>
+                    <Alert.Content>
+                      <Alert.Description>{statusError}</Alert.Description>
+                    </Alert.Content>
+                  </Alert>
+                ) : null}
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <Button
+                  isDisabled={isChangingStatus}
+                  variant="ghost"
+                  onPress={() => setStatusTarget(null)}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  isDisabled={isChangingStatus}
+                  variant="danger"
+                  onPress={() =>
+                    statusTarget && void changeCompartmentStatus(statusTarget)
+                  }
+                >
+                  {isChangingStatus ? 'Đang lưu...' : 'Ngừng hoạt động'}
                 </Button>
               </AlertDialog.Footer>
             </AlertDialog.Dialog>

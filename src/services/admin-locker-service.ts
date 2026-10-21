@@ -21,6 +21,7 @@ import type {
 
 import { LOCKER_FIELD_LIMITS } from '@/constants/admin-locker';
 import { ApiError, apiRequest } from '@/services/api-client';
+import { ErrorCodes } from '@/constants/error-codes';
 
 // Backend enum order (Domain/Enums/LockerEnums.cs).
 const OPERATIONAL = ['Operational', 'OutOfService', 'Inactive'] as const;
@@ -340,19 +341,119 @@ export async function createCompartment(
   );
 }
 
+const compartmentPath = (lockerId: string, compartmentId: string) =>
+  `/api/Lockers/${encodeURIComponent(lockerId)}/compartments/${encodeURIComponent(compartmentId)}`;
+
+/** Edit a compartment's code and hardware mapping (PUT …/compartments/{cid}). */
+export async function updateCompartment(
+  lockerId: string,
+  compartmentId: string,
+  values: CompartmentFormValues,
+): Promise<AdminCompartment> {
+  return mapAdminCompartment(
+    await apiRequest<AdminCompartmentDto>(
+      compartmentPath(lockerId, compartmentId),
+      {
+        method: 'PUT',
+        body: JSON.stringify(buildCreateCompartmentRequest(values)),
+      },
+    ),
+  );
+}
+
+export type CompartmentStatusTarget = 'Operational' | 'Inactive';
+
+/** Admin deactivates or reactivates a compartment (PUT …/compartments/{cid}/status). */
+export async function setCompartmentStatus(
+  lockerId: string,
+  compartmentId: string,
+  target: CompartmentStatusTarget,
+): Promise<AdminCompartment> {
+  return mapAdminCompartment(
+    await apiRequest<AdminCompartmentDto>(
+      `${compartmentPath(lockerId, compartmentId)}/status`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({
+          operationalStatus: toOperationalStatusDto(target),
+        }),
+      },
+    ),
+  );
+}
+
+/** Form values for editing an existing compartment. */
+export function toCompartmentFormValues(
+  compartment: Pick<
+    AdminCompartment,
+    'code' | 'hardwareCode' | 'hardwareChannel'
+  >,
+): CompartmentFormValues {
+  return {
+    code: compartment.code,
+    hardwareCode: compartment.hardwareCode,
+    hardwareChannel: String(compartment.hardwareChannel),
+  };
+}
+
+/** Next status for the compartment toggle: deactivate unless already inactive. */
+export function getCompartmentStatusTarget(
+  status: AdminCompartment['operationalStatus'],
+): CompartmentStatusTarget {
+  return status === 'Inactive' ? 'Operational' : 'Inactive';
+}
+
 // ---------------------------------------------------------------------------
 // Vietnamese error messages
 // ---------------------------------------------------------------------------
 
-/** LockerService validation and conflict messages are already Vietnamese. */
-function hasVietnameseText(message: string) {
-  return /[à-ỹÀ-Ỹđ]/u.test(message);
+/** Backend validation field keys → Vietnamese (validation/invalid_input). */
+const LOCKER_FIELD_MESSAGES: Record<string, string> = {
+  code: 'Mã tủ hoặc mã ngăn không hợp lệ (bắt buộc, không quá giới hạn ký tự).',
+  address: 'Địa chỉ đặt tủ không hợp lệ (bắt buộc, tối đa 500 ký tự).',
+  recoveryAddress: 'Địa chỉ tập kết không hợp lệ (bắt buộc, tối đa 500 ký tự).',
+  deviceIdentifier: 'Mã thiết bị không hợp lệ (bắt buộc, tối đa 100 ký tự).',
+  hardwareCode: 'Mã phần cứng không hợp lệ (bắt buộc, tối đa 100 ký tự).',
+  hardwareChannel: 'Kênh phần cứng phải là số nguyên dương.',
+  operationalStatus: 'Trạng thái hoạt động không hợp lệ.',
+};
+
+function validationMessage(error: ApiError) {
+  const field = Object.keys(error.errors ?? {})
+    .map((key) => key.charAt(0).toLowerCase() + key.slice(1))
+    .find((key) => key in LOCKER_FIELD_MESSAGES);
+
+  return field ? LOCKER_FIELD_MESSAGES[field] : undefined;
 }
+
+/** Conflicts mapped from backend error codes (SRS UC-24). */
+const LOCKER_CODE_MESSAGES: Partial<Record<string, string>> = {
+  [ErrorCodes.LOCKER_ACTIVE_OPERATIONS]:
+    'Không thể thực hiện: tủ hoặc ngăn còn bưu kiện, hàng trả hoặc lượt giữ chỗ đang hiệu lực. Hãy xử lý hết trước khi ngừng hoạt động hoặc sửa cấu hình.',
+  [ErrorCodes.LOCKER_COMPARTMENT_ALREADY_EXISTS]:
+    'Mã ngăn, mã phần cứng hoặc kênh phần cứng đã được dùng trong tủ này.',
+  [ErrorCodes.LOCKER_CODE_ALREADY_EXISTS]: 'Mã tủ đã tồn tại.',
+  [ErrorCodes.LOCKER_DEVICE_ALREADY_EXISTS]:
+    'Mã thiết bị đã được dùng cho tủ khác.',
+  [ErrorCodes.LOCKER_NOT_OPERATIONAL]:
+    'Tủ đã bị vô hiệu hóa nên không thể thực hiện thao tác này.',
+  [ErrorCodes.LOCKER_INVALID_COMPARTMENT]:
+    'Không tìm thấy ngăn trong tủ này. Dữ liệu có thể đã thay đổi, vui lòng tải lại.',
+  [ErrorCodes.LOCKER_NOT_FOUND]:
+    'Không tìm thấy tủ. Dữ liệu có thể đã thay đổi, vui lòng tải lại.',
+};
 
 export function getAdminLockerErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
-    if (error.status === 400 && hasVietnameseText(error.message))
-      return error.message;
+    const byCode = error.code ? LOCKER_CODE_MESSAGES[error.code] : undefined;
+
+    if (byCode) return byCode;
+    if (error.code === ErrorCodes.INVALID_INPUT) {
+      return (
+        validationMessage(error) ??
+        'Thông tin tủ chưa hợp lệ. Vui lòng kiểm tra lại.'
+      );
+    }
 
     switch (error.status) {
       case 0:
