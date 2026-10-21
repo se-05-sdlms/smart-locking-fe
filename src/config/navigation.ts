@@ -82,6 +82,12 @@ const operatorNavigation: NavigationItem[] = [
     role: 'operator',
   },
   {
+    label: 'Lịch sử vận hành',
+    path: '/operator/operational-history',
+    icon: ClockArrowRotateLeft,
+    role: 'operator',
+  },
+  {
     label: 'Cài đặt',
     path: '/operator/settings',
     icon: Gear,
