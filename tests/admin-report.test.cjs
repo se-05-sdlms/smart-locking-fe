@@ -94,3 +94,26 @@ test('errors are shown in Vietnamese', () => {
   assert.match(service.getReportErrorMessage(new ApiError(503)), /Máy chủ đang gặp sự cố/);
   assert.equal(service.getReportErrorMessage(undefined), 'Không thể tải báo cáo. Vui lòng thử lại.');
 });
+
+test('filters are compared field by field to tell whether numbers are current (review #74)', () => {
+  const { service } = harness();
+  const a = { from: '2026-10-01', to: '2026-10-07', lockerId: 'locker-A' };
+
+  assert.equal(service.sameReportFilters(a, { ...a }), true);
+  assert.equal(service.sameReportFilters(a, { ...a, lockerId: 'locker-B' }), false);
+  assert.equal(service.sameReportFilters(a, { ...a, from: '' }), false);
+  assert.equal(service.sameReportFilters(a, { ...a, to: '2026-10-08' }), false);
+});
+
+test('the page only shows and exports numbers that match the applied filters (review #74)', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'pages', 'admin', 'reports.tsx'), 'utf8');
+
+  // Numbers are stored with the filters that produced them…
+  assert.match(source, /filters: applied,\s*summary: await getReportSummary\(applied, signal\)/);
+  // …are hidden when they belong to other filters (loading or failed reload)…
+  assert.match(source, /const summary = isCurrent \? loaded\?\.summary : undefined;/);
+  // …and the CSV uses the loaded filters and is enabled only for a successful, current load.
+  assert.match(source, /await downloadReportCsv\(loadedFilters\);/);
+  assert.match(source, /report\.state\.status === 'success'/);
+  assert.match(source, /isDisabled=\{!canExport\}/);
+});

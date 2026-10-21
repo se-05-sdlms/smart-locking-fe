@@ -29,6 +29,7 @@ import {
   DEFAULT_REPORT_DAYS,
   downloadReportCsv,
   emptyReportFilters,
+  sameReportFilters,
   getReportErrorMessage,
   getReportSummary,
   REPORT_METRICS,
@@ -74,8 +75,13 @@ export default function AdminReportsPage() {
   const [exportError, setExportError] = useState('');
 
   const lockers = useAsyncResource(listAdminLockers, getReportErrorMessage, []);
+  // Keep the filters that produced the numbers next to them, so a stale or
+  // failed reload can never be shown or exported under another scope.
   const report = useAsyncResource(
-    (signal) => getReportSummary(applied, signal),
+    async (signal) => ({
+      filters: applied,
+      summary: await getReportSummary(applied, signal),
+    }),
     getReportErrorMessage,
     [applied],
   );
@@ -117,7 +123,8 @@ export default function AdminReportsPage() {
     setExportError('');
 
     try {
-      await downloadReportCsv(applied);
+      if (!loadedFilters) return;
+      await downloadReportCsv(loadedFilters);
     } catch (error) {
       setExportError(getReportErrorMessage(error));
     } finally {
@@ -125,7 +132,14 @@ export default function AdminReportsPage() {
     }
   };
 
-  const summary = report.state.data;
+  const loaded = report.state.data;
+  // Numbers are shown (and exportable) only when they belong to the filters
+  // currently applied; while a new request loads or after it fails, they are not.
+  const isCurrent = loaded ? sameReportFilters(loaded.filters, applied) : false;
+  const summary = isCurrent ? loaded?.summary : undefined;
+  const loadedFilters = isCurrent ? loaded?.filters : undefined;
+  const canExport =
+    Boolean(loadedFilters) && report.state.status === 'success' && !isExporting;
   const scope = selectedLocker
     ? `Tủ ${selectedLocker.code}`
     : 'Toàn bộ hệ thống';
@@ -144,7 +158,7 @@ export default function AdminReportsPage() {
           </p>
         </div>
         <Button
-          isDisabled={isExporting || !summary}
+          isDisabled={!canExport}
           variant="secondary"
           onPress={() => void exportCsv()}
         >

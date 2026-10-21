@@ -189,3 +189,12 @@ export function getReportErrorMessage(error: unknown) {
 
   return 'Không thể tải báo cáo. Vui lòng thử lại.';
 }
+
+/** True when two filter sets describe the same report (same scope and dates). */
+export function sameReportFilters(left: ReportFilters, right: ReportFilters) {
+  return (
+    left.from === right.from &&
+    left.to === right.to &&
+    left.lockerId === right.lockerId
+  );
+}
