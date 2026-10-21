@@ -9,6 +9,7 @@ import House from '@gravity-ui/icons/House';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
 import Persons from '@gravity-ui/icons/Persons';
 import Hourglass from '@gravity-ui/icons/Hourglass';
+import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 
 export type AppRole = 'admin' | 'operator';
 
@@ -63,6 +64,12 @@ const operatorNavigation: NavigationItem[] = [
     role: 'operator',
   },
   {
+    label: 'Sự cố',
+    path: '/operator/incidents',
+    icon: TriangleExclamation,
+    role: 'operator',
+  },
+  {
     label: 'Xử lý quá hạn',
     path: '/operator/overdue-clearance',
     icon: Hourglass,
@@ -72,6 +79,12 @@ const operatorNavigation: NavigationItem[] = [
     label: 'Bảo trì',
     path: '/operator/maintenance',
     icon: Gear,
+    role: 'operator',
+  },
+  {
+    label: 'Lịch sử vận hành',
+    path: '/operator/operational-history',
+    icon: ClockArrowRotateLeft,
     role: 'operator',
   },
   {

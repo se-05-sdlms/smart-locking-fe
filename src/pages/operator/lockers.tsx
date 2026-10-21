@@ -1,14 +1,17 @@
+import type { LockerListFilter, OperatorLocker } from '@/types/operator-locker';
+
 import { useMemo, useState } from 'react';
 import {
   Alert,
   Button,
-  Chip,
   ListBox,
   Pagination,
   SearchField,
   Select,
+  Skeleton,
   Table,
 } from '@heroui/react';
+import ArrowRotateRight from '@gravity-ui/icons/ArrowRotateRight';
 import ChevronDown from '@gravity-ui/icons/ChevronDown';
 import ChevronLeft from '@gravity-ui/icons/ChevronLeft';
 import ChevronRight from '@gravity-ui/icons/ChevronRight';
@@ -18,41 +21,179 @@ import Magnifier from '@gravity-ui/icons/Magnifier';
 import Xmark from '@gravity-ui/icons/Xmark';
 import { useNavigate } from 'react-router-dom';
 
-import type { Locker, LockerConnection } from './locker-shared';
-import { ConnectionChip, LOCKERS } from './locker-shared';
+import {
+  ConnectionChip,
+  formatLockerDateTime,
+  LoadErrorAlert,
+  LockerStatusChip,
+} from './locker-shared';
 
-type StatusFilter = 'all' | LockerConnection | 'issue';
+import {
+  LOCKER_LIST_FILTER_OPTIONS,
+  LOCKER_PAGE_SIZE,
+} from '@/constants/operator-locker';
+import { useAsyncResource } from '@/hooks/use-async-resource';
+import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
+import { filterLockers } from '@/services/operator-locker-mappers';
+import {
+  getLockerLoadErrorMessage,
+  listAssignedLockers,
+} from '@/services/operator-locker-service';
 
-const PAGE_SIZE = 20;
+function EmptyAlert({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <Alert status="default">
+      <Alert.Indicator>
+        <CircleInfo aria-hidden="true" className="size-5" />
+      </Alert.Indicator>
+      <Alert.Content>
+        <Alert.Title>{title}</Alert.Title>
+        <Alert.Description>{description}</Alert.Description>
+      </Alert.Content>
+    </Alert>
+  );
+}
+
+function LockerTableSkeleton() {
+  return (
+    <div
+      aria-busy="true"
+      aria-label="Đang tải danh sách tủ"
+      className="flex flex-col gap-3"
+    >
+      {Array.from({ length: 4 }, (_, index) => (
+        <Skeleton key={index} className="h-12 w-full rounded-xl" />
+      ))}
+    </div>
+  );
+}
 
 export default function OperatorLockersPage() {
   const navigate = useNavigate();
   const [keyword, setKeyword] = useState('');
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<LockerListFilter>('all');
   const [page, setPage] = useState(1);
+  const { state, reload, refresh } = useAsyncResource(
+    listAssignedLockers,
+    getLockerLoadErrorMessage,
+    [],
+  );
+  const lockers = useMemo(() => state.data ?? [], [state.data]);
 
-  const filteredLockers = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLocaleLowerCase('vi');
-
-    return LOCKERS.filter(
-      (locker) =>
-        (!normalizedKeyword ||
-          locker.name.toLocaleLowerCase('vi').includes(normalizedKeyword)) &&
-        (statusFilter === 'all' ||
-          (statusFilter === 'issue'
-            ? locker.condition === 'issue'
-            : locker.connection === statusFilter)),
-    );
-  }, [keyword, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredLockers.length / PAGE_SIZE));
-  const pagedLockers = filteredLockers.slice(
-    (page - 1) * PAGE_SIZE,
-    page * PAGE_SIZE,
+  useOperationsRealtime(
+    lockers.map((locker) => locker.id),
+    refresh,
   );
 
-  const openLocker = (locker: Locker) => {
-    navigate(`/operator/lockers/${locker.id}`);
+  const filteredLockers = useMemo(
+    () => filterLockers(lockers, keyword, statusFilter),
+    [keyword, lockers, statusFilter],
+  );
+  const totalPages = Math.max(
+    1,
+    Math.ceil(filteredLockers.length / LOCKER_PAGE_SIZE),
+  );
+  const currentPage = Math.min(page, totalPages);
+  const pagedLockers = filteredLockers.slice(
+    (currentPage - 1) * LOCKER_PAGE_SIZE,
+    currentPage * LOCKER_PAGE_SIZE,
+  );
+
+  const openLocker = (locker: OperatorLocker) => {
+    navigate(`/operator/lockers/${locker.id}`, {
+      state: { lockerCode: locker.code },
+    });
+  };
+
+  const renderContent = () => {
+    if (state.status === 'loading' && !state.data) {
+      return <LockerTableSkeleton />;
+    }
+
+    if (state.status === 'error' && !state.data) {
+      return <LoadErrorAlert message={state.message} onRetry={reload} />;
+    }
+
+    if (!lockers.length) {
+      return (
+        <EmptyAlert
+          description="Liên hệ Quản trị viên để được phân công tủ."
+          title="Bạn chưa được phân công tủ nào"
+        />
+      );
+    }
+
+    if (!pagedLockers.length) {
+      return (
+        <EmptyAlert
+          description="Hãy thử đổi từ khóa tìm kiếm hoặc trạng thái."
+          title="Không tìm thấy tủ phù hợp"
+        />
+      );
+    }
+
+    return (
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Danh sách tủ được phân công">
+            <Table.Header>
+              <Table.Column isRowHeader id="code">
+                Mã tủ
+              </Table.Column>
+              <Table.Column id="address">Địa chỉ</Table.Column>
+              <Table.Column id="compartments">Ngăn hoạt động</Table.Column>
+              <Table.Column id="connection">Kết nối</Table.Column>
+              <Table.Column id="status">Vận hành</Table.Column>
+              <Table.Column id="lastSeen">Lần cuối kết nối</Table.Column>
+              <Table.Column id="action">Thao tác</Table.Column>
+            </Table.Header>
+            <Table.Body>
+              {pagedLockers.map((locker) => (
+                <Table.Row key={locker.id} id={locker.id}>
+                  <Table.Cell>
+                    <span className="font-semibold">{locker.code}</span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <span className="block max-w-72 text-wrap">
+                      {locker.address}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell>
+                    {locker.activeCompartments}/{locker.totalCompartments}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <ConnectionChip value={locker.connectionStatus} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <LockerStatusChip value={locker.operationalStatus} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    {formatLockerDateTime(locker.lastSeenAt, 'Chưa kết nối')}
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Button
+                      aria-label={`Xem chi tiết tủ ${locker.code}`}
+                      size="sm"
+                      variant="ghost"
+                      onPress={() => openLocker(locker)}
+                    >
+                      Xem chi tiết
+                      <ChevronRight aria-hidden="true" className="size-4" />
+                    </Button>
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
+    );
   };
 
   return (
@@ -60,7 +201,7 @@ export default function OperatorLockersPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <SearchField
           fullWidth
-          aria-label="Tìm theo tên tủ"
+          aria-label="Tìm theo mã tủ hoặc địa chỉ"
           className="sm:max-w-md"
           value={keyword}
           variant="secondary"
@@ -73,7 +214,7 @@ export default function OperatorLockersPage() {
             <SearchField.SearchIcon>
               <Magnifier aria-hidden="true" className="size-4" />
             </SearchField.SearchIcon>
-            <SearchField.Input placeholder="Tìm theo tên tủ..." />
+            <SearchField.Input placeholder="Tìm theo mã tủ hoặc địa chỉ..." />
             <SearchField.ClearButton aria-label="Xóa từ khóa">
               <Xmark aria-hidden="true" className="size-4" />
             </SearchField.ClearButton>
@@ -82,11 +223,11 @@ export default function OperatorLockersPage() {
 
         <Select
           aria-label="Lọc theo trạng thái"
-          className="w-full sm:w-52"
+          className="w-full sm:w-56"
           value={statusFilter}
           variant="secondary"
           onChange={(value) => {
-            setStatusFilter(value as StatusFilter);
+            setStatusFilter(value as LockerListFilter);
             setPage(1);
           }}
         >
@@ -99,107 +240,53 @@ export default function OperatorLockersPage() {
           </Select.Trigger>
           <Select.Popover>
             <ListBox>
-              <ListBox.Item id="all" textValue="Tất cả trạng thái">
-                Tất cả trạng thái
-              </ListBox.Item>
-              <ListBox.Item id="online" textValue="Trực tuyến">
-                Trực tuyến
-              </ListBox.Item>
-              <ListBox.Item id="offline" textValue="Ngoại tuyến">
-                Ngoại tuyến
-              </ListBox.Item>
-              <ListBox.Item id="issue" textValue="Có lỗi">
-                Có lỗi
-              </ListBox.Item>
+              {LOCKER_LIST_FILTER_OPTIONS.map((option) => (
+                <ListBox.Item
+                  key={option.value}
+                  id={option.value}
+                  textValue={option.label}
+                >
+                  {option.label}
+                </ListBox.Item>
+              ))}
             </ListBox>
           </Select.Popover>
         </Select>
+
+        <Button
+          className="sm:ml-auto"
+          isDisabled={state.status === 'loading'}
+          variant="secondary"
+          onPress={refresh}
+        >
+          <ArrowRotateRight aria-hidden="true" className="size-4" />
+          Làm mới
+        </Button>
       </div>
 
-      {pagedLockers.length ? (
-        <Table>
-          <Table.ScrollContainer>
-            <Table.Content aria-label="Danh sách tủ được phân công">
-              <Table.Header>
-                <Table.Column id="code" isRowHeader>
-                  Mã tủ
-                </Table.Column>
-                <Table.Column id="name">Tên tủ</Table.Column>
-                <Table.Column id="address">Địa chỉ</Table.Column>
-                <Table.Column id="compartments">Số ngăn</Table.Column>
-                <Table.Column id="status">Trạng thái</Table.Column>
-                <Table.Column id="action">Thao tác</Table.Column>
-              </Table.Header>
-              <Table.Body>
-                {pagedLockers.map((locker) => (
-                  <Table.Row key={locker.id} id={locker.id}>
-                    <Table.Cell>
-                      <span className="font-semibold">{locker.id}</span>
-                    </Table.Cell>
-                    <Table.Cell>{locker.name}</Table.Cell>
-                    <Table.Cell>
-                      <span className="block max-w-72 text-wrap">
-                        {locker.address}
-                      </span>
-                    </Table.Cell>
-                    <Table.Cell>{locker.compartmentCount}</Table.Cell>
-                    <Table.Cell>
-                      <div className="flex flex-wrap gap-2">
-                        <ConnectionChip value={locker.connection} />
-                        {locker.condition === 'issue' ? (
-                          <Chip color="warning" size="sm" variant="soft">
-                            Có lỗi
-                          </Chip>
-                        ) : null}
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onPress={() => openLocker(locker)}
-                      >
-                        Xem chi tiết
-                        <ChevronRight aria-hidden="true" className="size-4" />
-                      </Button>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-        </Table>
-      ) : (
-        <Alert status="default">
-          <Alert.Indicator>
-            <CircleInfo aria-hidden="true" className="size-5" />
-          </Alert.Indicator>
-          <Alert.Content>
-            <Alert.Title>Không tìm thấy tủ phù hợp</Alert.Title>
-            <Alert.Description>
-              Hãy thử đổi tên tìm kiếm hoặc trạng thái.
-            </Alert.Description>
-          </Alert.Content>
-        </Alert>
-      )}
+      {state.status === 'error' && state.data ? (
+        <LoadErrorAlert message={state.message} onRetry={reload} />
+      ) : null}
 
-      {filteredLockers.length > PAGE_SIZE ? (
+      {renderContent()}
+
+      {filteredLockers.length > LOCKER_PAGE_SIZE ? (
         <Pagination
-          size="sm"
           aria-label="Phân trang danh sách tủ"
           className="justify-end"
+          size="sm"
         >
           <Pagination.Summary>
-            Hiển thị {(page - 1) * PAGE_SIZE + 1}–
-            {Math.min(page * PAGE_SIZE, filteredLockers.length)} trong{' '}
-            {filteredLockers.length} tủ
+            Hiển thị {(currentPage - 1) * LOCKER_PAGE_SIZE + 1}–
+            {Math.min(currentPage * LOCKER_PAGE_SIZE, filteredLockers.length)}{' '}
+            trong {filteredLockers.length} tủ
           </Pagination.Summary>
           <Pagination.Content>
             <Pagination.Item>
               <Pagination.Previous
                 aria-label="Trang trước"
-                isDisabled={page === 1}
-                onPress={() => setPage((current) => current - 1)}
+                isDisabled={currentPage === 1}
+                onPress={() => setPage(currentPage - 1)}
               >
                 <ChevronLeft aria-hidden="true" className="size-4" />
               </Pagination.Previous>
@@ -209,7 +296,7 @@ export default function OperatorLockersPage() {
                 <Pagination.Item key={pageNumber}>
                   <Pagination.Link
                     aria-label={`Trang ${pageNumber}`}
-                    isActive={pageNumber === page}
+                    isActive={pageNumber === currentPage}
                     onPress={() => setPage(pageNumber)}
                   >
                     {pageNumber}
@@ -220,8 +307,8 @@ export default function OperatorLockersPage() {
             <Pagination.Item>
               <Pagination.Next
                 aria-label="Trang sau"
-                isDisabled={page === totalPages}
-                onPress={() => setPage((current) => current + 1)}
+                isDisabled={currentPage === totalPages}
+                onPress={() => setPage(currentPage + 1)}
               >
                 <ChevronRight aria-hidden="true" className="size-4" />
               </Pagination.Next>

@@ -1,151 +1,62 @@
 import type { ReactNode } from 'react';
+import type { StatusDisplay } from '@/constants/operator-locker';
+import type {
+  ConnectionStatus,
+  DoorStatus,
+  OperationalStatus,
+} from '@/types/operator-locker';
 
-import { Chip } from '@heroui/react';
+import { Alert, Button, Chip } from '@heroui/react';
+import ArrowRotateRight from '@gravity-ui/icons/ArrowRotateRight';
+import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
 
-export type LockerConnection = 'online' | 'offline';
-export type LockerCondition = 'normal' | 'issue';
-export type CompartmentStatus = 'active' | 'maintenance';
+import {
+  COMPARTMENT_OPERATIONAL_STATUS_DISPLAY,
+  CONNECTION_STATUS_DISPLAY,
+  DOOR_STATUS_DISPLAY,
+  LOCKER_OPERATIONAL_STATUS_DISPLAY,
+} from '@/constants/operator-locker';
 
-export type Locker = {
-  id: string;
-  name: string;
-  address: string;
-  compartmentCount: number;
-  connection: LockerConnection;
-  condition: LockerCondition;
-};
+const dateTimeFormatter = new Intl.DateTimeFormat('vi-VN', {
+  dateStyle: 'short',
+  timeStyle: 'short',
+});
 
-export type Compartment = {
-  id: string;
-  status: CompartmentStatus;
-  door: 'closed' | 'open';
-  parcelId?: string;
-  checkedInAt?: string;
-};
+export function formatLockerDateTime(
+  value: string | null | undefined,
+  emptyLabel = 'Chưa có dữ liệu',
+) {
+  if (!value) return emptyLabel;
 
-export const LOCKERS: Locker[] = [
-  {
-    id: 'LK-01',
-    name: 'Tủ Nguyễn Huệ',
-    address: '123 Nguyễn Huệ, Quận 1',
-    compartmentCount: 24,
-    connection: 'online',
-    condition: 'normal',
-  },
-  {
-    id: 'LK-02',
-    name: 'Tủ Lê Lợi',
-    address: '45 Lê Lợi, Quận 1',
-    compartmentCount: 20,
-    connection: 'online',
-    condition: 'normal',
-  },
-  {
-    id: 'LK-03',
-    name: 'Tủ Thảo Điền',
-    address: '12 Thảo Điền, TP. Thủ Đức',
-    compartmentCount: 16,
-    connection: 'offline',
-    condition: 'normal',
-  },
-  {
-    id: 'LK-04',
-    name: 'Tủ Cộng Hòa',
-    address: '789 Cộng Hòa, Quận Tân Bình',
-    compartmentCount: 30,
-    connection: 'online',
-    condition: 'normal',
-  },
-  {
-    id: 'LK-05',
-    name: 'Tủ Phú Mỹ Hưng',
-    address: 'Tầng 1, SC VivoCity, Quận 7',
-    compartmentCount: 24,
-    connection: 'online',
-    condition: 'issue',
-  },
-  {
-    id: 'LK-06',
-    name: 'Tủ Vạn Hạnh',
-    address: '11 Sư Vạn Hạnh, Quận 10',
-    compartmentCount: 18,
-    connection: 'online',
-    condition: 'normal',
-  },
-  {
-    id: 'LK-07',
-    name: 'Tủ Bình Thạnh',
-    address: '220 Xô Viết Nghệ Tĩnh, Quận Bình Thạnh',
-    compartmentCount: 24,
-    connection: 'offline',
-    condition: 'issue',
-  },
-  {
-    id: 'LK-08',
-    name: 'Tủ Gò Vấp',
-    address: '650 Quang Trung, Quận Gò Vấp',
-    compartmentCount: 20,
-    connection: 'online',
-    condition: 'normal',
-  },
-];
+  const date = new Date(value);
 
-export function createCompartments(count: number): Compartment[] {
-  return Array.from({ length: count }, (_, index) => {
-    const number = index + 1;
-    const hasParcel = [2, 6, 12, 17].includes(number);
-    const isMaintenance = [3, 10].includes(number);
-
-    return {
-      id: `N${String(number).padStart(2, '0')}`,
-      status: isMaintenance ? 'maintenance' : 'active',
-      door: 'closed',
-      parcelId: hasParcel
-        ? `P1234${String(number).padStart(2, '0')}`
-        : undefined,
-      checkedInAt: hasParcel ? '14/03/2026 10:30' : undefined,
-    };
-  });
+  return Number.isNaN(date.getTime())
+    ? emptyLabel
+    : dateTimeFormatter.format(date);
 }
 
-export function ConnectionChip({ value }: { value: LockerConnection }) {
+function StatusChip({ display }: { display: StatusDisplay }) {
   return (
-    <Chip
-      color={value === 'online' ? 'success' : 'danger'}
-      size="sm"
-      variant="soft"
-    >
-      {value === 'online' ? 'Trực tuyến' : 'Ngoại tuyến'}
+    <Chip color={display.color} size="sm" variant="soft">
+      {display.label}
     </Chip>
   );
 }
 
-export function CompartmentChip({
-  compartment,
-}: {
-  compartment: Compartment;
-}) {
-  if (compartment.status === 'maintenance') {
-    return (
-      <Chip color="warning" size="sm" variant="soft">
-        Đang bảo trì
-      </Chip>
-    );
-  }
+export function ConnectionChip({ value }: { value: ConnectionStatus }) {
+  return <StatusChip display={CONNECTION_STATUS_DISPLAY[value]} />;
+}
 
-  if (compartment.parcelId) {
-    return (
-      <Chip color="accent" size="sm" variant="soft">
-        Có bưu kiện
-      </Chip>
-    );
-  }
+export function LockerStatusChip({ value }: { value: OperationalStatus }) {
+  return <StatusChip display={LOCKER_OPERATIONAL_STATUS_DISPLAY[value]} />;
+}
 
-  return (
-    <Chip color="success" size="sm" variant="soft">
-      Hoạt động
-    </Chip>
-  );
+export function CompartmentStatusChip({ value }: { value: OperationalStatus }) {
+  return <StatusChip display={COMPARTMENT_OPERATIONAL_STATUS_DISPLAY[value]} />;
+}
+
+export function DoorChip({ value }: { value: DoorStatus }) {
+  return <StatusChip display={DOOR_STATUS_DISPLAY[value]} />;
 }
 
 export function DetailRow({
@@ -158,9 +69,34 @@ export function DetailRow({
   return (
     <div className="grid grid-cols-[minmax(7rem,0.7fr)_1.3fr] gap-4 py-2">
       <dt className="text-sm text-muted">{label}</dt>
-      <dd className="min-w-0 text-sm font-medium text-foreground">
+      <dd className="min-w-0 break-words text-sm font-medium text-foreground">
         {children}
       </dd>
     </div>
+  );
+}
+
+export function LoadErrorAlert({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <Alert status="danger">
+      <Alert.Indicator>
+        <CircleExclamation aria-hidden="true" className="size-5" />
+      </Alert.Indicator>
+      <Alert.Content>
+        <Alert.Description>{message}</Alert.Description>
+      </Alert.Content>
+      {onRetry ? (
+        <Button size="sm" variant="secondary" onPress={onRetry}>
+          <ArrowRotateRight aria-hidden="true" className="size-4" />
+          Thử lại
+        </Button>
+      ) : null}
+    </Alert>
   );
 }
