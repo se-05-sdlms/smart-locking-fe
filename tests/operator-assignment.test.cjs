@@ -8,15 +8,17 @@ const ts = require('typescript');
 function harness(request = async () => undefined) {
   const cache = new Map();
   class ApiError extends Error {
-    constructor(status, message = '') {
+    constructor(status, message = '', code, errors) {
       super(message);
       this.status = status;
+      this.code = code;
+      this.errors = errors;
     }
   }
   function load(name) {
     if (name === '@/services/api-client') return { ApiError, apiRequest: request };
     if (cache.has(name)) return cache.get(name).exports;
-    assert.equal(name, '@/services/operator-assignment-service');
+    if (name !== '@/constants/error-codes') assert.equal(name, '@/services/operator-assignment-service');
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -184,11 +186,15 @@ test('409 conflict and partial replace messages are explicit', () => {
   assert.match(service.getAssignmentErrorMessage(partial), /chưa có người phụ trách/);
 });
 
-test('Vietnamese backend messages are shown; English ones are replaced', () => {
+test('assignment errors are mapped by backend error code, never raw backend text', () => {
   const { service, ApiError } = harness();
+  const message = (status, code) => service.getAssignmentErrorMessage(new ApiError(status, 'English detail', code));
 
-  assert.equal(service.getAssignmentErrorMessage(new ApiError(400, 'Phải chỉ định LockerId hợp lệ.')), 'Phải chỉ định LockerId hợp lệ.');
-  assert.equal(service.getAssignmentErrorMessage(new ApiError(400, 'Bad Request')), 'Thông tin phân công không hợp lệ.');
+  assert.match(message(409, 'user/assignment_conflict'), /đã được phân công/);
+  assert.match(message(404, 'user/not_found'), /Không tìm thấy nhân viên/);
+  assert.equal(message(409, 'user/inactive'), 'Nhân viên đã bị khóa nên không thể phân công.');
+  assert.match(message(404, 'locker/not_found'), /Không tìm thấy tủ/);
+  assert.equal(message(400, undefined), 'Thông tin phân công không hợp lệ.');
   assert.match(service.getAssignmentErrorMessage(new ApiError(500, 'x')), /Máy chủ đang gặp sự cố/);
   assert.equal(service.getAssignmentErrorMessage(undefined), 'Không thể xử lý phân công. Vui lòng thử lại.');
 });

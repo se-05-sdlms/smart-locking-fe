@@ -8,9 +8,11 @@ const ts = require('typescript');
 function harness(request = async () => undefined) {
   const cache = new Map();
   class ApiError extends Error {
-    constructor(status, message = '') {
+    constructor(status, message = '', code, errors) {
       super(message);
       this.status = status;
+      this.code = code;
+      this.errors = errors;
     }
   }
   function load(name) {
@@ -19,6 +21,7 @@ function harness(request = async () => undefined) {
     assert.ok([
       '@/constants/emergency-unlock',
       '@/services/emergency-unlock-service',
+      '@/constants/error-codes',
     ].includes(name));
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
@@ -265,4 +268,17 @@ test('unknown errors never leak raw English text', () => {
 
   assert.equal(service.getEmergencyUnlockErrorMessage(new Error('boom')), 'Không thể mở khẩn cấp. Vui lòng thử lại.');
   assert.equal(service.getEmergencyUnlockErrorMessage(undefined), 'Không thể mở khẩn cấp. Vui lòng thử lại.');
+});
+
+test('emergency unlock errors are mapped by backend error code', () => {
+  const { service, ApiError } = harness();
+  const message = (status, code) => service.getEmergencyUnlockErrorMessage(new ApiError(status, 'English detail', code));
+
+  assert.match(message(403, 'locker/access_denied'), /không thuộc phạm vi/);
+  assert.match(message(409, 'locker/not_operational'), /chưa thể mở khẩn cấp/);
+  assert.match(message(404, 'locker/invalid_compartment'), /Ngăn không thuộc tủ/);
+  assert.match(message(502, 'locker/open_failed'), /Không gửi được lệnh mở/);
+  assert.match(message(400, 'incident/invalid_link'), /Sự cố không thuộc đúng tủ/);
+  // Unknown codes fall back to the HTTP status mapping.
+  assert.match(message(404, 'something/else'), /Không tìm thấy ngăn tủ/);
 });

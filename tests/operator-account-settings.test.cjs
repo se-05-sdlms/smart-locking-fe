@@ -8,9 +8,11 @@ const ts = require('typescript');
 function harness(request = async () => undefined) {
   const cache = new Map();
   class ApiError extends Error {
-    constructor(status, message = '') {
+    constructor(status, message = '', code, errors) {
       super(message);
       this.status = status;
+      this.code = code;
+      this.errors = errors;
     }
   }
   function load(name) {
@@ -19,6 +21,7 @@ function harness(request = async () => undefined) {
     assert.ok([
       '@/auth/account-display',
       '@/services/operator-account-service',
+      '@/constants/error-codes',
     ].includes(name));
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {

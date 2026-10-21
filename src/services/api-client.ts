@@ -4,10 +4,12 @@ import { getApiUrl } from '@/config/api';
 import {
   clearAuthSession,
   emitForbidden,
+  emitPasswordChangeRequired,
   isExpired,
   readAuthSession,
   saveAuthSession,
 } from '@/auth/auth-storage';
+import { ErrorCodes } from '@/constants/error-codes';
 
 const ACCESS_TOKEN_REFRESH_LEEWAY_MS = 30_000;
 const API_REQUEST_TIMEOUT_MS = 10_000;
@@ -21,15 +23,37 @@ type ErrorPayload = {
   message?: string;
   detail?: string;
   title?: string;
+  code?: string;
+  errors?: Record<string, string[]>;
 };
 
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
     message: string,
+    /** Backend domain error code from ProblemDetails, e.g. `auth/invalid_password`. */
+    public readonly code?: string,
+    /** Field validation errors from ValidationProblemDetails. */
+    public readonly errors?: Record<string, string[]>,
   ) {
     super(message);
     this.name = 'ApiError';
+  }
+}
+
+/** True when `error` is an ApiError carrying the given backend error code. */
+export function hasErrorCode(error: unknown, code: string): error is ApiError {
+  return error instanceof ApiError && error.code === code;
+}
+
+/** A 403 either asks for the first-login password change or denies access. */
+function handleForbiddenResponse(error: unknown) {
+  if (!(error instanceof ApiError) || error.status !== 403) return;
+
+  if (error.code === ErrorCodes.AUTH_PASSWORD_CHANGE_REQUIRED) {
+    emitPasswordChangeRequired();
+  } else {
+    emitForbidden();
   }
 }
 
@@ -48,7 +72,39 @@ function getErrorPayload(value: unknown): ErrorPayload {
     // ASP.NET ProblemDetails (e.g. ArgumentException -> 400) carries the reason in `detail`.
     detail: typeof value.detail === 'string' ? value.detail : undefined,
     title: typeof value.title === 'string' ? value.title : undefined,
+    // ProblemDetails extensions are serialized at the root (`code`); keep the
+    // nested form as a fallback for other serializers.
+    code: getErrorCode(value),
+    errors: getValidationErrors(value.errors),
   };
+}
+
+function getErrorCode(value: Record<string, unknown>): string | undefined {
+  if (typeof value.code === 'string') return value.code;
+
+  const extensions = value.extensions;
+
+  return isRecord(extensions) && typeof extensions.code === 'string'
+    ? extensions.code
+    : undefined;
+}
+
+function getValidationErrors(
+  value: unknown,
+): Record<string, string[]> | undefined {
+  if (!isRecord(value)) return undefined;
+
+  const errors: Record<string, string[]> = {};
+
+  for (const [field, messages] of Object.entries(value)) {
+    if (Array.isArray(messages)) {
+      errors[field] = messages.filter(
+        (message): message is string => typeof message === 'string',
+      );
+    }
+  }
+
+  return Object.keys(errors).length ? errors : undefined;
 }
 
 async function parseResponseBody(response: Response): Promise<unknown> {
@@ -114,6 +170,8 @@ async function performRequest<T>(
           errorPayload.detail ||
           errorPayload.title ||
           response.statusText,
+        errorPayload.code,
+        errorPayload.errors,
       );
     }
 
@@ -164,7 +222,8 @@ export async function refreshAuthSession(): Promise<AuthSession> {
       const isRejectedRefresh =
         error instanceof ApiError &&
         (error.status === 401 ||
-          (error.status === 400 && error.message === 'Invalid refresh token.'));
+          (error.status === 400 &&
+            error.code === ErrorCodes.AUTH_INVALID_REFRESH_TOKEN));
 
       if (
         isRejectedRefresh &&
@@ -236,17 +295,13 @@ export async function apiRequest<T>(
           refreshedSession.accessToken,
         );
       } catch (retryError) {
-        if (retryError instanceof ApiError && retryError.status === 403) {
-          emitForbidden();
-        }
+        handleForbiddenResponse(retryError);
 
         throw retryError;
       }
     }
 
-    if (error instanceof ApiError && error.status === 403) {
-      emitForbidden();
-    }
+    handleForbiddenResponse(error);
 
     throw error;
   }

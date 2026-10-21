@@ -8,15 +8,17 @@ const ts = require('typescript');
 function harness(request = async () => undefined) {
   const cache = new Map();
   class ApiError extends Error {
-    constructor(status, message = '') {
+    constructor(status, message = '', code, errors) {
       super(message);
       this.status = status;
+      this.code = code;
+      this.errors = errors;
     }
   }
   function load(name) {
     if (name === '@/services/api-client') return { ApiError, apiRequest: request };
     if (cache.has(name)) return cache.get(name).exports;
-    assert.equal(name, '@/services/overdue-parcel-service');
+    if (name !== '@/constants/error-codes') assert.equal(name, '@/services/overdue-parcel-service');
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },

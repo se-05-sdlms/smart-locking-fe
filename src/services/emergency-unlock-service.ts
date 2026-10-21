@@ -15,6 +15,7 @@ import {
   EMERGENCY_REASON_MIN_LENGTH,
 } from '@/constants/emergency-unlock';
 import { ApiError, apiRequest } from '@/services/api-client';
+import { ErrorCodes } from '@/constants/error-codes';
 
 const RESULTS = ['Pending', 'Succeeded', 'Failed'] as const;
 
@@ -112,8 +113,27 @@ export async function createEmergencyUnlock(
   return mapEmergencyUnlock(response);
 }
 
+const EMERGENCY_UNLOCK_CODE_MESSAGES: Partial<Record<string, string>> = {
+  [ErrorCodes.LOCKER_ACCESS_DENIED]:
+    'Tủ này không thuộc phạm vi bạn được phân công.',
+  [ErrorCodes.LOCKER_NOT_OPERATIONAL]:
+    'Tủ đang ngừng vận hành hoặc không trực tuyến nên chưa thể mở khẩn cấp.',
+  [ErrorCodes.LOCKER_INVALID_COMPARTMENT]:
+    'Ngăn không thuộc tủ đã chọn. Vui lòng tải lại rồi chọn lại ngăn.',
+  [ErrorCodes.LOCKER_OPEN_FAILED]:
+    'Không gửi được lệnh mở tới tủ. Hãy kiểm tra kết nối của tủ trước khi thử lại.',
+  [ErrorCodes.INCIDENT_INVALID_LINK]:
+    'Sự cố không thuộc đúng tủ hoặc ngăn được mở khẩn cấp.',
+  [ErrorCodes.INVALID_INPUT]:
+    'Thông tin mở khẩn cấp không hợp lệ. Kiểm tra lý do (tối thiểu 10 ký tự) và ngăn đã chọn.',
+};
+
 export function getEmergencyUnlockErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
+    const byCode = error.code && EMERGENCY_UNLOCK_CODE_MESSAGES[error.code];
+
+    if (byCode) return byCode;
+
     switch (error.status) {
       case 0:
         return 'Không thể kết nối đến máy chủ. Lệnh mở chưa được gửi, vui lòng thử lại.';

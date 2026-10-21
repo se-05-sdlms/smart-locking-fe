@@ -6,6 +6,8 @@ import type {
   RefreshTokenRequest,
 } from '@/types/auth';
 
+import { ErrorCodes } from '@/constants/error-codes';
+import { MIN_PASSWORD_LENGTH } from '@/auth/password-change';
 import { ApiError, apiRequest } from '@/services/api-client';
 
 export function login(request: LoginRequest) {
@@ -33,19 +35,20 @@ export function getChangePasswordErrorMessage(error: unknown) {
       return 'Không thể kết nối đến máy chủ. Vui lòng thử lại.';
     }
 
-    if (error.status === 400) {
-      if (/current password is incorrect/i.test(error.message)) {
+    switch (error.code) {
+      case ErrorCodes.AUTH_INVALID_PASSWORD:
+        // The form already rejects a new password equal to the current one,
+        // so this code means the current password is wrong.
         return 'Mật khẩu hiện tại không đúng.';
-      }
+      case ErrorCodes.INVALID_INPUT:
+        return error.errors?.newPassword
+          ? `Mật khẩu mới chưa hợp lệ (tối thiểu ${MIN_PASSWORD_LENGTH} ký tự).`
+          : 'Thông tin đổi mật khẩu không hợp lệ.';
+      case ErrorCodes.RATE_LIMITED:
+        return 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.';
+    }
 
-      if (/must be different/i.test(error.message)) {
-        return 'Mật khẩu mới phải khác mật khẩu hiện tại.';
-      }
-
-      if (/at least 8 characters/i.test(error.message)) {
-        return 'Mật khẩu mới phải có ít nhất 8 ký tự.';
-      }
-
+    if (error.status === 400) {
       return 'Thông tin đổi mật khẩu không hợp lệ.';
     }
 
@@ -81,6 +84,15 @@ export function getLoginErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 0) {
       return 'Không thể kết nối đến máy chủ. Vui lòng thử lại.';
+    }
+
+    switch (error.code) {
+      case ErrorCodes.AUTH_INVALID_CREDENTIALS:
+        return 'Tên đăng nhập hoặc mật khẩu không đúng.';
+      case ErrorCodes.USER_INACTIVE:
+        return 'Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.';
+      case ErrorCodes.RATE_LIMITED:
+        return 'Bạn đã thử đăng nhập quá nhiều lần. Vui lòng thử lại sau.';
     }
 
     if (error.status === 400 || error.status === 401) {

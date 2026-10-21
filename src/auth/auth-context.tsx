@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 
 import {
   AUTH_FORBIDDEN_EVENT,
+  AUTH_PASSWORD_CHANGE_REQUIRED_EVENT,
   AUTH_SESSION_CHANGED_EVENT,
   clearAuthSession,
   isExpired,
@@ -20,6 +21,7 @@ import {
   saveAuthSession,
 } from '@/auth/auth-storage';
 import { getAppRole } from '@/types/auth';
+import { FIRST_LOGIN_CHANGE_PASSWORD_PATH } from '@/auth/password-change';
 import {
   changePassword as requestChangePassword,
   getCurrentUser,
@@ -60,9 +62,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(sessionEvent.detail);
     };
     const handleForbidden = () => navigate('/forbidden');
+    // The backend still requires a first-login password change for this
+    // account: mark the stored session so the route guard keeps the user on
+    // the change-password page instead of bouncing back.
+    const handlePasswordChangeRequired = () => {
+      const storedSession = readAuthSession();
+
+      if (storedSession && !storedSession.user.mustChangePassword) {
+        saveAuthSession({
+          ...storedSession,
+          user: { ...storedSession.user, mustChangePassword: true },
+        });
+      }
+
+      navigate(FIRST_LOGIN_CHANGE_PASSWORD_PATH, { replace: true });
+    };
 
     window.addEventListener(AUTH_SESSION_CHANGED_EVENT, handleSessionChanged);
     window.addEventListener(AUTH_FORBIDDEN_EVENT, handleForbidden);
+    window.addEventListener(
+      AUTH_PASSWORD_CHANGE_REQUIRED_EVENT,
+      handlePasswordChangeRequired,
+    );
 
     return () => {
       window.removeEventListener(
@@ -70,6 +91,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         handleSessionChanged,
       );
       window.removeEventListener(AUTH_FORBIDDEN_EVENT, handleForbidden);
+      window.removeEventListener(
+        AUTH_PASSWORD_CHANGE_REQUIRED_EVENT,
+        handlePasswordChangeRequired,
+      );
     };
   }, [navigate]);
 

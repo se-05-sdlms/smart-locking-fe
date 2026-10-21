@@ -9,6 +9,8 @@ const AUTH_SESSION_KEY = 'boxora.auth.session.v1';
 
 export const AUTH_SESSION_CHANGED_EVENT = 'boxora:auth-session-changed';
 export const AUTH_FORBIDDEN_EVENT = 'boxora:auth-forbidden';
+export const AUTH_PASSWORD_CHANGE_REQUIRED_EVENT =
+  'boxora:auth-password-change-required';
 
 const backendRoles: BackendUserRole[] = [
   'Administrator',
@@ -97,4 +99,9 @@ export function isExpired(expiresAt: string, leewayMs = 0) {
 
 export function emitForbidden() {
   window.dispatchEvent(new Event(AUTH_FORBIDDEN_EVENT));
+}
+
+/** The backend rejected a call because the account must change its password first. */
+export function emitPasswordChangeRequired() {
+  window.dispatchEvent(new Event(AUTH_PASSWORD_CHANGE_REQUIRED_EVENT));
 }

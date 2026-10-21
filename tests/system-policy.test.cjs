@@ -8,15 +8,17 @@ const ts = require('typescript');
 function harness(request = async () => undefined) {
   const cache = new Map();
   class ApiError extends Error {
-    constructor(status, message = '') {
+    constructor(status, message = '', code, errors) {
       super(message);
       this.status = status;
+      this.code = code;
+      this.errors = errors;
     }
   }
   function load(name) {
     if (name === '@/services/api-client') return { ApiError, apiRequest: request };
     if (cache.has(name)) return cache.get(name).exports;
-    assert.equal(name, '@/services/system-policy-service');
+    if (name !== '@/constants/error-codes') assert.equal(name, '@/services/system-policy-service');
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -184,14 +186,23 @@ test('API calls use the system-policies endpoints', async () => {
 // Errors
 // ---------------------------------------------------------------------------
 
-test('backend English validation messages are translated', () => {
+test('validation errors are mapped by backend field key', () => {
   const { service, ApiError } = harness();
-  const message = (text) => service.getSystemPolicyErrorMessage(new ApiError(400, text));
+  const message = (field) =>
+    service.getSystemPolicyErrorMessage(
+      new ApiError(400, 'English detail', 'validation/invalid_input', field ? { [field]: ['English'] } : undefined),
+    );
 
-  assert.equal(message('Storage timeline must be 7 normal days followed by 7 overdue days.'), 'Thời gian lưu phải là 7 ngày thường và 7 ngày quá hạn.');
-  assert.equal(message('Fee or currency is invalid.'), 'Phí quá hạn hoặc mã tiền tệ không hợp lệ.');
-  assert.equal(message('OTP policy is invalid.'), 'Cấu hình OTP không hợp lệ.');
-  assert.equal(message('Bad Request'), 'Cấu hình chính sách không hợp lệ.');
+  assert.equal(message('storageTimeline'), 'Thời gian lưu phải là 7 ngày thường và 7 ngày quá hạn.');
+  assert.equal(message('fee'), 'Phí quá hạn hoặc mã tiền tệ không hợp lệ.');
+  assert.equal(message('otpPolicy'), 'Cấu hình OTP không hợp lệ.');
+  assert.equal(message('timeout'), 'Các thời gian chờ phải lớn hơn 0.');
+  assert.equal(message('pickupReminderStartDay'), 'Ngày bắt đầu nhắc nằm ngoài thời gian lưu.');
+  assert.equal(message(undefined), 'Cấu hình chính sách không hợp lệ.');
+  assert.match(
+    service.getSystemPolicyErrorMessage(new ApiError(409, 'Conflict', 'policy/immutable')),
+    /không thể chỉnh sửa/,
+  );
 });
 
 test('editing the active version (409) explains immutability', () => {

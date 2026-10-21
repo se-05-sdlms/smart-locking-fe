@@ -1,4 +1,5 @@
 import { ApiError, apiRequest } from '@/services/api-client';
+import { ErrorCodes } from '@/constants/error-codes';
 
 // smart-locking-be `dev`: SystemPoliciesController / SystemPolicyService.
 
@@ -290,25 +291,35 @@ export async function activateSystemPolicy(id: string) {
 // Vietnamese error messages
 // ---------------------------------------------------------------------------
 
-/** Backend validation messages (English) → Vietnamese. */
-const BACKEND_MESSAGES: Array<[RegExp, string]> = [
-  [/Timeout values must be positive/i, 'Các thời gian chờ phải lớn hơn 0.'],
-  [
-    /Storage timeline/i,
-    'Thời gian lưu phải là 7 ngày thường và 7 ngày quá hạn.',
-  ],
-  [/Pickup reminder start day/i, 'Ngày bắt đầu nhắc nằm ngoài thời gian lưu.'],
-  [/Fee or currency is invalid/i, 'Phí quá hạn hoặc mã tiền tệ không hợp lệ.'],
-  [/OTP policy is invalid/i, 'Cấu hình OTP không hợp lệ.'],
-];
+/** Validation field keys from the backend (`errors` of validation/invalid_input) → Vietnamese. */
+const VALIDATION_FIELD_MESSAGES: Record<string, string> = {
+  timeout: 'Các thời gian chờ phải lớn hơn 0.',
+  storageTimeline: 'Thời gian lưu phải là 7 ngày thường và 7 ngày quá hạn.',
+  pickupReminderStartDay: 'Ngày bắt đầu nhắc nằm ngoài thời gian lưu.',
+  fee: 'Phí quá hạn hoặc mã tiền tệ không hợp lệ.',
+  otpPolicy: 'Cấu hình OTP không hợp lệ.',
+};
+
+function getValidationMessage(error: ApiError) {
+  const field = Object.keys(error.errors ?? {}).find(
+    (key) => key in VALIDATION_FIELD_MESSAGES,
+  );
+
+  return field ? VALIDATION_FIELD_MESSAGES[field] : undefined;
+}
 
 export function getSystemPolicyErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
-    const known = BACKEND_MESSAGES.find(([pattern]) =>
-      pattern.test(error.message),
-    );
-
-    if (known) return known[1];
+    switch (error.code) {
+      case ErrorCodes.INVALID_INPUT:
+        return (
+          getValidationMessage(error) ?? 'Cấu hình chính sách không hợp lệ.'
+        );
+      case ErrorCodes.POLICY_IMMUTABLE:
+        return 'Phiên bản đang áp dụng không thể chỉnh sửa. Hãy tạo phiên bản mới.';
+      case ErrorCodes.POLICY_NOT_FOUND:
+        return 'Không tìm thấy phiên bản chính sách. Vui lòng tải lại.';
+    }
 
     switch (error.status) {
       case 0:
