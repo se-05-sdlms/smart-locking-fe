@@ -18,7 +18,7 @@ function harness(request = async () => undefined) {
   function load(name) {
     if (name === '@/services/api-client') return { ApiError, apiRequest: request };
     if (cache.has(name)) return cache.get(name).exports;
-    assert.ok(['@/constants/admin-locker', '@/services/admin-locker-service'].includes(name));
+    assert.ok(['@/constants/admin-locker', '@/services/admin-locker-service', '@/constants/error-codes'].includes(name));
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -239,13 +239,21 @@ test('API calls use the Lockers endpoints and methods', async () => {
 // Errors
 // ---------------------------------------------------------------------------
 
-test('Vietnamese backend validation messages are shown as-is', () => {
+test('backend error codes are mapped to Vietnamese, never echoed (UC-24)', () => {
   const { service, ApiError } = harness();
+  const message = (status, code, errors) =>
+    service.getAdminLockerErrorMessage(new ApiError(status, 'English detail', code, errors));
 
-  assert.equal(
-    service.getAdminLockerErrorMessage(new ApiError(400, "Mã Locker 'LK-01' đã tồn tại trong hệ thống.")),
-    "Mã Locker 'LK-01' đã tồn tại trong hệ thống.",
-  );
+  assert.match(message(409, 'locker/active_operations'), /còn bưu kiện, hàng trả hoặc lượt giữ chỗ/);
+  assert.match(message(409, 'locker/compartment_already_exists'), /đã được dùng trong tủ này/);
+  assert.equal(message(409, 'locker/code_already_exists'), 'Mã tủ đã tồn tại.');
+  assert.match(message(409, 'locker/device_already_exists'), /tủ khác/);
+  assert.match(message(409, 'locker/not_operational'), /vô hiệu hóa/);
+  assert.match(message(404, 'locker/invalid_compartment'), /Không tìm thấy ngăn/);
+  // Validation errors use the field key (PascalCase from nameof is normalised).
+  assert.match(message(400, 'validation/invalid_input', { HardwareChannel: ['x'] }), /số nguyên dương/);
+  assert.match(message(400, 'validation/invalid_input', { deviceIdentifier: ['x'] }), /Mã thiết bị/);
+  assert.equal(message(400, 'validation/invalid_input'), 'Thông tin tủ chưa hợp lệ. Vui lòng kiểm tra lại.');
 });
 
 test('English or empty 400 messages fall back to Vietnamese', () => {
@@ -256,4 +264,35 @@ test('English or empty 400 messages fall back to Vietnamese', () => {
   assert.match(service.getAdminLockerErrorMessage(new ApiError(404, 'x')), /Không tìm thấy tủ/);
   assert.match(service.getAdminLockerErrorMessage(new ApiError(500, 'x')), /Máy chủ đang gặp sự cố/);
   assert.equal(service.getAdminLockerErrorMessage(undefined), 'Không thể xử lý yêu cầu. Vui lòng thử lại.');
+});
+
+test('compartment edit and status call the Administrator compartment APIs', async () => {
+  const calls = [];
+  const { service } = harness(async (url, init = {}) => {
+    calls.push({ url, method: init.method, body: init.body ? JSON.parse(init.body) : undefined });
+    return { id: 'c-1', code: 'A01', hardwareCode: 'HW-1', hardwareChannel: 3, operationalStatus: 2, doorStatus: 0 };
+  });
+
+  await service.updateCompartment('l 1', 'c-1', { code: ' A01 ', hardwareCode: ' HW-1 ', hardwareChannel: '3' });
+  await service.setCompartmentStatus('l-1', 'c-1', 'Inactive');
+  await service.setCompartmentStatus('l-1', 'c-1', 'Operational');
+
+  assert.equal(calls[0].url, '/api/Lockers/l%201/compartments/c-1');
+  assert.equal(calls[0].method, 'PUT');
+  assert.deepEqual(calls[0].body, { code: 'A01', hardwareCode: 'HW-1', hardwareChannel: 3 });
+  assert.equal(calls[1].url, '/api/Lockers/l-1/compartments/c-1/status');
+  assert.deepEqual(calls[1].body, { operationalStatus: 2 });
+  assert.deepEqual(calls[2].body, { operationalStatus: 0 });
+});
+
+test('compartment toggle target and edit form values', () => {
+  const { service } = harness();
+
+  assert.equal(service.getCompartmentStatusTarget('Operational'), 'Inactive');
+  assert.equal(service.getCompartmentStatusTarget('OutOfService'), 'Inactive');
+  assert.equal(service.getCompartmentStatusTarget('Inactive'), 'Operational');
+  assert.deepEqual(
+    service.toCompartmentFormValues({ code: 'A01', hardwareCode: 'HW-1', hardwareChannel: 3 }),
+    { code: 'A01', hardwareCode: 'HW-1', hardwareChannel: '3' },
+  );
 });

@@ -33,6 +33,7 @@ export const ErrorCodes = {
   LOCKER_CODE_ALREADY_EXISTS: 'locker/code_already_exists',
   LOCKER_DEVICE_ALREADY_EXISTS: 'locker/device_already_exists',
   LOCKER_COMPARTMENT_ALREADY_EXISTS: 'locker/compartment_already_exists',
+  LOCKER_ACTIVE_OPERATIONS: 'locker/active_operations',
 
   // Incident
   INCIDENT_NOT_FOUND: 'incident/not_found',
