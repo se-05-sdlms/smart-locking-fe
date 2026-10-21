@@ -23,6 +23,7 @@ function harness(request = async () => undefined) {
       '@/constants/operational-record',
       '@/services/operator-locker-mappers',
       '@/services/operator-locker-service',
+      '@/constants/error-codes',
     ].includes(name));
     const filename = path.join(__dirname, '..', 'src', `${name.slice(2)}.ts`);
     const code = ts.transpileModule(readFileSync(filename, 'utf8'), {
@@ -420,4 +421,46 @@ test('unknown record kinds and statuses never leak English text', () => {
   assert.equal(records.formatOperationalRecordKind('NewKind'), 'Không xác định');
   assert.equal(records.formatOperationalRecordStatus('Parcel', 'NewStatus'), 'Không xác định');
   assert.equal(records.formatOperationalRecordStatus('NewKind', 'Operational'), 'Không xác định');
+});
+
+test('locker-level status: only Operational and OutOfService can be toggled by the Operator (UC-18)', () => {
+  const { service } = harness();
+
+  assert.equal(service.getLockerStatusTarget('Operational'), 'OutOfService');
+  assert.equal(service.getLockerStatusTarget('OutOfService'), 'Operational');
+  assert.equal(service.getLockerStatusTarget('Inactive'), null);
+  assert.equal(service.getLockerStatusTarget('Unknown'), null);
+});
+
+test('locker status reason is required and capped at 500 characters', () => {
+  const { service } = harness();
+
+  assert.equal(service.validateLockerStatusReason('   '), 'Vui lòng nhập lý do.');
+  assert.equal(service.validateLockerStatusReason('Bảo trì'), undefined);
+  assert.equal(service.validateLockerStatusReason('x'.repeat(500)), undefined);
+  assert.match(service.validateLockerStatusReason('x'.repeat(501)), /tối đa 500/);
+});
+
+test('updateLockerStatus sends PUT /api/Lockers/{id}/status with the numeric status and trimmed reason', async () => {
+  const calls = [];
+  const { service } = harness(async (url, init) => {
+    calls.push({ url, method: init.method, body: JSON.parse(init.body) });
+    return {};
+  });
+
+  await service.updateLockerStatus('locker 1', 'OutOfService', '  Bảo trì  ');
+  await service.updateLockerStatus('locker-1', 'Operational', 'Đã sửa');
+  assert.deepEqual(calls[0], { url: '/api/Lockers/locker%201/status', method: 'PUT', body: { operationalStatus: 1, reason: 'Bảo trì' } });
+  assert.deepEqual(calls[1].body, { operationalStatus: 0, reason: 'Đã sửa' });
+});
+
+test('locker status errors are mapped by backend code and target', () => {
+  const { service, ApiError } = harness();
+  const message = (status, code, target = 'OutOfService') =>
+    service.getLockerStatusErrorMessage(new ApiError(status, 'English', code), target);
+
+  assert.match(message(409, 'locker/not_operational'), /còn bưu kiện, hàng trả hoặc ngăn đang giữ chỗ/);
+  assert.match(message(409, 'locker/not_operational', 'Operational'), /vô hiệu hóa/);
+  assert.match(message(403, 'locker/access_denied'), /không thuộc phạm vi/);
+  assert.match(message(400, 'validation/invalid_input'), /tối đa 500/);
 });

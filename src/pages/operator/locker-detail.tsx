@@ -31,6 +31,7 @@ import Funnel from '@gravity-ui/icons/Funnel';
 import LockOpen from '@gravity-ui/icons/LockOpen';
 import Wrench from '@gravity-ui/icons/Wrench';
 import Xmark from '@gravity-ui/icons/Xmark';
+import PowerIcon from '@gravity-ui/icons/Power';
 import { useParams } from 'react-router-dom';
 
 import { EmergencyUnlockDialog } from './emergency-unlock-dialog';
@@ -55,6 +56,7 @@ import {
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
 import { useLockerAlerts } from '@/hooks/use-locker-alerts';
+import { LockerStatusDialog } from '@/components/operator/locker-status-dialog';
 import { getEmergencyUnlockAvailability } from '@/services/locker-realtime-events';
 import {
   getCompartmentStatusAction,
@@ -67,6 +69,8 @@ import {
   getLockerHistory,
   getLockerLoadErrorMessage,
   updateCompartmentStatus,
+  getLockerStatusTarget,
+  LOCKER_STATUS_ACTION_TEXT,
 } from '@/services/operator-locker-service';
 
 function DetailSkeleton() {
@@ -166,6 +170,8 @@ export default function OperatorLockerDetailPage() {
     useState<CompartmentStatusAction | null>(null);
   const [statusError, setStatusError] = useState('');
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  // Non-zero key while the locker-level status dialog is open (fresh form each time).
+  const [lockerStatusDialog, setLockerStatusDialog] = useState(0);
   const statusRequestPending = useRef(false);
 
   const drawerState = useOverlayState();
@@ -273,12 +279,24 @@ export default function OperatorLockerDetailPage() {
     }
   };
 
+  const lockerStatusTarget = getLockerStatusTarget(locker.operationalStatus);
+
   const actionText = pendingAction
     ? COMPARTMENT_STATUS_ACTION_TEXT[pendingAction]
     : null;
 
   return (
     <section className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
+      {lockerStatusDialog && lockerStatusTarget ? (
+        <LockerStatusDialog
+          key={lockerStatusDialog}
+          lockerCode={locker.code}
+          lockerId={locker.id}
+          target={lockerStatusTarget}
+          onChanged={refresh}
+          onClose={() => setLockerStatusDialog(0)}
+        />
+      ) : null}
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div className="flex flex-wrap items-center gap-3">
           <Typography type="h3">{locker.code}</Typography>
@@ -286,6 +304,19 @@ export default function OperatorLockerDetailPage() {
           <LockerStatusChip value={locker.operationalStatus} />
         </div>
         <div className="flex flex-wrap gap-2">
+          {lockerStatusTarget ? (
+            <Button
+              variant={
+                lockerStatusTarget === 'OutOfService'
+                  ? 'danger-soft'
+                  : 'primary'
+              }
+              onPress={() => setLockerStatusDialog((key) => key + 1)}
+            >
+              <PowerIcon aria-hidden="true" className="size-4" />
+              {LOCKER_STATUS_ACTION_TEXT[lockerStatusTarget].button}
+            </Button>
+          ) : null}
           <Button variant="secondary" onPress={historyState.open}>
             <ClockArrowRotateLeft aria-hidden="true" className="size-4" />
             Lịch sử vận hành

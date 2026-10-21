@@ -13,6 +13,7 @@ import type {
 
 import { LOCKER_HISTORY_PAGE_SIZE } from '@/constants/operator-locker';
 import { ApiError, apiRequest } from '@/services/api-client';
+import { ErrorCodes } from '@/constants/error-codes';
 import {
   buildCompartmentStatusRequest,
   mapCompartment,
@@ -156,5 +157,107 @@ export function getCompartmentStatusErrorMessage(error: unknown) {
   return (
     commonErrorMessage(error) ??
     'Không thể cập nhật trạng thái ngăn. Vui lòng thử lại.'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Locker-level operational status (SRS UC-18):
+// `PUT /api/Lockers/{id}/status` with `{ operationalStatus, reason }`.
+// The Operator may only pause (OutOfService) or restore (Operational) an
+// assigned locker; Inactive is reserved for the Administrator.
+// ---------------------------------------------------------------------------
+
+export type LockerStatusTarget = 'Operational' | 'OutOfService';
+
+/** `LockerOperationalStatus` numbers accepted by this endpoint. */
+const LOCKER_STATUS_DTO: Record<LockerStatusTarget, 0 | 1> = {
+  Operational: 0,
+  OutOfService: 1,
+};
+
+export const LOCKER_STATUS_REASON_MAX_LENGTH = 500;
+
+export const LOCKER_STATUS_ACTION_TEXT: Record<
+  LockerStatusTarget,
+  { button: string; title: string; description: string; success: string }
+> = {
+  OutOfService: {
+    button: 'Tạm ngừng tủ',
+    title: 'Tạm ngừng phục vụ tủ',
+    description:
+      'Tủ sẽ không nhận gửi hàng mới cho tới khi được khôi phục. Chỉ tạm ngừng được khi tủ không còn bưu kiện, hàng trả hoặc ngăn đang giữ chỗ.',
+    success: 'Đã tạm ngừng phục vụ tủ',
+  },
+  Operational: {
+    button: 'Khôi phục hoạt động',
+    title: 'Khôi phục hoạt động tủ',
+    description: 'Tủ sẽ nhận gửi hàng trở lại ngay sau khi khôi phục.',
+    success: 'Đã khôi phục hoạt động tủ',
+  },
+};
+
+/**
+ * Which locker-level action the Operator can take, or null when none applies
+ * (an Inactive locker can only be changed by the Administrator).
+ */
+export function getLockerStatusTarget(
+  status: OperatorLocker['operationalStatus'],
+): LockerStatusTarget | null {
+  if (status === 'Operational') return 'OutOfService';
+  if (status === 'OutOfService') return 'Operational';
+
+  return null;
+}
+
+export function validateLockerStatusReason(reason: string) {
+  const value = reason.trim();
+
+  if (!value) return 'Vui lòng nhập lý do.';
+  if (value.length > LOCKER_STATUS_REASON_MAX_LENGTH) {
+    return `Lý do tối đa ${LOCKER_STATUS_REASON_MAX_LENGTH} ký tự.`;
+  }
+
+  return undefined;
+}
+
+export async function updateLockerStatus(
+  lockerId: string,
+  target: LockerStatusTarget,
+  reason: string,
+) {
+  await apiRequest<unknown>(
+    `/api/Lockers/${encodeURIComponent(lockerId)}/status`,
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        operationalStatus: LOCKER_STATUS_DTO[target],
+        reason: reason.trim(),
+      }),
+    },
+  );
+}
+
+export function getLockerStatusErrorMessage(
+  error: unknown,
+  target: LockerStatusTarget,
+) {
+  if (error instanceof ApiError) {
+    switch (error.code) {
+      case ErrorCodes.LOCKER_NOT_OPERATIONAL:
+        return target === 'OutOfService'
+          ? 'Không thể tạm ngừng: tủ còn bưu kiện, hàng trả hoặc ngăn đang giữ chỗ. Hãy xử lý hết trước khi tạm ngừng.'
+          : 'Tủ đã bị vô hiệu hóa; chỉ Quản trị viên mới khôi phục được.';
+      case ErrorCodes.LOCKER_ACCESS_DENIED:
+        return 'Tủ này không thuộc phạm vi bạn được phân công.';
+      case ErrorCodes.LOCKER_NOT_FOUND:
+        return 'Không tìm thấy tủ. Dữ liệu có thể đã thay đổi, vui lòng tải lại.';
+      case ErrorCodes.INVALID_INPUT:
+        return 'Lý do không hợp lệ (bắt buộc, tối đa 500 ký tự).';
+    }
+  }
+
+  return (
+    commonErrorMessage(error) ??
+    'Không thể cập nhật trạng thái tủ. Vui lòng thử lại.'
   );
 }
