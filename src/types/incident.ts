@@ -40,6 +40,8 @@ export type IncidentActionDto = {
 export type IncidentDetailDto = IncidentListItemDto & {
   description: string;
   evidenceUrl: string | null;
+  /** Guest reporter contact (smart-locking-be#156); null for residents. */
+  reporterPhone?: string | null;
   lockerCompartmentId: string | null;
   lockerCompartmentCode: string | null;
   assignedOperatorName: string | null;
@@ -105,6 +107,7 @@ export type IncidentAction = {
 export type IncidentDetail = IncidentListItem & {
   description: string;
   evidenceUrl: string | null;
+  reporterPhone: string | null;
   lockerCompartmentCode: string | null;
   assignedOperatorName: string | null;
   resolutionSummary: string | null;

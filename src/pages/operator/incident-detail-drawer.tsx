@@ -319,6 +319,16 @@ export function IncidentDetailDrawer({
                       <DetailRow label="Nguồn báo cáo">
                         {INCIDENT_SOURCE_LABELS[incident.source]}
                       </DetailRow>
+                      {incident.reporterPhone ? (
+                        <DetailRow label="Liên hệ người báo">
+                          <a
+                            className="text-accent underline-offset-2 hover:underline"
+                            href={`tel:${incident.reporterPhone}`}
+                          >
+                            {incident.reporterPhone}
+                          </a>
+                        </DetailRow>
+                      ) : null}
                       <DetailRow label="Người phụ trách">
                         {incident.assignedOperatorName ?? 'Chưa có'}
                       </DetailRow>

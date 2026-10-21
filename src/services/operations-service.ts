@@ -3,10 +3,21 @@ import { apiRequest } from '@/services/api-client';
 type PageResponse<T> =
   | T[]
   | { items: T[]; totalCount: number; pageNumber: number; pageSize: number };
-type OperationalLockerDto = Omit<OperationalLocker, 'status' | 'connection'> & {
-  status: 0 | 1 | 2;
-  connection: 0 | 1 | 2;
+/** `GET /api/Lockers` item (LockerSummaryResponse). */
+type LockerSummaryDto = {
+  id: string;
+  code: string;
+  address: string;
+  operationalStatus: 0 | 1 | 2;
+  connectionStatus: 0 | 1 | 2;
+  lastSeenAt: string | null;
+  totalCompartments: number;
+  activeCompartments: number;
 };
+/** `GET /api/parcels?view=Active` item (ParcelListItemResponse) — fields used here. */
+type ActiveParcelDto = { lockerId: string };
+/** `GET /api/operator/incidents` item — fields used here. */
+type IncidentDto = { lockerId: string | null; status: number | string };
 
 export type OperationalLocker = {
   id: string;
@@ -15,7 +26,12 @@ export type OperationalLocker = {
   status: 'Operational' | 'OutOfService' | 'Inactive';
   connection: 'Online' | 'Offline' | 'Unknown';
   lastSeenAt: string | null;
-  availableCompartments: number;
+  /**
+   * Operational compartments. The backend has no "available" (free) count per
+   * locker (no /api/Lockers/operational-summary), so this is not "empty".
+   */
+  activeCompartments: number;
+  totalCompartments: number;
   storedParcels: number;
   openIncidents: number;
 };
@@ -48,17 +64,69 @@ const connectionStatuses = ['Online', 'Offline', 'Unknown'] as const;
 const pageItems = <T>(response: PageResponse<T>): T[] =>
   Array.isArray(response) ? response : response.items;
 
-export const operationsService = {
-  lockers: async () => {
-    const response = await apiRequest<PageResponse<OperationalLockerDto>>(
-      '/api/Lockers/operational-summary?pageSize=100',
-    );
+/** IncidentStatus values that still need handling (numeric or string JSON). */
+const OPEN_INCIDENT_STATUSES = new Set<number | string>([
+  0,
+  1,
+  2,
+  'Open',
+  'Investigating',
+  'Escalated',
+]);
 
-    return pageItems(response).map((locker) => ({
-      ...locker,
-      status: lockerStatuses[locker.status],
-      connection: connectionStatuses[locker.connection],
-    }));
+export function buildOperationalLockers(
+  lockers: LockerSummaryDto[],
+  parcels: ActiveParcelDto[],
+  incidents: IncidentDto[],
+): OperationalLocker[] {
+  const count = (ids: Array<string | null>) =>
+    ids.reduce<Map<string, number>>((counts, id) => {
+      if (id) counts.set(id, (counts.get(id) ?? 0) + 1);
+
+      return counts;
+    }, new Map());
+  const parcelsByLocker = count(parcels.map((parcel) => parcel.lockerId));
+  const incidentsByLocker = count(
+    incidents
+      .filter((incident) => OPEN_INCIDENT_STATUSES.has(incident.status))
+      .map((incident) => incident.lockerId),
+  );
+
+  return lockers.map((locker) => ({
+    id: locker.id,
+    code: locker.code,
+    address: locker.address,
+    status: lockerStatuses[locker.operationalStatus] ?? 'Inactive',
+    connection: connectionStatuses[locker.connectionStatus] ?? 'Unknown',
+    lastSeenAt: locker.lastSeenAt,
+    activeCompartments: locker.activeCompartments,
+    totalCompartments: locker.totalCompartments,
+    storedParcels: parcelsByLocker.get(locker.id) ?? 0,
+    openIncidents: incidentsByLocker.get(locker.id) ?? 0,
+  }));
+}
+
+export const operationsService = {
+  /**
+   * Operator dashboard rows built only from existing endpoints: lockers in
+   * scope, active parcels and incidents (each already scoped by the backend).
+   */
+  lockers: async (signal?: AbortSignal) => {
+    const [lockers, parcels, incidents] = await Promise.all([
+      apiRequest<PageResponse<LockerSummaryDto>>('/api/Lockers', { signal }),
+      apiRequest<PageResponse<ActiveParcelDto>>('/api/parcels?view=Active', {
+        signal,
+      }),
+      apiRequest<PageResponse<IncidentDto>>('/api/operator/incidents', {
+        signal,
+      }),
+    ]);
+
+    return buildOperationalLockers(
+      pageItems(lockers),
+      pageItems(parcels),
+      pageItems(incidents),
+    );
   },
   maintenance: async () =>
     pageItems(

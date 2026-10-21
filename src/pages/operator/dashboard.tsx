@@ -39,7 +39,7 @@ export default function OperatorDashboardPage() {
   );
 
   const available = lockers.reduce(
-    (sum, locker) => sum + locker.availableCompartments,
+    (sum, locker) => sum + locker.activeCompartments,
     0,
   );
   const parcels = lockers.reduce(
@@ -63,7 +63,7 @@ export default function OperatorDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-3">
         {[
           ['Tủ được giao', lockers.length],
-          ['Ngăn đang trống', available],
+          ['Ngăn hoạt động', available],
           ['Sự cố cần xử lý', incidents],
         ].map(([label, value]) => (
           <Card key={String(label)}>
@@ -92,9 +92,9 @@ export default function OperatorDashboardPage() {
             <Card.Content className="grid grid-cols-3 gap-3 pb-6 text-center">
               <div>
                 <strong className="block text-2xl">
-                  {locker.availableCompartments}
+                  {locker.activeCompartments}
                 </strong>
-                <span className="text-xs text-muted">Ngăn trống</span>
+                <span className="text-xs text-muted">Ngăn hoạt động</span>
               </div>
               <div>
                 <strong className="block text-2xl">
