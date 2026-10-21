@@ -1,21 +1,27 @@
 import type { HubConnection } from '@microsoft/signalr';
+import type { LockerRealtimeEvent } from '@/services/locker-realtime-events';
 
 import { HubConnectionBuilder } from '@microsoft/signalr';
 import { useEffect, useRef } from 'react';
 
 import { readAuthSession } from '@/auth/auth-storage';
 import { getApiUrl } from '@/config/api';
+import { parseRealtimeEvent } from '@/services/locker-realtime-events';
 
 export function useOperationsRealtime(
   lockerIds: string[],
   refresh: () => void,
+  /** Optional: receives each validated event (alerts, toasts) before the refresh. */
+  onEvent?: (event: LockerRealtimeEvent) => void,
 ) {
   const refreshRef = useRef(refresh);
+  const onEventRef = useRef(onEvent);
   const lockerKey = [...lockerIds].sort().join(',');
 
   useEffect(() => {
     refreshRef.current = refresh;
-  }, [refresh]);
+    onEventRef.current = onEvent;
+  }, [refresh, onEvent]);
 
   useEffect(() => {
     if (!lockerKey) return;
@@ -61,7 +67,12 @@ export function useOperationsRealtime(
       }
     };
 
-    connection.on('operationUpdated', queueRefresh);
+    connection.on('operationUpdated', (payload: unknown) => {
+      const event = parseRealtimeEvent(payload);
+
+      if (event) onEventRef.current?.(event);
+      queueRefresh();
+    });
     connection.onreconnected(() => {
       void subscribe(connection)
         .then(queueRefresh)

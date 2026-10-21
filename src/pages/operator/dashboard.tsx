@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
+import { useLockerAlerts } from '@/hooks/use-locker-alerts';
+import { CONNECTION_STATUS_DISPLAY } from '@/constants/operator-locker';
 import {
   operationsService,
   type OperationalLocker,
@@ -28,9 +30,12 @@ export default function OperatorDashboardPage() {
   useEffect(() => {
     void load();
   }, [load]);
+  const onLockerEvent = useLockerAlerts(lockers);
+
   useOperationsRealtime(
     lockers.map((locker) => locker.id),
     () => void load(),
+    onLockerEvent,
   );
 
   const available = lockers.reduce(
@@ -78,10 +83,10 @@ export default function OperatorDashboardPage() {
                 <Card.Description>{locker.address}</Card.Description>
               </div>
               <Chip
-                color={locker.connection === 'Online' ? 'success' : 'warning'}
+                color={CONNECTION_STATUS_DISPLAY[locker.connection].color}
                 variant="soft"
               >
-                {locker.connection}
+                {CONNECTION_STATUS_DISPLAY[locker.connection].label}
               </Chip>
             </Card.Header>
             <Card.Content className="grid grid-cols-3 gap-3 pb-6 text-center">
