@@ -112,3 +112,45 @@ test('errors are shown in Vietnamese', () => {
   assert.equal(service.getNotificationErrorMessage(new ApiError(502)), 'Máy chủ đang gặp sự cố.');
   assert.equal(service.getNotificationErrorMessage(undefined), 'Không thể tải thông báo.');
 });
+
+test('unread count comes from its own unreadOnly query, not the 30-item page (review #75)', async () => {
+  const urls = [];
+  const { service } = harness(async (url) => {
+    urls.push(url);
+    return [];
+  });
+
+  await service.listUnreadNotifications();
+  assert.equal(urls[0], '/api/notifications?unreadOnly=true&limit=100');
+  assert.equal(service.UNREAD_COUNT_LIMIT, 100);
+
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'components', 'navigation', 'notification-inbox.tsx'), 'utf8');
+  assert.match(source, /const unread =\s*unreadResource\.state\.data\?\.length/);
+  assert.match(source, /if \(isMarkingAll \|\| unread === 0\) return;/);
+});
+
+test('31st unread notification still counts: badge and label use the separate unread list (review #75)', () => {
+  const { service } = harness();
+  const latest30 = Array.from({ length: 30 }, (_, i) => notification({ id: `r-${i}`, isRead: true }));
+  const unreadOnly = [notification({ id: 'old-unread' })];
+
+  // The page alone would say nothing is unread…
+  assert.equal(service.countUnread(latest30), 0);
+  // …but the unread query still reports it.
+  assert.equal(service.unreadAriaLabel(unreadOnly.length), 'Thông báo, 1 chưa đọc');
+  assert.equal(service.formatUnreadBadge(unreadOnly.length), '1');
+});
+
+test('badge text, capped aria label and local read updates of the unread list', () => {
+  const { service } = harness();
+
+  assert.equal(service.formatUnreadBadge(9), '9');
+  assert.equal(service.formatUnreadBadge(10), '9+');
+  assert.equal(service.unreadAriaLabel(0), 'Thông báo, không có thông báo mới');
+  assert.equal(service.unreadAriaLabel(42), 'Thông báo, 42 chưa đọc');
+  assert.equal(service.unreadAriaLabel(100), 'Thông báo, hơn 99 chưa đọc');
+
+  const unread = [notification({ id: 'a' }), notification({ id: 'b' })];
+  assert.deepEqual(service.dropRead(unread, 'a').map((item) => item.id), ['b']);
+  assert.deepEqual(service.dropRead(unread, 'all'), []);
+});

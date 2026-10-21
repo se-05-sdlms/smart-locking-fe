@@ -147,3 +147,43 @@ export function getNotificationErrorMessage(error: unknown) {
 
   return 'Không thể tải thông báo.';
 }
+
+/** The backend caps `limit` at 100; the unread badge counts up to this. */
+export const UNREAD_COUNT_LIMIT = 100;
+
+/**
+ * Unread notifications for the badge and "mark all read", fetched separately
+ * from the (limited) inbox list so older unread items are not missed.
+ */
+export function listUnreadNotifications(signal?: AbortSignal) {
+  const query = new URLSearchParams({
+    unreadOnly: 'true',
+    limit: String(UNREAD_COUNT_LIMIT),
+  });
+
+  return apiRequest<AppNotification[]>(`/api/notifications?${query}`, {
+    signal,
+  });
+}
+
+/** Badge text: exact up to 9, then "9+". */
+export function formatUnreadBadge(count: number) {
+  return count > 9 ? '9+' : String(count);
+}
+
+/** Accessible label for the bell, saying "more than 99" when the count is capped. */
+export function unreadAriaLabel(count: number) {
+  if (count === 0) return 'Thông báo, không có thông báo mới';
+
+  const amount = count >= UNREAD_COUNT_LIMIT ? 'hơn 99' : String(count);
+
+  return `Thông báo, ${amount} chưa đọc`;
+}
+
+/** Removes notifications that were just read from the unread list. */
+export function dropRead(
+  unread: AppNotification[],
+  id: string | 'all',
+): AppNotification[] {
+  return id === 'all' ? [] : unread.filter((item) => item.id !== id);
+}

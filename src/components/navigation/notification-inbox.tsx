@@ -1,7 +1,7 @@
 import type { AppRole } from '@/config/navigation';
 import type { AppNotification } from '@/services/notification-service';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Badge, Button, Popover, Skeleton, toast } from '@heroui/react';
 import ArrowRotateRight from '@gravity-ui/icons/ArrowRotateRight';
@@ -11,6 +11,10 @@ import CheckDouble from '@gravity-ui/icons/CheckDouble';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
   countUnread,
+  dropRead,
+  formatUnreadBadge,
+  listUnreadNotifications,
+  unreadAriaLabel,
   getNotificationErrorMessage,
   listNotifications,
   markAllNotificationsRead,
@@ -100,14 +104,26 @@ export function NotificationInbox({ role }: { role: AppRole }) {
     getNotificationErrorMessage,
     [],
   );
+  // The badge and "mark all read" use their own unread query: the inbox list
+  // only holds the latest items, so counting it would miss older unread ones.
+  const unreadResource = useAsyncResource(
+    listUnreadNotifications,
+    getNotificationErrorMessage,
+    [],
+  );
+  const refreshUnread = unreadResource.refresh;
+  const refreshAll = useCallback(() => {
+    refresh();
+    refreshUnread();
+  }, [refresh, refreshUnread]);
 
   // Poll while the tab is visible; refresh as soon as it becomes visible again.
   useEffect(() => {
     const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === 'visible') refreshAll();
     }, NOTIFICATION_POLL_MS);
     const onVisible = () => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === 'visible') refreshAll();
     };
 
     document.addEventListener('visibilitychange', onVisible);
@@ -116,17 +132,22 @@ export function NotificationInbox({ role }: { role: AppRole }) {
       window.clearInterval(timer);
       document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [refresh]);
+  }, [refreshAll]);
 
   const notifications = state.data ?? [];
-  const unread = countUnread(notifications);
+  const unread =
+    unreadResource.state.data?.length ?? countUnread(notifications);
 
-  const applyRead = (id: string | 'all') =>
+  const applyRead = (id: string | 'all') => {
     setState((current) =>
       current.data
         ? { ...current, data: markReadLocally(current.data, id) }
         : current,
     );
+    unreadResource.setState((current) =>
+      current.data ? { ...current, data: dropRead(current.data, id) } : current,
+    );
+  };
 
   const openNotification = async (notification: AppNotification) => {
     const target = notificationTarget(notification, role);
@@ -134,7 +155,7 @@ export function NotificationInbox({ role }: { role: AppRole }) {
     if (!notification.isRead) {
       applyRead(notification.id);
       // Navigation must not wait for, or fail because of, the read receipt.
-      void markNotificationRead(notification.id).catch(() => refresh());
+      void markNotificationRead(notification.id).catch(() => refreshAll());
     }
 
     if (target) {
@@ -158,16 +179,14 @@ export function NotificationInbox({ role }: { role: AppRole }) {
     }
   };
 
-  const label = unread
-    ? `Thông báo, ${unread} chưa đọc`
-    : 'Thông báo, không có thông báo mới';
+  const label = unreadAriaLabel(unread);
 
   return (
     <Popover
       isOpen={isOpen}
       onOpenChange={(open) => {
         setIsOpen(open);
-        if (open) refresh();
+        if (open) refreshAll();
       }}
     >
       <Badge.Anchor>
@@ -176,7 +195,7 @@ export function NotificationInbox({ role }: { role: AppRole }) {
         </Button>
         {unread ? (
           <Badge color="danger" placement="top-right" size="sm">
-            {unread > 9 ? '9+' : unread}
+            {formatUnreadBadge(unread)}
           </Badge>
         ) : null}
       </Badge.Anchor>
