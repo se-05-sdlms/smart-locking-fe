@@ -18,6 +18,7 @@ import OperatorMaintenancePage from '@/pages/operator/maintenance';
 import OperatorOperationalHistoryPage from '@/pages/operator/operational-history';
 import OperatorIncidentsPage from '@/pages/operator/incidents';
 import AdminReportsPage from '@/pages/admin/reports';
+import AdminSettingsPage from '@/pages/admin/settings';
 import AdminSystemPoliciesPage from '@/pages/admin/system-policies';
 import AdminOperatorAssignmentsPage from '@/pages/admin/operator-assignments';
 import ApplicationLayout from '@/layouts/application-layout';
@@ -104,6 +105,8 @@ function roleRoute(role: AppRole) {
                 <AdminAuditLogsPage />
               ) : item.path === '/admin/reports' ? (
                 <AdminReportsPage />
+              ) : item.path === '/admin/settings' ? (
+                <AdminSettingsPage />
               ) : (
                 <EmptyRoutePage />
               )

@@ -53,6 +53,12 @@ const adminNavigation: NavigationItem[] = [
     icon: ClockArrowRotateLeft,
     role: 'admin',
   },
+  {
+    label: 'Tài khoản',
+    path: '/admin/settings',
+    icon: Gear,
+    role: 'admin',
+  },
 ];
 
 const operatorNavigation: NavigationItem[] = [
