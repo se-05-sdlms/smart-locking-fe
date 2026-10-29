@@ -411,6 +411,26 @@ function PaymentsTab({
   );
 }
 
+/** Payment behind a case; a failed read is reported instead of hidden. */
+async function loadPayment(
+  item: Pick<ReconciliationCase, 'kind' | 'paymentId'>,
+  signal?: AbortSignal,
+): Promise<{ payment: PaymentRecord | null; paymentError: string }> {
+  try {
+    return {
+      payment: await getPayment(item.kind, item.paymentId, signal),
+      paymentError: '',
+    };
+  } catch (error) {
+    if (signal?.aborted) throw error;
+
+    return {
+      payment: null,
+      paymentError: `Không tải được giao dịch của hồ sơ: ${getReconciliationErrorMessage(error)} Trạng thái tiền chưa được hiển thị.`,
+    };
+  }
+}
+
 function CaseDrawer({
   caseId,
   names,
@@ -426,11 +446,8 @@ function CaseDrawer({
   const { state, setState, reload } = useAsyncResource(
     async (signal) => {
       const item = await getCase(caseId, signal);
-      const payment = await getPayment(item.kind, item.paymentId, signal).catch(
-        () => null,
-      );
 
-      return { item, payment };
+      return { item, ...(await loadPayment(item, signal)) };
     },
     getReconciliationErrorMessage,
     [caseId],
@@ -438,7 +455,9 @@ function CaseDrawer({
   const [respondStatus, setRespondStatus] = useState<RespondStatus | ''>('');
   const [response, setResponse] = useState('');
   const [formError, setFormError] = useState('');
-  const [busy, setBusy] = useState<'' | 'assign' | 'respond' | 'sync'>('');
+  const [busy, setBusy] = useState<
+    '' | 'assign' | 'respond' | 'sync' | 'payment'
+  >('');
   const pending = useRef(false);
 
   const run = async (
@@ -453,10 +472,17 @@ function CaseDrawer({
     try {
       const item = await action();
 
-      setState((current) => ({
-        status: 'success',
-        data: { item, payment: current.data?.payment ?? null },
-      }));
+      // Synchronizing may settle or cancel the payment itself; re-read it so
+      // the money status matches the case result instead of the old snapshot.
+      const payment =
+        kind === 'sync'
+          ? await loadPayment(item)
+          : {
+              payment: state.data?.payment ?? null,
+              paymentError: state.data?.paymentError ?? '',
+            };
+
+      setState({ status: 'success', data: { item, ...payment } });
       toast.success(success, {
         description: `${item.reference} · ${caseStatusLabels[item.status]}`,
         indicator: <CircleCheck aria-hidden="true" className="size-5" />,
@@ -474,8 +500,27 @@ function CaseDrawer({
     }
   };
 
+  const reloadPayment = async () => {
+    if (!state.data || pending.current) return;
+    pending.current = true;
+    setBusy('payment');
+    try {
+      const next = await loadPayment(state.data.item);
+
+      setState((current) =>
+        current.data
+          ? { status: 'success', data: { ...current.data, ...next } }
+          : current,
+      );
+    } finally {
+      pending.current = false;
+      setBusy('');
+    }
+  };
+
   const item = state.data?.item;
   const payment = state.data?.payment;
+  const paymentError = state.data?.paymentError;
   const actions = item ? caseActions(item, user?.id) : null;
   const personName = (id: string | null) =>
     !id
@@ -529,6 +574,25 @@ function CaseDrawer({
                     </Alert>
                   ) : null}
 
+                  {paymentError ? (
+                    <Alert role="alert" status="danger">
+                      <Alert.Indicator>
+                        <CircleExclamation aria-hidden="true" />
+                      </Alert.Indicator>
+                      <Alert.Content>
+                        <Alert.Description>{paymentError}</Alert.Description>
+                      </Alert.Content>
+                      <Button
+                        isPending={busy === 'payment'}
+                        size="sm"
+                        variant="secondary"
+                        onPress={() => void reloadPayment()}
+                      >
+                        Tải lại giao dịch
+                      </Button>
+                    </Alert>
+                  ) : null}
+
                   <dl className="grid grid-cols-[9rem_1fr] gap-x-3 gap-y-2 text-sm">
                     <dt className="text-muted">Loại</dt>
                     <dd>{paymentKindLabels[item.kind]}</dd>
@@ -554,6 +618,8 @@ function CaseDrawer({
                           payment.status)
                         : '—'}
                     </dd>
+                    <dt className="text-muted">Hoàn tất lúc</dt>
+                    <dd>{formatDateTime(payment?.completedAt ?? null)}</dd>
                     <dt className="text-muted">Cổng thanh toán</dt>
                     <dd>
                       {providerStatusLabel(item.providerStatus)}
