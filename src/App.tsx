@@ -8,6 +8,7 @@ import ForbiddenPage from '@/pages/forbidden';
 import UserManagementPage from '@/pages/admin/user-management-page';
 import AdminDashboardPage from '@/pages/admin/dashboard';
 import AdminLockersPage from '@/pages/admin/lockers';
+import AdminAccountChangesPage from '@/pages/admin/account-changes';
 import AdminAuditLogsPage from '@/pages/admin/audit-logs';
 import OperatorLockersPage from '@/pages/operator/lockers';
 import OperatorLockerDetailPage from '@/pages/operator/locker-detail';
@@ -95,6 +96,8 @@ function roleRoute(role: AppRole) {
             element={
               item.path === '/admin/users' ? (
                 <UserManagementPage />
+              ) : item.path === '/admin/account-changes' ? (
+                <AdminAccountChangesPage />
               ) : item.path === '/admin/lockers' ? (
                 <AdminLockersPage />
               ) : item.path === '/admin/policies' ? (
