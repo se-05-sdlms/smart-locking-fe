@@ -21,7 +21,7 @@ export const PARCEL_STATUS_DISPLAY: Record<
   Stored: { label: 'Đang lưu', color: 'warning' },
   Overdue: { label: 'Quá hạn', color: 'danger' },
   Retrieved: { label: 'Đã nhận', color: 'success' },
-  Removed: { label: 'Đã chuyển điểm tập kết', color: 'success' },
+  Removed: { label: 'Đã thu hồi khỏi tủ', color: 'success' },
   Unknown: { label: 'Không xác định', color: 'default' },
 };
 
@@ -277,7 +277,7 @@ export function getOverdueLoadErrorMessage(error: unknown) {
 
 export function getTransferErrorMessage(error: unknown) {
   if (error instanceof ApiError && error.status === 409) {
-    return 'Bưu kiện chưa đủ điều kiện chuyển điểm tập kết hoặc đã được xử lý. Vui lòng tải lại.';
+    return 'Bưu kiện chưa đủ điều kiện thu hồi hoặc đã được xử lý. Vui lòng tải lại.';
   }
 
   return (
