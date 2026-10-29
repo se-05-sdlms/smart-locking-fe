@@ -5,8 +5,9 @@ import { ApiError, apiRequest } from '@/services/api-client';
 //   GET /api/lockers/{id}/support            – contact residents see now
 //   GET/PUT /api/operators/{id}/support-contact (Administrator)
 //   GET/PUT /api/lockers/{id}/support-settings  (Administrator, fallback)
-// The public contact always follows the operator currently assigned to the
-// locker; outside that operator's hours (or with none) the fallback is shown.
+// The public contact always follows the operator who currently holds the
+// locker — the substitute while a temporary coverage is active, otherwise the
+// original assignee; outside their hours (or with none) the fallback is shown.
 // GET of a contact/settings that was never saved returns 204.
 
 export type LockerSupport = {
@@ -218,6 +219,78 @@ export function supportWarnings(input: {
 
   return warnings;
 }
+
+// ---------------------------------------------------------------------------
+// Who holds the locker right now (#86 temporary coverage)
+// ---------------------------------------------------------------------------
+
+/** Fields of GET /api/operator-absences used to find active coverage. */
+export type CoverageAbsence = {
+  operatorUserId: string;
+  startsAt: string;
+  endsAt: string;
+  cancelledAt: string | null;
+  proposals: Array<{
+    lockerId: string;
+    originalOperatorUserId: string;
+    operatorUserId: string | null;
+    status: string;
+    activatedAt: string | null;
+  }>;
+};
+
+export type ActiveCoverage = {
+  lockerId: string;
+  originalOperatorUserId: string;
+  substituteUserId: string;
+  startsAt: string;
+  endsAt: string;
+};
+
+/**
+ * Mirrors EffectiveOperatorAssignments: an Active, activated substitute of a
+ * non-cancelled absence that covers `now` holds the locker instead of the
+ * original operator (whose public contact then is not shown).
+ */
+export function activeCoverage(
+  absences: CoverageAbsence[],
+  now = Date.now(),
+): Map<string, ActiveCoverage> {
+  const result = new Map<string, ActiveCoverage>();
+
+  for (const absence of absences) {
+    if (
+      absence.cancelledAt ||
+      new Date(absence.startsAt).getTime() > now ||
+      new Date(absence.endsAt).getTime() <= now
+    ) {
+      continue;
+    }
+    for (const proposal of absence.proposals) {
+      if (
+        proposal.status === 'Active' &&
+        proposal.activatedAt &&
+        proposal.operatorUserId &&
+        !result.has(proposal.lockerId)
+      ) {
+        result.set(proposal.lockerId, {
+          lockerId: proposal.lockerId,
+          originalOperatorUserId: proposal.originalOperatorUserId,
+          substituteUserId: proposal.operatorUserId,
+          startsAt: absence.startsAt,
+          endsAt: absence.endsAt,
+        });
+      }
+    }
+  }
+
+  return result;
+}
+
+export const listActiveCoverage = async (signal?: AbortSignal) =>
+  activeCoverage(
+    await apiRequest<CoverageAbsence[]>('/api/operator-absences', { signal }),
+  );
 
 export const getLockerSupport = (lockerId: string, signal?: AbortSignal) =>
   apiRequest<LockerSupport>(

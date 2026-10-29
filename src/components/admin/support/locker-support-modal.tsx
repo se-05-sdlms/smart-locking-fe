@@ -32,6 +32,7 @@ import {
   getLockerSupport,
   getLockerSupportSettings,
   getOperatorContact,
+  listActiveCoverage,
   getSupportErrorMessage,
   saveLockerSupportSettings,
   saveOperatorContact,
@@ -351,36 +352,62 @@ function SettingsForm({
   );
 }
 
+const formatInstant = (value: string) =>
+  new Date(value).toLocaleString('vi-VN');
+
+/**
+ * Support contact follows whoever holds the locker now: the substitute
+ * during an active temporary coverage, otherwise the original assignee.
+ */
 export function LockerSupportModal({
   lockerId,
   lockerCode,
-  operator,
+  original,
+  operators,
   onClose,
 }: {
   lockerId: string;
   lockerCode: string;
-  operator: Operator | null;
+  /** Original (base) assignee from the assignment board. */
+  original: Operator | null;
+  /** Known operators, used to name a substitute. */
+  operators: Operator[];
   onClose: () => void;
 }) {
   const { state, refresh } = useAsyncResource(
     async (signal) => {
-      const [support, contact, settings] = await Promise.all([
+      const [support, settings, coverageMap] = await Promise.all([
         getLockerSupport(lockerId, signal),
-        operator
-          ? getOperatorContact(operator.id, signal)
-          : Promise.resolve(null),
         getLockerSupportSettings(lockerId, signal),
+        listActiveCoverage(signal),
+      ]);
+      const coverage = coverageMap.get(lockerId) ?? null;
+      const holderId = coverage?.substituteUserId ?? original?.id ?? null;
+      const [contact, originalContact] = await Promise.all([
+        holderId ? getOperatorContact(holderId, signal) : Promise.resolve(null),
+        coverage && original
+          ? getOperatorContact(original.id, signal)
+          : Promise.resolve(null),
       ]);
 
-      return { support, contact, settings };
+      return { support, settings, coverage, contact, originalContact };
     },
     getSupportErrorMessage,
-    [lockerId, operator?.id],
+    [lockerId, original?.id],
   );
   const data = state.data;
+  const nameOf = (id: string) =>
+    operators.find((item) => item.id === id)?.fullName ??
+    `Operator #${id.slice(0, 8)}`;
+  const holder: Operator | null = data?.coverage
+    ? {
+        id: data.coverage.substituteUserId,
+        fullName: nameOf(data.coverage.substituteUserId),
+      }
+    : original;
   const warnings = data
     ? supportWarnings({
-        hasOperator: Boolean(operator),
+        hasOperator: Boolean(holder),
         contact: data.contact,
         settings: data.settings,
       })
@@ -429,27 +456,53 @@ export function LockerSupportModal({
                   ) : null}
                   <Card>
                     <Card.Header>
-                      <Card.Title>Operator phụ trách</Card.Title>
+                      <Card.Title>Người đang có quyền tại tủ</Card.Title>
                       <Card.Description>
-                        {operator
-                          ? `${operator.fullName}. Đổi người phụ trách ở cột Thao tác, liên hệ công khai sẽ tự theo người mới.`
-                          : 'Tủ chưa có Operator phụ trách. Phân công Operator trước khi cấu hình liên hệ.'}
+                        {!holder
+                          ? 'Tủ chưa có Operator phụ trách. Phân công Operator trước khi cấu hình liên hệ.'
+                          : data.coverage
+                            ? `${holder.fullName} đang thay tạm ${original?.fullName ?? nameOf(data.coverage.originalOperatorUserId)} từ ${formatInstant(data.coverage.startsAt)} đến ${formatInstant(data.coverage.endsAt)}. Cư dân đang thấy liên hệ của người thay.`
+                            : `${holder.fullName} (người quản lý chính). Đổi người phụ trách ở cột Thao tác, liên hệ công khai sẽ tự theo người mới.`}
                       </Card.Description>
                     </Card.Header>
-                    {operator ? (
+                    {holder ? (
                       <Card.Content>
                         <ContactForm
+                          key={holder.id}
                           initial={
                             data.contact
                               ? toContactForm(data.contact)
-                              : emptyContactForm(operator.fullName)
+                              : emptyContactForm(holder.fullName)
                           }
-                          operator={operator}
+                          operator={holder}
                           onSaved={refresh}
                         />
                       </Card.Content>
                     ) : null}
                   </Card>
+                  {data.coverage && original ? (
+                    <Card>
+                      <Card.Header>
+                        <Card.Title>Người quản lý chính (đang vắng)</Card.Title>
+                        <Card.Description>
+                          Liên hệ của {original.fullName} sẽ được công khai lại
+                          khi hết thời gian thay tạm.
+                        </Card.Description>
+                      </Card.Header>
+                      <Card.Content>
+                        <ContactForm
+                          key={original.id}
+                          initial={
+                            data.originalContact
+                              ? toContactForm(data.originalContact)
+                              : emptyContactForm(original.fullName)
+                          }
+                          operator={original}
+                          onSaved={refresh}
+                        />
+                      </Card.Content>
+                    </Card>
+                  ) : null}
                   <Card>
                     <Card.Header>
                       <Card.Title>Đầu mối dự phòng của tủ</Card.Title>

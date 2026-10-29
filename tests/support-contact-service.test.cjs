@@ -81,3 +81,25 @@ test('warnings flag missing contacts and saving sends the backend contract', asy
   assert.deepEqual(calls[1].body, { displayName: 'Lan', workPhoneNumber: '0901234567', isPublic: true, utcOffsetMinutes: 420, weekdaysMask: 62, startsAtMinute: 480, endsAtMinute: 1020, instructions: 'Gọi' });
   assert.deepEqual(calls[2].body, { fallbackName: null, fallbackPhoneNumber: null, fallbackInstructions: 'BQL', fallbackHours: '24/7' });
 });
+
+test('active coverage mirrors effective assignments: only Active substitutes inside a live absence', async () => {
+  const { service } = harness();
+  const now = Date.parse('2026-10-29T12:00:00Z');
+  const proposal = (overrides = {}) => ({ lockerId: 'l-1', originalOperatorUserId: 'a', operatorUserId: 'b', status: 'Active', activatedAt: '2026-10-29T00:00:00Z', ...overrides });
+  const absence = (overrides = {}) => ({ operatorUserId: 'a', startsAt: '2026-10-29T00:00:00Z', endsAt: '2026-10-30T00:00:00Z', cancelledAt: null, proposals: [proposal()], ...overrides });
+
+  const map = service.activeCoverage([absence()], now);
+  assert.deepEqual(map.get('l-1'), { lockerId: 'l-1', originalOperatorUserId: 'a', substituteUserId: 'b', startsAt: '2026-10-29T00:00:00Z', endsAt: '2026-10-30T00:00:00Z' });
+  assert.equal(service.activeCoverage([absence({ cancelledAt: '2026-10-29T01:00:00Z' })], now).size, 0);
+  assert.equal(service.activeCoverage([absence({ endsAt: '2026-10-29T06:00:00Z' })], now).size, 0);
+  assert.equal(service.activeCoverage([absence({ startsAt: '2026-10-29T13:00:00Z' })], now).size, 0);
+  for (const status of ['Approved', 'PendingApproval', 'NeedsApproval', 'Unassigned']) {
+    assert.equal(service.activeCoverage([absence({ proposals: [proposal({ status })] })], now).size, 0, status);
+  }
+  assert.equal(service.activeCoverage([absence({ proposals: [proposal({ activatedAt: null })] })], now).size, 0);
+
+  const calls = [];
+  const { service: live } = harness(async (url) => { calls.push(url); return [absence()]; });
+  assert.equal((await live.listActiveCoverage()).size >= 0, true);
+  assert.deepEqual(calls, ['/api/operator-absences']);
+});

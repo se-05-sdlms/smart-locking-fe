@@ -32,6 +32,10 @@ import Xmark from '@gravity-ui/icons/Xmark';
 import { LockerSupportModal } from '@/components/admin/support/locker-support-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
+  listActiveCoverage,
+  type ActiveCoverage,
+} from '@/services/support-contact-service';
+import {
   ASSIGNMENT_REASON_MAX_LENGTH,
   assignLocker,
   filterAssignmentRows,
@@ -125,6 +129,17 @@ export default function AdminOperatorAssignmentsPage() {
     getAssignmentErrorMessage,
     [],
   );
+  // Temporary coverage (#86): who actually holds each locker right now.
+  const coverageState = useAsyncResource(
+    (signal) => listActiveCoverage(signal),
+    () =>
+      'Không tải được thông tin thay tạm; cột Operator chỉ hiện người quản lý chính.',
+    [state.data],
+  ).state;
+  const coverage = coverageState.data ?? new Map<string, ActiveCoverage>();
+  const operatorName = (id: string) =>
+    state.data?.operators.find((item) => item.id === id)?.fullName ??
+    `Operator #${id.slice(0, 8)}`;
 
   const board = state.data;
   const rows = useMemo(
@@ -260,6 +275,18 @@ export default function AdminOperatorAssignmentsPage() {
                           {row.operator.email ?? ''}
                           {row.operator.isActive ? '' : ' · Tài khoản đã khóa'}
                         </span>
+                        {coverage.get(row.lockerId) ? (
+                          <span className="block text-xs text-warning">
+                            Đang thay tạm:{' '}
+                            {operatorName(
+                              coverage.get(row.lockerId)!.substituteUserId,
+                            )}{' '}
+                            đến{' '}
+                            {dateFormatter.format(
+                              new Date(coverage.get(row.lockerId)!.endsAt),
+                            )}
+                          </span>
+                        ) : null}
                       </span>
                     ) : (
                       <span className="text-warning">Chưa phân công</span>
@@ -306,6 +333,9 @@ export default function AdminOperatorAssignmentsPage() {
 
   return (
     <section className="flex w-full flex-col gap-5">
+      {coverageState.status === 'error' ? (
+        <p className="text-sm text-warning">{coverageState.message}</p>
+      ) : null}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
         <SearchField
           fullWidth
@@ -494,8 +524,12 @@ export default function AdminOperatorAssignmentsPage() {
           key={supportRow.lockerId}
           lockerCode={supportRow.lockerCode}
           lockerId={supportRow.lockerId}
-          operator={supportRow.operator}
-          onClose={() => setSupportRow(null)}
+          operators={state.data?.operators ?? []}
+          original={supportRow.operator}
+          onClose={() => {
+            setSupportRow(null);
+            refresh();
+          }}
         />
       ) : null}
     </section>
