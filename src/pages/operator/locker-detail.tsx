@@ -33,6 +33,7 @@ import Wrench from '@gravity-ui/icons/Wrench';
 import Xmark from '@gravity-ui/icons/Xmark';
 import PowerIcon from '@gravity-ui/icons/Power';
 import { useNavigate, useParams } from 'react-router-dom';
+import Qrcode from '@gravity-ui/icons/Qrcode';
 
 import { EmergencyUnlockDialog } from './emergency-unlock-dialog';
 import {
@@ -53,6 +54,7 @@ import {
   COMPARTMENT_FILTER_OPTIONS,
   COMPARTMENT_STATUS_ACTION_TEXT,
 } from '@/constants/operator-locker';
+import { LockerQrModal } from '@/components/lockers/locker-qr-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import { maintenanceFormHref } from '@/services/maintenance-service';
 import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
@@ -174,6 +176,7 @@ export default function OperatorLockerDetailPage() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   // Non-zero key while the locker-level status dialog is open (fresh form each time).
   const [lockerStatusDialog, setLockerStatusDialog] = useState(0);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   const statusRequestPending = useRef(false);
 
   const drawerState = useOverlayState();
@@ -289,6 +292,13 @@ export default function OperatorLockerDetailPage() {
 
   return (
     <section className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
+      {isQrOpen ? (
+        <LockerQrModal
+          lockerAddress={locker.address}
+          lockerId={locker.id}
+          onClose={() => setIsQrOpen(false)}
+        />
+      ) : null}
       {lockerStatusDialog && lockerStatusTarget ? (
         <LockerStatusDialog
           key={lockerStatusDialog}
@@ -319,6 +329,10 @@ export default function OperatorLockerDetailPage() {
               {LOCKER_STATUS_ACTION_TEXT[lockerStatusTarget].button}
             </Button>
           ) : null}
+          <Button variant="secondary" onPress={() => setIsQrOpen(true)}>
+            <Qrcode aria-hidden="true" className="size-4" />
+            Mã QR
+          </Button>
           <Button variant="secondary" onPress={historyState.open}>
             <ClockArrowRotateLeft aria-hidden="true" className="size-4" />
             Lịch sử vận hành
