@@ -1,6 +1,7 @@
 import type { IncidentDetail, IncidentTransition } from '@/types/incident';
 
 import { useCallback, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Alert,
   AlertDialog,
@@ -29,6 +30,7 @@ import {
   INCIDENT_TRANSITION_TEXT,
 } from '@/constants/incident';
 import { useAsyncResource } from '@/hooks/use-async-resource';
+import { maintenanceFormHref } from '@/services/maintenance-service';
 import {
   addIncidentAction,
   canAddIncidentAction,
@@ -152,6 +154,7 @@ export function IncidentDetailDrawer({
     [incidentId],
   );
   const incident = state.data;
+  const navigate = useNavigate();
 
   const [note, setNote] = useState('');
   const [noteSubmitted, setNoteSubmitted] = useState(false);
@@ -351,6 +354,24 @@ export function IncidentDetailDrawer({
                         </DetailRow>
                       ) : null}
                     </dl>
+                    {incident.status !== 'Resolved' ? (
+                      <Button
+                        className="self-start"
+                        size="sm"
+                        variant="secondary"
+                        onPress={() =>
+                          navigate(
+                            maintenanceFormHref({
+                              lockerId: incident.lockerId,
+                              compartmentId: incident.lockerCompartmentId,
+                              incidentId: incident.id,
+                            }),
+                          )
+                        }
+                      >
+                        Tạo phiếu bảo trì từ sự cố
+                      </Button>
+                    ) : null}
 
                     {incident.status === 'Escalated' ? (
                       <Alert status="warning">
