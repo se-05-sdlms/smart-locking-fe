@@ -83,8 +83,10 @@ export function LockerFormModal({
         ? await updateLocker(locker.id, values)
         : await createLocker(values);
 
-      toast.success(isEdit ? 'Đã cập nhật tủ' : 'Đã thêm tủ', {
-        description: saved.code,
+      toast.success(isEdit ? 'Đã cập nhật tủ' : 'Đã khai báo tủ', {
+        description: isEdit
+          ? saved.code
+          : `${saved.code} chưa hoạt động. Mở chi tiết tủ → Quy trình bàn giao để cấu hình thiết bị.`,
         indicator: <CircleCheck aria-hidden="true" className="size-5" />,
       });
       onSaved(saved);

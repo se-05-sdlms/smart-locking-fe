@@ -37,6 +37,7 @@ import {
   LOCKER_FIELD_LIMITS,
 } from '@/constants/admin-locker';
 import { CompartmentEditModal } from '@/components/admin/lockers/compartment-edit-modal';
+import { LockerCommissioningModal } from '@/components/admin/lockers/locker-commissioning-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
   createCompartment,
@@ -131,6 +132,7 @@ export function LockerDetailDrawer({
   const [compartmentError, setCompartmentError] = useState('');
   const [isAddingCompartment, setIsAddingCompartment] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isCommissioningOpen, setIsCommissioningOpen] = useState(false);
   const [deactivateError, setDeactivateError] = useState('');
   const [isDeactivating, setIsDeactivating] = useState(false);
   const pending = useRef(false);
@@ -555,6 +557,12 @@ export function LockerDetailDrawer({
                     <TrashBin aria-hidden="true" className="size-4" />
                     Vô hiệu hóa
                   </Button>
+                  <Button
+                    variant="secondary"
+                    onPress={() => setIsCommissioningOpen(true)}
+                  >
+                    Quy trình bàn giao
+                  </Button>
                   <Button variant="primary" onPress={() => onEdit(locker)}>
                     <Pencil aria-hidden="true" className="size-4" />
                     Chỉnh sửa
@@ -613,6 +621,18 @@ export function LockerDetailDrawer({
           </AlertDialog.Container>
         </AlertDialog.Backdrop>
       </AlertDialog>
+
+      {isCommissioningOpen && locker ? (
+        <LockerCommissioningModal
+          lockerCode={locker.code}
+          lockerId={locker.id}
+          onChanged={() => {
+            refresh();
+            onChanged();
+          }}
+          onClose={() => setIsCommissioningOpen(false)}
+        />
+      ) : null}
 
       {editing && locker ? (
         <CompartmentEditModal
