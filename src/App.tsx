@@ -8,6 +8,7 @@ import ForbiddenPage from '@/pages/forbidden';
 import UserManagementPage from '@/pages/admin/user-management-page';
 import AdminDashboardPage from '@/pages/admin/dashboard';
 import AdminLockersPage from '@/pages/admin/lockers';
+import AdminAccountChangesPage from '@/pages/admin/account-changes';
 import AdminAuditLogsPage from '@/pages/admin/audit-logs';
 import OperatorLockersPage from '@/pages/operator/lockers';
 import OperatorLockerDetailPage from '@/pages/operator/locker-detail';
@@ -21,6 +22,7 @@ import OperatorAbsencesPage, {
   OperatorAbsencesView,
 } from '@/pages/operator/absences';
 import AdminReportsPage from '@/pages/admin/reports';
+import AdminSubscriptionPlansPage from '@/pages/admin/subscription-plans';
 import AdminSettingsPage from '@/pages/admin/settings';
 import AdminSystemPoliciesPage from '@/pages/admin/system-policies';
 import AdminOperatorAssignmentsPage from '@/pages/admin/operator-assignments';
@@ -104,6 +106,8 @@ function roleRoute(role: AppRole) {
             element={
               item.path === '/admin/users' ? (
                 <UserManagementPage />
+              ) : item.path === '/admin/account-changes' ? (
+                <AdminAccountChangesPage />
               ) : item.path === '/admin/lockers' ? (
                 <AdminLockersPage />
               ) : item.path === '/admin/policies' ? (
@@ -114,6 +118,8 @@ function roleRoute(role: AppRole) {
                 <OperatorAbsencesView mode="admin" />
               ) : item.path === '/admin/audit-logs' ? (
                 <AdminAuditLogsPage />
+              ) : item.path === '/admin/subscription-plans' ? (
+                <AdminSubscriptionPlansPage />
               ) : item.path === '/admin/reports' ? (
                 <AdminReportsPage />
               ) : item.path === '/admin/settings' ? (

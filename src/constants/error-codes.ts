@@ -61,6 +61,15 @@ export const ErrorCodes = {
   NOTIFICATION_NOT_FOUND: 'notification/not_found',
   NOTIFICATION_RULE_ALREADY_EXISTS: 'notification/rule_already_exists',
 
+  // Subscription
+  SUBSCRIPTION_NOT_FOUND: 'subscription/not_found',
+  SUBSCRIPTION_ALREADY_EXISTS: 'subscription/already_exists',
+  SUBSCRIPTION_INVALID_STATE: 'subscription/invalid_state',
+
+  // Payment
+  PAYMENT_NOT_FOUND: 'payment/not_found',
+  PAYMENT_INVALID_REQUEST: 'payment/invalid_request',
+
   // Maintenance
   MAINTENANCE_NOT_FOUND: 'maintenance/not_found',
   MAINTENANCE_INVALID_REQUEST: 'maintenance/invalid_request',

@@ -29,6 +29,7 @@ import CirclePlus from '@gravity-ui/icons/CirclePlus';
 import Pencil from '@gravity-ui/icons/Pencil';
 import TrashBin from '@gravity-ui/icons/TrashBin';
 import Xmark from '@gravity-ui/icons/Xmark';
+import Qrcode from '@gravity-ui/icons/Qrcode';
 
 import {
   ADMIN_CONNECTION_STATUS_DISPLAY,
@@ -38,6 +39,7 @@ import {
 } from '@/constants/admin-locker';
 import { CompartmentEditModal } from '@/components/admin/lockers/compartment-edit-modal';
 import { LockerLocationSection } from '@/components/admin/lockers/locker-location-section';
+import { LockerQrModal } from '@/components/lockers/locker-qr-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
   createCompartment,
@@ -135,6 +137,7 @@ export function LockerDetailDrawer({
   const [deactivateError, setDeactivateError] = useState('');
   const [isDeactivating, setIsDeactivating] = useState(false);
   const pending = useRef(false);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   const [editing, setEditing] = useState<AdminCompartment | null>(null);
   const [statusTarget, setStatusTarget] = useState<AdminCompartment | null>(
     null,
@@ -562,6 +565,10 @@ export function LockerDetailDrawer({
                     <TrashBin aria-hidden="true" className="size-4" />
                     Vô hiệu hóa
                   </Button>
+                  <Button variant="secondary" onPress={() => setIsQrOpen(true)}>
+                    <Qrcode aria-hidden="true" className="size-4" />
+                    Mã QR
+                  </Button>
                   <Button variant="primary" onPress={() => onEdit(locker)}>
                     <Pencil aria-hidden="true" className="size-4" />
                     Chỉnh sửa
@@ -620,6 +627,14 @@ export function LockerDetailDrawer({
           </AlertDialog.Container>
         </AlertDialog.Backdrop>
       </AlertDialog>
+
+      {isQrOpen && locker ? (
+        <LockerQrModal
+          lockerAddress={locker.address}
+          lockerId={locker.id}
+          onClose={() => setIsQrOpen(false)}
+        />
+      ) : null}
 
       {editing && locker ? (
         <CompartmentEditModal

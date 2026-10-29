@@ -136,7 +136,8 @@ export const operationsService = {
     ),
   createMaintenance: (body: {
     lockerId: string;
-    compartmentId?: string;
+    compartmentId?: string | null;
+    incidentId?: string | null;
     priority: 0 | 1 | 2 | 3;
     description: string;
   }) =>

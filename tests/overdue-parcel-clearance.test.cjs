@@ -90,7 +90,7 @@ test('every status has a Vietnamese label', () => {
   for (const status of ['Stored', 'Overdue', 'Retrieved', 'Removed', 'Unknown']) {
     assert.ok(service.PARCEL_STATUS_DISPLAY[status].label);
   }
-  assert.equal(service.PARCEL_STATUS_DISPLAY.Removed.label, 'Đã chuyển điểm tập kết');
+  assert.equal(service.PARCEL_STATUS_DISPLAY.Removed.label, 'Đã thu hồi khỏi tủ');
 });
 
 // ---------------------------------------------------------------------------
@@ -232,4 +232,13 @@ test('load errors never leak raw English text', () => {
     service.getOverdueLoadErrorMessage(new ApiError(400, 'Parcel view is invalid.')),
     'Không thể tải danh sách bưu kiện quá hạn. Vui lòng thử lại.',
   );
+});
+
+test('confirmation copy says the parcel was moved to the locker recovery address (#91)', () => {
+  const source = readFileSync(path.join(__dirname, '..', 'src', 'pages', 'operator', 'overdue-clearance.tsx'), 'utf8');
+
+  assert.doesNotMatch(source, /Tôi đang ở tủ/);
+  assert.doesNotMatch(source, /điểm tập kết/);
+  assert.match(source, /chuyển tới địa chỉ thu hồi/);
+  assert.match(source, /isDisabled=\{!isDelivered \|\| isTransferring\}/);
 });
