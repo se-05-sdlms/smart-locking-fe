@@ -32,7 +32,8 @@ import LockOpen from '@gravity-ui/icons/LockOpen';
 import Wrench from '@gravity-ui/icons/Wrench';
 import Xmark from '@gravity-ui/icons/Xmark';
 import PowerIcon from '@gravity-ui/icons/Power';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import Qrcode from '@gravity-ui/icons/Qrcode';
 
 import { EmergencyUnlockDialog } from './emergency-unlock-dialog';
 import {
@@ -53,7 +54,9 @@ import {
   COMPARTMENT_FILTER_OPTIONS,
   COMPARTMENT_STATUS_ACTION_TEXT,
 } from '@/constants/operator-locker';
+import { LockerQrModal } from '@/components/lockers/locker-qr-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
+import { maintenanceFormHref } from '@/services/maintenance-service';
 import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
 import { useLockerAlerts } from '@/hooks/use-locker-alerts';
 import { LockerStatusDialog } from '@/components/operator/locker-status-dialog';
@@ -160,6 +163,7 @@ function LockerHistoryTable({ lockerId }: { lockerId: string }) {
 }
 
 export default function OperatorLockerDetailPage() {
+  const navigate = useNavigate();
   const { lockerId = '' } = useParams();
   const [compartmentFilter, setCompartmentFilter] =
     useState<CompartmentFilter>('all');
@@ -172,6 +176,7 @@ export default function OperatorLockerDetailPage() {
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   // Non-zero key while the locker-level status dialog is open (fresh form each time).
   const [lockerStatusDialog, setLockerStatusDialog] = useState(0);
+  const [isQrOpen, setIsQrOpen] = useState(false);
   const statusRequestPending = useRef(false);
 
   const drawerState = useOverlayState();
@@ -287,6 +292,13 @@ export default function OperatorLockerDetailPage() {
 
   return (
     <section className="mx-auto flex w-full max-w-[1440px] flex-col gap-8">
+      {isQrOpen ? (
+        <LockerQrModal
+          lockerAddress={locker.address}
+          lockerId={locker.id}
+          onClose={() => setIsQrOpen(false)}
+        />
+      ) : null}
       {lockerStatusDialog && lockerStatusTarget ? (
         <LockerStatusDialog
           key={lockerStatusDialog}
@@ -317,6 +329,10 @@ export default function OperatorLockerDetailPage() {
               {LOCKER_STATUS_ACTION_TEXT[lockerStatusTarget].button}
             </Button>
           ) : null}
+          <Button variant="secondary" onPress={() => setIsQrOpen(true)}>
+            <Qrcode aria-hidden="true" className="size-4" />
+            Mã QR
+          </Button>
           <Button variant="secondary" onPress={historyState.open}>
             <ClockArrowRotateLeft aria-hidden="true" className="size-4" />
             Lịch sử vận hành
@@ -550,6 +566,20 @@ export default function OperatorLockerDetailPage() {
                         >
                           <LockOpen aria-hidden="true" className="size-5" />
                           Mở khẩn cấp
+                        </Button>
+                        <Button
+                          fullWidth
+                          variant="secondary"
+                          onPress={() =>
+                            navigate(
+                              maintenanceFormHref({
+                                lockerId: locker.id,
+                                compartmentId: selectedCompartment.id,
+                              }),
+                            )
+                          }
+                        >
+                          Tạo phiếu bảo trì cho ngăn này
                         </Button>
                         {unlockAvailability.allowed ? null : (
                           <p
