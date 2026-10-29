@@ -253,7 +253,8 @@ function OverdueListPage() {
               {oldest
                 ? `Kiện quá hạn lâu nhất đã quá ${formatTimePastDeadline(oldest.maxStorageUntil)}. `
                 : ''}
-              Hãy lấy hàng khỏi ngăn và chuyển về điểm tập kết của tủ.
+              Hãy lấy hàng khỏi ngăn, chuyển tới địa chỉ thu hồi của tủ rồi xác
+              nhận đã thu hồi.
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -340,7 +341,8 @@ function OverdueListPage() {
 function OverdueDetailPage({ parcelId }: { parcelId: string }) {
   const navigate = useNavigate();
   const confirmState = useOverlayState();
-  const [isOnSite, setIsOnSite] = useState(false);
+  // Confirms the parcel was delivered to the locker RecoveryAddress (no extra tracking states).
+  const [isDelivered, setIsDelivered] = useState(false);
   const [isTransferring, setIsTransferring] = useState(false);
   const [transferError, setTransferError] = useState('');
   const [transfer, setTransfer] = useState<OverdueTransfer | null>(null);
@@ -388,13 +390,13 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
   const isDone = parcel.status === 'Removed' || parcel.status === 'Retrieved';
 
   const openConfirm = () => {
-    setIsOnSite(false);
+    setIsDelivered(false);
     setTransferError('');
     confirmState.open();
   };
 
   const confirmTransfer = async () => {
-    if (!isOnSite || pending.current) return;
+    if (!isDelivered || pending.current) return;
 
     pending.current = true;
     setIsTransferring(true);
@@ -405,8 +407,8 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
 
       setTransfer(result);
       confirmState.close();
-      toast.success('Đã chuyển bưu kiện về điểm tập kết', {
-        description: `${result.parcelCode} · cư dân đã được thông báo.`,
+      toast.success('Đã thu hồi bưu kiện khỏi tủ', {
+        description: `${result.parcelCode} · đã chuyển tới địa chỉ thu hồi, cư dân đã được thông báo.`,
         indicator: <CircleCheck aria-hidden="true" className="size-5" />,
       });
       refresh();
@@ -428,7 +430,8 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
           <Alert.Content>
             <Alert.Title>Hoàn tất xử lý</Alert.Title>
             <Alert.Description>
-              Bưu kiện {parcel.parcelCode} đã được ghi nhận chuyển tới{' '}
+              Bưu kiện {parcel.parcelCode} đã được thu hồi khỏi tủ và chuyển tới
+              địa chỉ thu hồi{' '}
               {transfer?.collectionAddress ?? parcel.recoveryAddress}. Hệ thống
               đã ghi nhật ký và gửi thông báo cho cư dân.
             </Alert.Description>
@@ -445,8 +448,8 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
               {formatTimePastDeadline(parcel.maxStorageUntil)}
             </Alert.Title>
             <Alert.Description>
-              Lấy bưu kiện khỏi ngăn tại hiện trường, sau đó xác nhận chuyển về
-              điểm tập kết.
+              Lấy bưu kiện khỏi ngăn, chuyển tới địa chỉ thu hồi của tủ, sau đó
+              xác nhận đã thu hồi.
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -521,7 +524,7 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
         <div className="flex flex-col gap-4">
           <Card variant="secondary">
             <Card.Header>
-              <Card.Title>Điểm tập kết hàng quá hạn</Card.Title>
+              <Card.Title>Địa chỉ thu hồi của tủ</Card.Title>
             </Card.Header>
             <Card.Content className="flex gap-3">
               <LocationArrow
@@ -550,7 +553,7 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
                 onPress={openConfirm}
               >
                 <Box aria-hidden="true" className="size-5" />
-                {isDone || transfer ? 'Đã xử lý' : 'Chuyển về điểm tập kết'}
+                {isDone || transfer ? 'Đã thu hồi' : 'Xác nhận đã thu hồi'}
               </Button>
             </Card.Footer>
           </Card>
@@ -568,7 +571,7 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
                 <Modal.Icon>
                   <TriangleExclamation aria-hidden="true" className="size-5" />
                 </Modal.Icon>
-                <Modal.Heading>Chuyển bưu kiện về điểm tập kết</Modal.Heading>
+                <Modal.Heading>Xác nhận thu hồi bưu kiện</Modal.Heading>
               </Modal.Header>
               <Modal.Body className="space-y-4">
                 <dl>
@@ -576,7 +579,7 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
                   <DetailRow label="Tủ / Ngăn">
                     {parcel.lockerCode} · {parcel.compartmentCode}
                   </DetailRow>
-                  <DetailRow label="Điểm tập kết">
+                  <DetailRow label="Địa chỉ thu hồi">
                     {parcel.recoveryAddress}
                   </DetailRow>
                 </dl>
@@ -586,23 +589,25 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
                   </Alert.Indicator>
                   <Alert.Content>
                     <Alert.Description>
-                      Sau khi xác nhận, bưu kiện chuyển sang trạng thái Đã
-                      chuyển điểm tập kết, ngăn được giải phóng và cư dân nhận
-                      thông báo. Không thể hoàn tác.
+                      Chỉ xác nhận sau khi bưu kiện đã được chuyển tới địa chỉ
+                      thu hồi ở trên. Khi xác nhận, bưu kiện được ghi nhận đã
+                      thu hồi khỏi tủ, ngăn được giải phóng và cư dân nhận thông
+                      báo. Không thể hoàn tác.
                     </Alert.Description>
                   </Alert.Content>
                 </Alert>
                 <Checkbox
                   isDisabled={isTransferring}
-                  isSelected={isOnSite}
-                  onChange={setIsOnSite}
+                  isSelected={isDelivered}
+                  onChange={setIsDelivered}
                 >
                   <Checkbox.Control>
                     <Checkbox.Indicator />
                   </Checkbox.Control>
                   <Checkbox.Content>
-                    Tôi đang ở tủ và đã lấy bưu kiện ra khỏi ngăn{' '}
-                    {parcel.compartmentCode}.
+                    Tôi đã lấy bưu kiện {parcel.parcelCode} khỏi ngăn{' '}
+                    {parcel.compartmentCode} và chuyển tới địa chỉ thu hồi{' '}
+                    {parcel.recoveryAddress}.
                   </Checkbox.Content>
                 </Checkbox>
                 {transferError ? <ErrorAlert message={transferError} /> : null}
@@ -616,11 +621,11 @@ function OverdueDetailPage({ parcelId }: { parcelId: string }) {
                   Hủy
                 </Button>
                 <Button
-                  isDisabled={!isOnSite || isTransferring}
+                  isDisabled={!isDelivered || isTransferring}
                   variant="primary"
                   onPress={() => void confirmTransfer()}
                 >
-                  {isTransferring ? 'Đang xử lý...' : 'Xác nhận chuyển'}
+                  {isTransferring ? 'Đang xử lý...' : 'Xác nhận đã thu hồi'}
                 </Button>
               </Modal.Footer>
             </Modal.Dialog>

@@ -106,6 +106,7 @@ export type IncidentAction = {
 
 export type IncidentDetail = IncidentListItem & {
   description: string;
+  lockerCompartmentId: string | null;
   evidenceUrl: string | null;
   reporterPhone: string | null;
   lockerCompartmentCode: string | null;

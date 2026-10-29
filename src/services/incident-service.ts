@@ -108,6 +108,7 @@ export function mapIncidentDetail(dto: IncidentDetailDto): IncidentDetail {
     ...mapIncidentListItem(dto),
     description: dto.description,
     evidenceUrl: dto.evidenceUrl,
+    lockerCompartmentId: dto.lockerCompartmentId,
     reporterPhone: dto.reporterPhone ?? null,
     lockerCompartmentCode: dto.lockerCompartmentCode,
     assignedOperatorName: dto.assignedOperatorName,
