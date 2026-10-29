@@ -1,3 +1,5 @@
+import type { UsersPageDto } from '@/types/user-management-api';
+
 import { ErrorCodes } from '@/constants/error-codes';
 import { ApiError, apiRequest } from '@/services/api-client';
 
@@ -172,6 +174,35 @@ export function splitServerMessage(message: string) {
   if (!known.length) return [translateCommissioningMessage(message)];
 
   return known.map(translateCommissioningMessage);
+}
+
+/**
+ * Administrators who may appear as verifier / handover approver.
+ * GET /api/Users?Role=0 (Administrator); a failed lookup only loses names.
+ */
+export async function listAdministratorNames(signal?: AbortSignal) {
+  const page = await apiRequest<UsersPageDto>(
+    '/api/Users?Role=0&PageNumber=1&PageSize=100',
+    { signal },
+  );
+
+  return new Map(
+    page.items.map((user) => [user.id, user.fullName || user.email || '']),
+  );
+}
+
+/** Who confirmed a step; recognizable even when the name is unknown. */
+export function actorLabel(
+  userId: string | null,
+  names: Map<string, string>,
+  currentUserId?: string,
+) {
+  if (!userId) return 'Hệ thống';
+  const name = names.get(userId);
+
+  if (userId === currentUserId) return name ? `${name} (bạn)` : 'Bạn';
+
+  return name || `Quản trị viên #${userId.slice(0, 8)}`;
 }
 
 export const isSha256 = (value: string) =>

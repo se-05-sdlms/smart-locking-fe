@@ -23,8 +23,10 @@ import ArrowRotateRight from '@gravity-ui/icons/ArrowRotateRight';
 import CircleCheck from '@gravity-ui/icons/CircleCheck';
 import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
 
+import { useAuth } from '@/auth/auth-context';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
+  actorLabel,
   bindDevice,
   configureDevice,
   currentStep,
@@ -34,6 +36,7 @@ import {
   historyLabel,
   isSha256,
   isStaleRevision,
+  listAdministratorNames,
   NOTES_MAX,
   STEPS,
   stepStatus,
@@ -291,6 +294,14 @@ export function LockerCommissioningModal({
     getCommissioningErrorMessage,
     [lockerId],
   );
+  const { user } = useAuth();
+  const admins = useAsyncResource(
+    (signal) => listAdministratorNames(signal),
+    () => '',
+    [],
+  );
+  const names = admins.state.data ?? new Map<string, string>();
+  const who = (userId: string | null) => actorLabel(userId, names, user?.id);
   const [reconfigure, setReconfigure] = useState(false);
   const data = state.data;
   const step = data ? currentStep(data) : 'bind';
@@ -387,9 +398,17 @@ export function LockerCommissioningModal({
                         : '—'}
                     </dd>
                     <dt className="text-muted">Kiểm tra tại chỗ</dt>
-                    <dd>{dateTime(data.verifiedAt)}</dd>
+                    <dd>
+                      {data.verifiedAt
+                        ? `${dateTime(data.verifiedAt)} · xác nhận bởi ${who(data.verifiedByUserId)}`
+                        : 'Chưa kiểm tra'}
+                    </dd>
                     <dt className="text-muted">Bàn giao</dt>
-                    <dd>{dateTime(data.handedOverAt)}</dd>
+                    <dd>
+                      {data.handedOverAt
+                        ? `${dateTime(data.handedOverAt)} · nhận bàn giao: ${who(data.handedOverByUserId)}`
+                        : 'Chưa bàn giao'}
+                    </dd>
                   </dl>
 
                   {step === 'done' ? (
@@ -491,6 +510,7 @@ export function LockerCommissioningModal({
                         {[...data.history].reverse().map((item) => (
                           <li key={`${item.action}-${item.occurredAt}`}>
                             {historyLabel(item.action)} ·{' '}
+                            {who(item.actorUserId)} ·{' '}
                             <span className="text-muted">
                               {dateTime(item.occurredAt)}
                             </span>

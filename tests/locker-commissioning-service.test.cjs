@@ -78,3 +78,17 @@ test('each step sends the expected revision to its endpoint', async () => {
   assert.deepEqual(calls[2].body, { expectedRevision: 3, firmwareVersion: '1.2.0', hardwareModel: 'ESP32-S3', firmwareSha256: 'a'.repeat(64), installationAndNetworkConfirmed: true, notes: 'ok' });
   assert.deepEqual(calls[4].body, { expectedRevision: 3, acceptedForOperation: true, notes: null });
 });
+
+test('confirmers are shown by name with recognizable fallbacks', async () => {
+  const { service } = harness(async (url) => {
+    assert.equal(url, '/api/Users?Role=0&PageNumber=1&PageSize=100');
+    return { items: [{ id: 'a-1', fullName: 'Admin Một', email: 'a@x' }, { id: 'a-2', fullName: '', email: 'b@x' }], totalCount: 2 };
+  });
+  const names = await service.listAdministratorNames();
+
+  assert.equal(service.actorLabel('a-1', names), 'Admin Một');
+  assert.equal(service.actorLabel('a-2', names), 'b@x');
+  assert.equal(service.actorLabel('a-1', names, 'a-1'), 'Admin Một (bạn)');
+  assert.equal(service.actorLabel('12345678-9999', names), 'Quản trị viên #12345678');
+  assert.equal(service.actorLabel(null, names), 'Hệ thống');
+});
