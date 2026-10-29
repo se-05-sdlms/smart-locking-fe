@@ -137,6 +137,25 @@ export const absenceStateLabels: Record<AbsenceState, string> = {
 };
 
 /** Operators may cancel only before an Admin approved any coverage. */
+/**
+ * ApproveAsync can answer 200 without granting coverage: when the policy or
+ * coordinates changed since the suggestion, the proposal is refreshed and
+ * left in NeedsApproval. Only Approved/Active means someone is covering.
+ */
+export function approvalOutcome(absence: OperatorAbsence, proposalId: string) {
+  const proposal =
+    absence.proposals.find((item) => item.id === proposalId) ?? null;
+
+  if (
+    proposal &&
+    (proposal.status === 'Approved' || proposal.status === 'Active')
+  ) {
+    return { granted: true as const, proposal };
+  }
+
+  return { granted: false as const, proposal };
+}
+
 export const canOperatorCancel = (absence: OperatorAbsence) =>
   absence.proposals.every((proposal) => !proposal.approvedAt);
 

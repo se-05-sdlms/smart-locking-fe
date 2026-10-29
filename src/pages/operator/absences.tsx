@@ -32,6 +32,7 @@ import { listAdminLockers } from '@/services/admin-locker-service';
 import {
   absenceState,
   absenceStateLabels,
+  approvalOutcome,
   approveReplacement,
   cancelAbsence,
   canOperatorCancel,
@@ -334,12 +335,16 @@ function ReasonModal({
   onDone: (absence: OperatorAbsence) => void;
 }) {
   const [reason, setReason] = useState('');
+  const [proposal, setProposal] = useState(
+    dialog.kind === 'approve' ? dialog.proposal : null,
+  );
+  const [notice, setNotice] = useState('');
   const [operatorId, setOperatorId] = useState('');
   const [error, setError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const pending = useRef(false);
   const approving = dialog.kind === 'approve';
-  const suggested = approving ? dialog.proposal.operatorUserId : null;
+  const suggested = proposal?.operatorUserId ?? null;
 
   const confirm = async () => {
     const reasonError = validateReason(reason);
@@ -360,17 +365,30 @@ function ReasonModal({
     setError('');
     try {
       const absence = approving
-        ? await approveReplacement(
-            dialog.proposal.id,
-            operatorId || null,
-            reason,
-          )
+        ? await approveReplacement(proposal!.id, operatorId || null, reason)
         : await cancelAbsence(dialog.absence.id, reason);
 
+      onDone(absence);
+      if (approving) {
+        const outcome = approvalOutcome(absence, proposal!.id);
+
+        if (!outcome.granted) {
+          // Nothing was granted: show the refreshed proposal and keep the
+          // dialog open so the admin reviews it and approves again.
+          if (outcome.proposal) setProposal(outcome.proposal);
+          setOperatorId('');
+          setNotice(
+            outcome.proposal?.status === 'NeedsApproval'
+              ? 'Chưa cấp quyền thay: điều kiện (chính sách, tọa độ hoặc tải) đã đổi nên hệ thống đã cập nhật đề xuất. Xem lại người thay bên dưới và bấm Duyệt lần nữa.'
+              : `Chưa cấp quyền thay: trạng thái hiện tại là "${outcome.proposal ? replacementStatusLabels[outcome.proposal.status] : 'không xác định'}". Kiểm tra lại đề xuất.`,
+          );
+
+          return;
+        }
+      }
       toast.success(approving ? 'Đã duyệt người thay' : 'Đã hủy vắng mặt', {
         indicator: <CircleCheck aria-hidden="true" className="size-5" />,
       });
-      onDone(absence);
       onClose();
     } catch (confirmError) {
       setError(getCoverageErrorMessage(confirmError));
@@ -388,14 +406,22 @@ function ReasonModal({
             <Modal.Header>
               <Modal.Heading>
                 {approving
-                  ? `Duyệt người thay · Tủ ${lockerOf(lookup, dialog.proposal.lockerId)}`
+                  ? `Duyệt người thay · Tủ ${lockerOf(lookup, proposal!.lockerId)}`
                   : 'Hủy vắng mặt và kết thúc thay thế'}
               </Modal.Heading>
               <Modal.CloseTrigger aria-label="Đóng" />
             </Modal.Header>
             <Modal.Body className="space-y-4">
-              {approving ? (
+              {approving && proposal ? (
                 <>
+                  {notice ? (
+                    <Alert role="alert" status="warning">
+                      <Alert.Indicator />
+                      <Alert.Content>
+                        <Alert.Description>{notice}</Alert.Description>
+                      </Alert.Content>
+                    </Alert>
+                  ) : null}
                   <p className="text-sm">
                     Đề xuất của hệ thống:{' '}
                     <strong>
@@ -403,6 +429,13 @@ function ReasonModal({
                         ? nameOf(lookup, suggested)
                         : 'không có người phù hợp'}
                     </strong>
+                    {proposal.anchorLockerId
+                      ? ` · mốc tủ ${lockerOf(lookup, proposal.anchorLockerId)}, cách ${formatDistance(proposal.distanceKm)}, tải ${proposal.loadBefore ?? '—'} → ${proposal.loadAfter ?? '—'}`
+                      : ''}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {replacementStatusLabels[proposal.status]} ·{' '}
+                    {translateReason(proposal.statusReason)}
                   </p>
                   <OperatorSelect
                     label="Chỉ định / đổi người thay (không bắt buộc)"

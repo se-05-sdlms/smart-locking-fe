@@ -87,3 +87,15 @@ test('endpoints and payloads', async () => {
   assert.match(service.getCoverageErrorMessage(new ApiError(409, '', 'OPERATOR_ABSENCE_OVERLAP')), /trùng/);
   assert.match(service.getCoverageErrorMessage(new ApiError(409, '', 'OPERATOR_REPLACEMENT_INELIGIBLE')), /không còn đủ điều kiện/);
 });
+
+test('approval only counts as granted when the proposal is Approved or Active', () => {
+  const { service } = harness();
+  const absence = (status) => ({ proposals: [proposal({ id: 'p-0', status: 'Active' }), proposal({ status })] });
+
+  assert.equal(service.approvalOutcome(absence('Approved'), 'p-1').granted, true);
+  assert.equal(service.approvalOutcome(absence('Active'), 'p-1').granted, true);
+  const refreshed = service.approvalOutcome(absence('NeedsApproval'), 'p-1');
+  assert.equal(refreshed.granted, false);
+  assert.equal(refreshed.proposal.status, 'NeedsApproval');
+  assert.deepEqual(service.approvalOutcome(absence('Approved'), 'missing'), { granted: false, proposal: null });
+});
