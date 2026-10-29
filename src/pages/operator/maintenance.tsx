@@ -5,7 +5,7 @@ import type {
 } from '@/services/maintenance-service';
 import type { MaintenanceItem } from '@/services/operations-service';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   Alert,
@@ -463,6 +463,20 @@ export default function OperatorMaintenancePage() {
   );
 
   const items = state.data ?? [];
+  // Deep link from the task list: /operator/maintenance?request=<id>.
+  const [searchParams] = useSearchParams();
+  const linkedId = searchParams.get('request');
+  const linkedMissing =
+    Boolean(linkedId) &&
+    state.status === 'success' &&
+    !items.some((item) => item.id === linkedId);
+
+  useEffect(() => {
+    if (!linkedId || state.status !== 'success') return;
+    document
+      .getElementById(`maintenance-${linkedId}`)
+      ?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }, [linkedId, state.status]);
 
   return (
     <section className="flex flex-col gap-6">
@@ -504,6 +518,16 @@ export default function OperatorMaintenancePage() {
           <Skeleton className="h-40 rounded-2xl" />
         </div>
       ) : null}
+      {linkedMissing ? (
+        <Alert status="warning">
+          <Alert.Content>
+            <Alert.Description>
+              Không tìm thấy phiếu bảo trì được mở từ danh sách công việc. Phiếu
+              có thể đã đóng hoặc bạn không còn quyền với tủ này.
+            </Alert.Description>
+          </Alert.Content>
+        </Alert>
+      ) : null}
       {state.data && items.length === 0 ? (
         <p className="text-sm text-muted">Chưa có phiếu bảo trì nào.</p>
       ) : null}
@@ -514,7 +538,13 @@ export default function OperatorMaintenancePage() {
           const isOpen = item.status === 0 || item.status === 1;
 
           return (
-            <Card key={item.id}>
+            <Card
+              key={item.id}
+              className={
+                item.id === linkedId ? 'ring-2 ring-accent' : undefined
+              }
+              id={`maintenance-${item.id}`}
+            >
               <Card.Header className="flex-row items-center justify-between gap-2">
                 <Card.Title>
                   {describeMaintenanceTarget(
@@ -522,9 +552,16 @@ export default function OperatorMaintenancePage() {
                     item.compartmentCode ?? undefined,
                   )}
                 </Card.Title>
-                <Chip color={status.color} size="sm" variant="soft">
-                  {status.label}
-                </Chip>
+                <div className="flex gap-1">
+                  {item.id === linkedId ? (
+                    <Chip color="accent" size="sm" variant="soft">
+                      Mở từ công việc
+                    </Chip>
+                  ) : null}
+                  <Chip color={status.color} size="sm" variant="soft">
+                    {status.label}
+                  </Chip>
+                </div>
               </Card.Header>
               <Card.Content className="space-y-2 pb-6">
                 <p>{item.description}</p>

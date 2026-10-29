@@ -36,8 +36,8 @@ test('source links open the original record, filters and locker options', () => 
   const { service } = harness();
 
   assert.equal(service.taskSourceHref(task()), '/operator/incidents?incident=i-1');
-  assert.equal(service.taskSourceHref(task({ kind: 'maintenance' })), '/operator/maintenance');
-  assert.equal(service.taskSourceHref(task({ kind: 'recovery' })), '/operator/overdue-clearance');
+  assert.equal(service.taskSourceHref(task({ kind: 'maintenance', id: 'm 1' })), '/operator/maintenance?request=m%201');
+  assert.equal(service.taskSourceHref(task({ kind: 'recovery', id: 'p-1' })), '/operator/overdue-clearance/p-1');
   const tasks = [task(), task({ id: 'm-1', kind: 'maintenance', lockerId: 'l-2', lockerCode: 'LKR-0' })];
   assert.deepEqual(service.filterTasks(tasks, { lockerId: 'l-2', kind: '' }).map((t) => t.id), ['m-1']);
   assert.deepEqual(service.filterTasks(tasks, { lockerId: '', kind: 'incident' }).map((t) => t.id), ['i-1']);

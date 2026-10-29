@@ -105,9 +105,11 @@ export function taskSourceHref(task: Pick<OperatorTask, 'kind' | 'id'>) {
   if (task.kind === 'incident') {
     return `/operator/incidents?incident=${encodeURIComponent(task.id)}`;
   }
-  if (task.kind === 'maintenance') return '/operator/maintenance';
+  if (task.kind === 'maintenance') {
+    return `/operator/maintenance?request=${encodeURIComponent(task.id)}`;
+  }
 
-  return '/operator/overdue-clearance';
+  return `/operator/overdue-clearance/${encodeURIComponent(task.id)}`;
 }
 
 export const isTaskOverdue = (
