@@ -37,6 +37,7 @@ import {
   LOCKER_FIELD_LIMITS,
 } from '@/constants/admin-locker';
 import { CompartmentEditModal } from '@/components/admin/lockers/compartment-edit-modal';
+import { LockerLocationSection } from '@/components/admin/lockers/locker-location-section';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
   createCompartment,
@@ -325,6 +326,12 @@ export function LockerDetailDrawer({
                         </DetailRow>
                       </dl>
                     </section>
+
+                    <LockerLocationSection
+                      key={locker.id}
+                      address={locker.address}
+                      lockerId={locker.id}
+                    />
 
                     <section>
                       <Typography className="mb-1" type="h6">
