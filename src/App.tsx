@@ -9,6 +9,7 @@ import UserManagementPage from '@/pages/admin/user-management-page';
 import AdminDashboardPage from '@/pages/admin/dashboard';
 import AdminLockersPage from '@/pages/admin/lockers';
 import AdminAuditLogsPage from '@/pages/admin/audit-logs';
+import AdminPaymentReconciliationsPage from '@/pages/admin/payment-reconciliations';
 import OperatorLockersPage from '@/pages/operator/lockers';
 import OperatorLockerDetailPage from '@/pages/operator/locker-detail';
 import OperatorOverdueClearancePage from '@/pages/operator/overdue-clearance';
@@ -101,6 +102,8 @@ function roleRoute(role: AppRole) {
                 <AdminSystemPoliciesPage />
               ) : item.path === '/admin/operators' ? (
                 <AdminOperatorAssignmentsPage />
+              ) : item.path === '/admin/payments' ? (
+                <AdminPaymentReconciliationsPage />
               ) : item.path === '/admin/audit-logs' ? (
                 <AdminAuditLogsPage />
               ) : item.path === '/admin/reports' ? (
