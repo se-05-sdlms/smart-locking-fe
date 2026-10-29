@@ -18,6 +18,7 @@ import OperatorMaintenancePage from '@/pages/operator/maintenance';
 import OperatorOperationalHistoryPage from '@/pages/operator/operational-history';
 import OperatorIncidentsPage from '@/pages/operator/incidents';
 import AdminReportsPage from '@/pages/admin/reports';
+import AdminSubscriptionPlansPage from '@/pages/admin/subscription-plans';
 import AdminSettingsPage from '@/pages/admin/settings';
 import AdminSystemPoliciesPage from '@/pages/admin/system-policies';
 import AdminOperatorAssignmentsPage from '@/pages/admin/operator-assignments';
@@ -103,6 +104,8 @@ function roleRoute(role: AppRole) {
                 <AdminOperatorAssignmentsPage />
               ) : item.path === '/admin/audit-logs' ? (
                 <AdminAuditLogsPage />
+              ) : item.path === '/admin/subscription-plans' ? (
+                <AdminSubscriptionPlansPage />
               ) : item.path === '/admin/reports' ? (
                 <AdminReportsPage />
               ) : item.path === '/admin/settings' ? (

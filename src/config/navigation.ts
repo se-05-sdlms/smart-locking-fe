@@ -9,6 +9,7 @@ import House from '@gravity-ui/icons/House';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
 import Persons from '@gravity-ui/icons/Persons';
 import Hourglass from '@gravity-ui/icons/Hourglass';
+import Tags from '@gravity-ui/icons/Tags';
 import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 
 export type AppRole = 'admin' | 'operator';
@@ -39,6 +40,12 @@ const adminNavigation: NavigationItem[] = [
     label: 'Chính sách hệ thống',
     path: '/admin/policies',
     icon: Gear,
+    role: 'admin',
+  },
+  {
+    label: 'Gói dịch vụ',
+    path: '/admin/subscription-plans',
+    icon: Tags,
     role: 'admin',
   },
   {
