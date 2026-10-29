@@ -32,7 +32,7 @@ import LockOpen from '@gravity-ui/icons/LockOpen';
 import Wrench from '@gravity-ui/icons/Wrench';
 import Xmark from '@gravity-ui/icons/Xmark';
 import PowerIcon from '@gravity-ui/icons/Power';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 import { EmergencyUnlockDialog } from './emergency-unlock-dialog';
 import {
@@ -54,6 +54,7 @@ import {
   COMPARTMENT_STATUS_ACTION_TEXT,
 } from '@/constants/operator-locker';
 import { useAsyncResource } from '@/hooks/use-async-resource';
+import { maintenanceFormHref } from '@/services/maintenance-service';
 import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
 import { useLockerAlerts } from '@/hooks/use-locker-alerts';
 import { LockerStatusDialog } from '@/components/operator/locker-status-dialog';
@@ -160,6 +161,7 @@ function LockerHistoryTable({ lockerId }: { lockerId: string }) {
 }
 
 export default function OperatorLockerDetailPage() {
+  const navigate = useNavigate();
   const { lockerId = '' } = useParams();
   const [compartmentFilter, setCompartmentFilter] =
     useState<CompartmentFilter>('all');
@@ -550,6 +552,20 @@ export default function OperatorLockerDetailPage() {
                         >
                           <LockOpen aria-hidden="true" className="size-5" />
                           Mở khẩn cấp
+                        </Button>
+                        <Button
+                          fullWidth
+                          variant="secondary"
+                          onPress={() =>
+                            navigate(
+                              maintenanceFormHref({
+                                lockerId: locker.id,
+                                compartmentId: selectedCompartment.id,
+                              }),
+                            )
+                          }
+                        >
+                          Tạo phiếu bảo trì cho ngăn này
                         </Button>
                         {unlockAvailability.allowed ? null : (
                           <p
