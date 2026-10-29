@@ -29,6 +29,7 @@ import CircleInfo from '@gravity-ui/icons/CircleInfo';
 import Magnifier from '@gravity-ui/icons/Magnifier';
 import Xmark from '@gravity-ui/icons/Xmark';
 
+import { LockerSupportModal } from '@/components/admin/support/locker-support-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
   ASSIGNMENT_REASON_MAX_LENGTH,
@@ -114,6 +115,9 @@ export default function AdminOperatorAssignmentsPage() {
   const [reason, setReason] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [dialogError, setDialogError] = useState('');
+  const [supportRow, setSupportRow] = useState<LockerAssignmentRow | null>(
+    null,
+  );
   const [isSaving, setIsSaving] = useState(false);
   const pending = useRef(false);
   const { state, reload, refresh } = useAsyncResource(
@@ -281,6 +285,14 @@ export default function AdminOperatorAssignmentsPage() {
                           {ACTION_TEXT[action].button}
                         </Button>
                       ))}
+                      <Button
+                        aria-label={`Đầu mối hỗ trợ tủ ${row.lockerCode}`}
+                        size="sm"
+                        variant="tertiary"
+                        onPress={() => setSupportRow(row)}
+                      >
+                        Hỗ trợ
+                      </Button>
                     </div>
                   </Table.Cell>
                 </Table.Row>
@@ -477,6 +489,15 @@ export default function AdminOperatorAssignmentsPage() {
           </AlertDialog.Container>
         </AlertDialog.Backdrop>
       </AlertDialog>
+      {supportRow ? (
+        <LockerSupportModal
+          key={supportRow.lockerId}
+          lockerCode={supportRow.lockerCode}
+          lockerId={supportRow.lockerId}
+          operator={supportRow.operator}
+          onClose={() => setSupportRow(null)}
+        />
+      ) : null}
     </section>
   );
 }
