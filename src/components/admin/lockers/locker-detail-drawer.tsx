@@ -38,6 +38,7 @@ import {
   LOCKER_FIELD_LIMITS,
 } from '@/constants/admin-locker';
 import { CompartmentEditModal } from '@/components/admin/lockers/compartment-edit-modal';
+import { LockerCommissioningModal } from '@/components/admin/lockers/locker-commissioning-modal';
 import { LockerLocationSection } from '@/components/admin/lockers/locker-location-section';
 import { SupportSummary } from '@/components/admin/support/locker-support-modal';
 import { LockerQrModal } from '@/components/lockers/locker-qr-modal';
@@ -150,6 +151,7 @@ export function LockerDetailDrawer({
   const [compartmentError, setCompartmentError] = useState('');
   const [isAddingCompartment, setIsAddingCompartment] = useState(false);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [isCommissioningOpen, setIsCommissioningOpen] = useState(false);
   const [deactivateError, setDeactivateError] = useState('');
   const [isDeactivating, setIsDeactivating] = useState(false);
   const pending = useRef(false);
@@ -605,6 +607,12 @@ export function LockerDetailDrawer({
                     <TrashBin aria-hidden="true" className="size-4" />
                     Vô hiệu hóa
                   </Button>
+                  <Button
+                    variant="secondary"
+                    onPress={() => setIsCommissioningOpen(true)}
+                  >
+                    Quy trình bàn giao
+                  </Button>
                   <Button variant="secondary" onPress={() => setIsQrOpen(true)}>
                     <Qrcode aria-hidden="true" className="size-4" />
                     Mã QR
@@ -667,6 +675,18 @@ export function LockerDetailDrawer({
           </AlertDialog.Container>
         </AlertDialog.Backdrop>
       </AlertDialog>
+
+      {isCommissioningOpen && locker ? (
+        <LockerCommissioningModal
+          lockerCode={locker.code}
+          lockerId={locker.id}
+          onChanged={() => {
+            refresh();
+            onChanged();
+          }}
+          onClose={() => setIsCommissioningOpen(false)}
+        />
+      ) : null}
 
       {isQrOpen && locker ? (
         <LockerQrModal
