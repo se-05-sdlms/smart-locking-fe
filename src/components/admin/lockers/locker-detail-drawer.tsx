@@ -38,8 +38,14 @@ import {
   LOCKER_FIELD_LIMITS,
 } from '@/constants/admin-locker';
 import { CompartmentEditModal } from '@/components/admin/lockers/compartment-edit-modal';
+import { SupportSummary } from '@/components/admin/support/locker-support-modal';
 import { LockerQrModal } from '@/components/lockers/locker-qr-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
+import {
+  getLockerSupport,
+  getSupportErrorMessage,
+  listActiveCoverage,
+} from '@/services/support-contact-service';
 import {
   createCompartment,
   getCompartmentStatusTarget,
@@ -125,6 +131,16 @@ export function LockerDetailDrawer({
     [lockerId],
   );
   const locker = state.data;
+  const { state: support } = useAsyncResource(
+    (signal) => getLockerSupport(lockerId, signal),
+    getSupportErrorMessage,
+    [lockerId],
+  );
+  const { state: coverage } = useAsyncResource(
+    async (signal) => (await listActiveCoverage(signal)).get(lockerId) ?? null,
+    () => '',
+    [lockerId],
+  );
 
   const [compartment, setCompartment] =
     useState<CompartmentFormValues>(EMPTY_COMPARTMENT);
@@ -327,6 +343,30 @@ export function LockerDetailDrawer({
                           {locker.recoveryAddress}
                         </DetailRow>
                       </dl>
+                    </section>
+
+                    <section>
+                      <Typography className="mb-1" type="h6">
+                        Đầu mối hỗ trợ
+                      </Typography>
+                      {support.data ? (
+                        <SupportSummary support={support.data} />
+                      ) : support.status === 'error' ? (
+                        <p className="text-sm text-danger">{support.message}</p>
+                      ) : (
+                        <Skeleton className="h-16 w-full rounded-lg" />
+                      )}
+                      {coverage.data ? (
+                        <p className="mt-1 text-sm text-warning">
+                          Đang có Operator thay tạm từ{' '}
+                          {formatDateTime(coverage.data.startsAt)} đến{' '}
+                          {formatDateTime(coverage.data.endsAt)}; liên hệ công
+                          khai theo người thay.
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-xs text-muted">
+                        Cấu hình tại Phân công Operator → Hỗ trợ.
+                      </p>
                     </section>
 
                     <section>
