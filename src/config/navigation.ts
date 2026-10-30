@@ -4,12 +4,15 @@ import ArrowRightFromSquare from '@gravity-ui/icons/ArrowRightFromSquare';
 import Boxes3 from '@gravity-ui/icons/Boxes3';
 import ChartLine from '@gravity-ui/icons/ChartLine';
 import ClockArrowRotateLeft from '@gravity-ui/icons/ClockArrowRotateLeft';
+import CalendarIcon from '@gravity-ui/icons/Calendar';
 import Gear from '@gravity-ui/icons/Gear';
 import House from '@gravity-ui/icons/House';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
 import PersonPencil from '@gravity-ui/icons/PersonPencil';
 import Persons from '@gravity-ui/icons/Persons';
+import Receipt from '@gravity-ui/icons/Receipt';
 import Hourglass from '@gravity-ui/icons/Hourglass';
+import ListCheck from '@gravity-ui/icons/ListCheck';
 import Tags from '@gravity-ui/icons/Tags';
 import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 
@@ -44,6 +47,18 @@ const adminNavigation: NavigationItem[] = [
     role: 'admin',
   },
   {
+    label: 'Vắng mặt & thay thế',
+    path: '/admin/operator-absences',
+    icon: CalendarIcon,
+    role: 'admin',
+  },
+  {
+    label: 'Công việc vận hành',
+    path: '/admin/operator-tasks',
+    icon: ListCheck,
+    role: 'admin',
+  },
+  {
     label: 'Chính sách hệ thống',
     path: '/admin/policies',
     icon: Gear,
@@ -59,6 +74,12 @@ const adminNavigation: NavigationItem[] = [
     label: 'Báo cáo',
     path: '/admin/reports',
     icon: ChartLine,
+    role: 'admin',
+  },
+  {
+    label: 'Thanh toán & tra soát',
+    path: '/admin/payments',
+    icon: Receipt,
     role: 'admin',
   },
   {
@@ -99,6 +120,18 @@ const operatorNavigation: NavigationItem[] = [
     label: 'Bảo trì',
     path: '/operator/maintenance',
     icon: Gear,
+    role: 'operator',
+  },
+  {
+    label: 'Vắng mặt',
+    path: '/operator/absences',
+    icon: CalendarIcon,
+    role: 'operator',
+  },
+  {
+    label: 'Công việc & bàn giao',
+    path: '/operator/tasks',
+    icon: ListCheck,
     role: 'operator',
   },
   {

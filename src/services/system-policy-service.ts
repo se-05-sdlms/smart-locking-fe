@@ -29,6 +29,11 @@ export type SystemPolicyDto = {
   effectiveTo: string | null;
   isActive: boolean;
   createdAt: string;
+  // Operator replacement (#86): all four are set together or all null.
+  operatorReplacementRadiusKm?: number | null;
+  operatorReplacementMaxLoad?: number | null;
+  operatorReplacementAreas?: string[] | null;
+  operatorReplacementEligibleUserIds?: string[] | null;
 };
 
 export type SaveSystemPolicyRequestDto = Omit<
@@ -61,6 +66,12 @@ export type PolicyFormValues = {
   enableBluetoothUnlock: boolean;
   /** `YYYY-MM-DDTHH:mm` in the browser's local time zone. */
   effectiveFrom: string;
+  /** Empty means automatic replacement is not configured; no defaults. */
+  replacementRadiusKm: string;
+  replacementMaxLoad: string;
+  /** One service area per line (or comma separated). */
+  replacementAreas: string;
+  replacementEligibleUserIds: string[];
 };
 
 export type PolicyFormErrors = Partial<Record<keyof PolicyFormValues, string>>;
@@ -138,8 +149,39 @@ export function toPolicyFormValues(
       policy && policy.state === 'draft'
         ? toLocalDateTimeInput(policy.effectiveFrom)
         : toLocalDateTimeInput(now.toISOString()),
+    replacementRadiusKm:
+      policy?.operatorReplacementRadiusKm != null
+        ? String(policy.operatorReplacementRadiusKm)
+        : '',
+    replacementMaxLoad:
+      policy?.operatorReplacementMaxLoad != null
+        ? String(policy.operatorReplacementMaxLoad)
+        : '',
+    replacementAreas: (policy?.operatorReplacementAreas ?? []).join('\n'),
+    replacementEligibleUserIds: [
+      ...(policy?.operatorReplacementEligibleUserIds ?? []),
+    ],
   };
 }
+
+export function parseReplacementAreas(value: string) {
+  return [
+    ...new Set(
+      value
+        .split(/[\n,]/)
+        .map((area) => area.trim())
+        .filter(Boolean),
+    ),
+  ];
+}
+
+export const isReplacementConfigured = (values: PolicyFormValues) =>
+  Boolean(
+    values.replacementRadiusKm.trim() ||
+      values.replacementMaxLoad.trim() ||
+      parseReplacementAreas(values.replacementAreas).length ||
+      values.replacementEligibleUserIds.length,
+  );
 
 // ---------------------------------------------------------------------------
 // Validation (mirrors SystemPolicyService.Validate)
@@ -190,6 +232,32 @@ export function validatePolicyForm(values: PolicyFormValues): PolicyFormErrors {
     errors.currency = 'Mã tiền tệ gồm đúng 3 chữ cái (ví dụ VND).';
   }
 
+  // SystemPolicyService.Validate: radius, load, areas and operators together.
+  if (isReplacementConfigured(values)) {
+    const radius = Number(values.replacementRadiusKm.trim());
+    const load = integer(values.replacementMaxLoad);
+    const areas = parseReplacementAreas(values.replacementAreas);
+
+    if (
+      !/^\d+(\.\d+)?$/.test(values.replacementRadiusKm.trim()) ||
+      !(radius > 0)
+    ) {
+      errors.replacementRadiusKm = 'Bán kính phải là số km lớn hơn 0.';
+    }
+    if (load === null || load <= 0) {
+      errors.replacementMaxLoad = 'Giới hạn tải phải là số nguyên lớn hơn 0.';
+    }
+    if (!areas.length) {
+      errors.replacementAreas = 'Nhập ít nhất một khu vực phục vụ.';
+    } else if (areas.some((area) => area.length > 100)) {
+      errors.replacementAreas = 'Mỗi khu vực tối đa 100 ký tự.';
+    }
+    if (!values.replacementEligibleUserIds.length) {
+      errors.replacementEligibleUserIds =
+        'Chọn ít nhất một Operator đủ điều kiện.';
+    }
+  }
+
   if (
     Number.isNaN(new Date(values.effectiveFrom).getTime()) ||
     !values.effectiveFrom
@@ -224,6 +292,23 @@ export function buildPolicyRequest(
     enableBluetoothUnlock: values.enableBluetoothUnlock,
     // datetime-local is local time; send an absolute instant.
     effectiveFrom: new Date(values.effectiveFrom).toISOString(),
+    ...(isReplacementConfigured(values)
+      ? {
+          operatorReplacementRadiusKm: Number(
+            values.replacementRadiusKm.trim(),
+          ),
+          operatorReplacementMaxLoad: Number(values.replacementMaxLoad.trim()),
+          operatorReplacementAreas: parseReplacementAreas(
+            values.replacementAreas,
+          ),
+          operatorReplacementEligibleUserIds: values.replacementEligibleUserIds,
+        }
+      : {
+          operatorReplacementRadiusKm: null,
+          operatorReplacementMaxLoad: null,
+          operatorReplacementAreas: null,
+          operatorReplacementEligibleUserIds: null,
+        }),
   };
 }
 

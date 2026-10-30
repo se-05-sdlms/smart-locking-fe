@@ -10,6 +10,7 @@ import {
   AlertDialog,
   Button,
   Card,
+  Checkbox,
   Chip,
   Description,
   FieldError,
@@ -22,6 +23,7 @@ import {
   Skeleton,
   Switch,
   Table,
+  TextArea,
   TextField,
   toast,
 } from '@heroui/react';
@@ -33,6 +35,7 @@ import Xmark from '@gravity-ui/icons/Xmark';
 
 import { NotificationRulesCard } from '@/components/admin/policies/notification-rules-card';
 import { useAsyncResource } from '@/hooks/use-async-resource';
+import { userManagementService } from '@/services/user-management-service';
 import {
   activateSystemPolicy,
   APPROVAL_MODE_LABELS,
@@ -146,6 +149,154 @@ function ToggleField({
         {label}
       </Switch.Content>
     </Switch>
+  );
+}
+
+/** Automatic operator replacement (#86). No defaults: leave all empty to disable. */
+function ReplacementSection({
+  values,
+  errors,
+  isDisabled,
+  onChange,
+}: {
+  values: PolicyFormValues;
+  errors: PolicyFormErrors;
+  isDisabled: boolean;
+  onChange: (patch: Partial<PolicyFormValues>) => void;
+}) {
+  const { state } = useAsyncResource(
+    async () => {
+      const result = await userManagementService.getUsers({
+        role: 'LOCKER_OPERATOR',
+        search: '',
+        status: 'ACTIVE',
+        sortDescriptor: { column: 'fullName', direction: 'ascending' },
+        page: 1,
+        pageSize: 10_000,
+      });
+
+      if (!result.success) throw new Error(result.error.message);
+
+      return result.data.items;
+    },
+    () => 'Không tải được danh sách Operator.',
+    [],
+  );
+  const selected = new Set(values.replacementEligibleUserIds);
+  const toggle = (id: string, on: boolean) =>
+    onChange({
+      replacementEligibleUserIds: on
+        ? [...selected, id]
+        : values.replacementEligibleUserIds.filter((item) => item !== id),
+    });
+  // Keep IDs saved earlier even if the account is no longer listed.
+  const unknown = values.replacementEligibleUserIds.filter(
+    (id) => !(state.data ?? []).some((user) => user.id === id),
+  );
+
+  return (
+    <section className="space-y-3">
+      <div>
+        <p className="font-medium">Tự đề xuất Operator thay thế</p>
+        <p className="text-sm text-muted">
+          Khi Operator vắng mặt, hệ thống đề xuất người đang quản lý một tủ cùng
+          khu vực, gần tủ bị ảnh hưởng nhất (khoảng cách giữa các tủ, không phải
+          GPS nhân viên) và còn dưới giới hạn tải. Để trống cả bốn mục nếu chưa
+          dùng; phải điền đủ cả bốn khi bật.
+        </p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <TextField
+          fullWidth
+          isDisabled={isDisabled}
+          isInvalid={Boolean(errors.replacementRadiusKm)}
+          value={values.replacementRadiusKm}
+          onChange={(replacementRadiusKm) => onChange({ replacementRadiusKm })}
+        >
+          <Label>Bán kính phục vụ (km)</Label>
+          <Input inputMode="decimal" variant="secondary" />
+          <FieldError>{errors.replacementRadiusKm}</FieldError>
+        </TextField>
+        <TextField
+          fullWidth
+          isDisabled={isDisabled}
+          isInvalid={Boolean(errors.replacementMaxLoad)}
+          value={values.replacementMaxLoad}
+          onChange={(replacementMaxLoad) => onChange({ replacementMaxLoad })}
+        >
+          <Label>Giới hạn tải (số tủ tối đa)</Label>
+          <Input inputMode="numeric" variant="secondary" />
+          <FieldError>{errors.replacementMaxLoad}</FieldError>
+        </TextField>
+      </div>
+      <TextField
+        fullWidth
+        isDisabled={isDisabled}
+        isInvalid={Boolean(errors.replacementAreas)}
+        value={values.replacementAreas}
+        onChange={(replacementAreas) => onChange({ replacementAreas })}
+      >
+        <Label>Khu vực phục vụ được áp dụng</Label>
+        <TextArea rows={2} variant="secondary" />
+        <Description>
+          Mỗi dòng một khu vực, ghi đúng như khu vực đã xác nhận ở từng tủ.
+        </Description>
+        <FieldError>{errors.replacementAreas}</FieldError>
+      </TextField>
+      <fieldset className="space-y-2">
+        <legend className="text-sm font-medium">
+          Operator đủ điều kiện thay thế
+        </legend>
+        {state.status === 'loading' && !state.data ? (
+          <Skeleton className="h-10 w-full rounded-lg" />
+        ) : null}
+        {state.status === 'error' ? (
+          <p className="text-sm text-danger">{state.message}</p>
+        ) : null}
+        <div className="grid gap-2 sm:grid-cols-2">
+          {(state.data ?? []).map((user) => (
+            <Checkbox
+              key={user.id}
+              isDisabled={isDisabled}
+              isSelected={selected.has(user.id)}
+              onChange={(on) => toggle(user.id, on)}
+            >
+              <Checkbox.Control>
+                <Checkbox.Indicator />
+              </Checkbox.Control>
+              <Checkbox.Content>
+                {user.fullName}
+                <span className="block text-xs text-muted">{user.email}</span>
+              </Checkbox.Content>
+            </Checkbox>
+          ))}
+        </div>
+        {unknown.length ? (
+          <p className="text-sm text-warning">
+            {unknown.length} Operator đã chọn trước đây không còn hoạt động.{' '}
+            <Button
+              size="sm"
+              variant="tertiary"
+              onPress={() =>
+                onChange({
+                  replacementEligibleUserIds:
+                    values.replacementEligibleUserIds.filter(
+                      (id) => !unknown.includes(id),
+                    ),
+                })
+              }
+            >
+              Bỏ chọn
+            </Button>
+          </p>
+        ) : null}
+        {errors.replacementEligibleUserIds ? (
+          <p className="text-sm text-danger">
+            {errors.replacementEligibleUserIds}
+          </p>
+        ) : null}
+      </fieldset>
+    </section>
   );
 }
 
@@ -402,6 +553,13 @@ function PolicyFormModal({
                     </div>
                   </section>
 
+                  <ReplacementSection
+                    errors={errors}
+                    isDisabled={isSaving}
+                    values={values}
+                    onChange={update}
+                  />
+
                   <TextField
                     fullWidth
                     isRequired
@@ -550,6 +708,12 @@ export default function AdminSystemPoliciesPage() {
           ]
             .filter(Boolean)
             .join(', ') || 'Không có',
+        ],
+        [
+          'Thay thế Operator',
+          active.operatorReplacementRadiusKm
+            ? `${active.operatorReplacementRadiusKm} km · tối đa ${active.operatorReplacementMaxLoad} tủ · ${active.operatorReplacementAreas?.length ?? 0} khu vực · ${active.operatorReplacementEligibleUserIds?.length ?? 0} người`
+            : 'Chưa cấu hình',
         ],
         ['Hiệu lực từ', formatDateTime(active.effectiveFrom)],
       ]

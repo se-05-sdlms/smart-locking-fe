@@ -211,3 +211,32 @@ test('editing the active version (409) explains immutability', () => {
   assert.match(service.getSystemPolicyErrorMessage(new ApiError(409, 'Conflict')), /không thể chỉnh sửa/);
   assert.equal(service.getSystemPolicyErrorMessage(undefined), 'Không thể xử lý chính sách. Vui lòng thử lại.');
 });
+
+test('operator replacement settings: no defaults, all four together', () => {
+  const { service } = harness();
+  const base = service.toPolicyFormValues();
+
+  assert.equal(base.replacementRadiusKm, '');
+  assert.deepEqual(base.replacementEligibleUserIds, []);
+  assert.deepEqual(service.validatePolicyForm(base), {});
+  const body = service.buildPolicyRequest({ ...base, effectiveFrom: '2026-10-14T09:30' });
+  assert.equal(body.operatorReplacementRadiusKm, null);
+  assert.equal(body.operatorReplacementEligibleUserIds, null);
+
+  const partial = service.validatePolicyForm({ ...base, replacementRadiusKm: '5' });
+  assert.ok(partial.replacementMaxLoad && partial.replacementAreas && partial.replacementEligibleUserIds);
+  assert.ok(service.validatePolicyForm({ ...base, replacementRadiusKm: '0', replacementMaxLoad: '3', replacementAreas: 'Q7', replacementEligibleUserIds: ['u'] }).replacementRadiusKm);
+
+  const full = { ...base, effectiveFrom: '2026-10-14T09:30', replacementRadiusKm: '2.5', replacementMaxLoad: '3', replacementAreas: ' Q7 \nQ8, Q7', replacementEligibleUserIds: ['u-1'] };
+  assert.deepEqual(service.validatePolicyForm(full), {});
+  const saved = service.buildPolicyRequest(full);
+  assert.equal(saved.operatorReplacementRadiusKm, 2.5);
+  assert.equal(saved.operatorReplacementMaxLoad, 3);
+  assert.deepEqual(saved.operatorReplacementAreas, ['Q7', 'Q8']);
+  assert.deepEqual(saved.operatorReplacementEligibleUserIds, ['u-1']);
+
+  const policy = service.mapSystemPolicy(policyDto({ operatorReplacementRadiusKm: 2.5, operatorReplacementMaxLoad: 3, operatorReplacementAreas: ['Q7', 'Q8'], operatorReplacementEligibleUserIds: ['u-1'] }));
+  const values = service.toPolicyFormValues(policy);
+  assert.equal(values.replacementAreas, 'Q7\nQ8');
+  assert.deepEqual(values.replacementEligibleUserIds, ['u-1']);
+});
