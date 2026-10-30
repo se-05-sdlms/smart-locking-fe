@@ -9,6 +9,7 @@ import House from '@gravity-ui/icons/House';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
 import PersonPencil from '@gravity-ui/icons/PersonPencil';
 import Persons from '@gravity-ui/icons/Persons';
+import Receipt from '@gravity-ui/icons/Receipt';
 import Hourglass from '@gravity-ui/icons/Hourglass';
 import Tags from '@gravity-ui/icons/Tags';
 import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
@@ -59,6 +60,12 @@ const adminNavigation: NavigationItem[] = [
     label: 'Báo cáo',
     path: '/admin/reports',
     icon: ChartLine,
+    role: 'admin',
+  },
+  {
+    label: 'Thanh toán & tra soát',
+    path: '/admin/payments',
+    icon: Receipt,
     role: 'admin',
   },
   {
