@@ -4,6 +4,7 @@ import ArrowRightFromSquare from '@gravity-ui/icons/ArrowRightFromSquare';
 import Boxes3 from '@gravity-ui/icons/Boxes3';
 import ChartLine from '@gravity-ui/icons/ChartLine';
 import ClockArrowRotateLeft from '@gravity-ui/icons/ClockArrowRotateLeft';
+import CalendarIcon from '@gravity-ui/icons/Calendar';
 import Gear from '@gravity-ui/icons/Gear';
 import House from '@gravity-ui/icons/House';
 import PersonWorker from '@gravity-ui/icons/PersonWorker';
@@ -43,6 +44,12 @@ const adminNavigation: NavigationItem[] = [
     label: 'Phân công Operator',
     path: '/admin/operators',
     icon: PersonWorker,
+    role: 'admin',
+  },
+  {
+    label: 'Vắng mặt & thay thế',
+    path: '/admin/operator-absences',
+    icon: CalendarIcon,
     role: 'admin',
   },
   {
@@ -113,6 +120,12 @@ const operatorNavigation: NavigationItem[] = [
     label: 'Bảo trì',
     path: '/operator/maintenance',
     icon: Gear,
+    role: 'operator',
+  },
+  {
+    label: 'Vắng mặt',
+    path: '/operator/absences',
+    icon: CalendarIcon,
     role: 'operator',
   },
   {

@@ -19,6 +19,9 @@ import OperatorSettingsPage from '@/pages/operator/settings';
 import OperatorMaintenancePage from '@/pages/operator/maintenance';
 import OperatorOperationalHistoryPage from '@/pages/operator/operational-history';
 import OperatorIncidentsPage from '@/pages/operator/incidents';
+import OperatorAbsencesPage, {
+  OperatorAbsencesView,
+} from '@/pages/operator/absences';
 import OperatorTasksPage, { OperatorTasksView } from '@/pages/operator/tasks';
 import AdminReportsPage from '@/pages/admin/reports';
 import AdminSubscriptionPlansPage from '@/pages/admin/subscription-plans';
@@ -75,6 +78,12 @@ function roleRoute(role: AppRole) {
             element={<OperatorSettingsPage />}
             path="settings"
           />
+        ) : item.path === '/operator/absences' ? (
+          <Route
+            key={item.path}
+            element={<OperatorAbsencesPage />}
+            path="absences"
+          />
         ) : item.path === '/operator/operational-history' ? (
           <Route
             key={item.path}
@@ -109,6 +118,8 @@ function roleRoute(role: AppRole) {
                 <AdminSystemPoliciesPage />
               ) : item.path === '/admin/operators' ? (
                 <AdminOperatorAssignmentsPage />
+              ) : item.path === '/admin/operator-absences' ? (
+                <OperatorAbsencesView mode="admin" />
               ) : item.path === '/admin/operator-tasks' ? (
                 <OperatorTasksView mode="admin" />
               ) : item.path === '/admin/payments' ? (
