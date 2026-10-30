@@ -11,6 +11,7 @@ import PersonPencil from '@gravity-ui/icons/PersonPencil';
 import Persons from '@gravity-ui/icons/Persons';
 import Receipt from '@gravity-ui/icons/Receipt';
 import Hourglass from '@gravity-ui/icons/Hourglass';
+import ListCheck from '@gravity-ui/icons/ListCheck';
 import Tags from '@gravity-ui/icons/Tags';
 import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 
@@ -42,6 +43,12 @@ const adminNavigation: NavigationItem[] = [
     label: 'Phân công Operator',
     path: '/admin/operators',
     icon: PersonWorker,
+    role: 'admin',
+  },
+  {
+    label: 'Công việc vận hành',
+    path: '/admin/operator-tasks',
+    icon: ListCheck,
     role: 'admin',
   },
   {
@@ -106,6 +113,12 @@ const operatorNavigation: NavigationItem[] = [
     label: 'Bảo trì',
     path: '/operator/maintenance',
     icon: Gear,
+    role: 'operator',
+  },
+  {
+    label: 'Công việc & bàn giao',
+    path: '/operator/tasks',
+    icon: ListCheck,
     role: 'operator',
   },
   {
