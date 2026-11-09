@@ -1,0 +1,168 @@
+import type { ComponentType, SVGProps } from 'react';
+
+import ArrowRightFromSquare from '@gravity-ui/icons/ArrowRightFromSquare';
+import Boxes3 from '@gravity-ui/icons/Boxes3';
+import ChartLine from '@gravity-ui/icons/ChartLine';
+import ClockArrowRotateLeft from '@gravity-ui/icons/ClockArrowRotateLeft';
+import CalendarIcon from '@gravity-ui/icons/Calendar';
+import Gear from '@gravity-ui/icons/Gear';
+import House from '@gravity-ui/icons/House';
+import PersonWorker from '@gravity-ui/icons/PersonWorker';
+import PersonPencil from '@gravity-ui/icons/PersonPencil';
+import Persons from '@gravity-ui/icons/Persons';
+import Receipt from '@gravity-ui/icons/Receipt';
+import Hourglass from '@gravity-ui/icons/Hourglass';
+import ListCheck from '@gravity-ui/icons/ListCheck';
+import Tags from '@gravity-ui/icons/Tags';
+import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
+
+export type AppRole = 'admin' | 'operator';
+
+export type NavigationItem = {
+  label: string;
+  path: string;
+  icon: ComponentType<SVGProps<SVGSVGElement>>;
+  role: AppRole;
+};
+
+const adminNavigation: NavigationItem[] = [
+  { label: 'Dashboard', path: '/admin', icon: House, role: 'admin' },
+  { label: 'Người dùng', path: '/admin/users', icon: Persons, role: 'admin' },
+  {
+    label: 'Yêu cầu đổi tủ/số',
+    path: '/admin/account-changes',
+    icon: PersonPencil,
+    role: 'admin',
+  },
+  {
+    label: 'Quản lý locker',
+    path: '/admin/lockers',
+    icon: Boxes3,
+    role: 'admin',
+  },
+  {
+    label: 'Phân công Operator',
+    path: '/admin/operators',
+    icon: PersonWorker,
+    role: 'admin',
+  },
+  {
+    label: 'Vắng mặt & thay thế',
+    path: '/admin/operator-absences',
+    icon: CalendarIcon,
+    role: 'admin',
+  },
+  {
+    label: 'Công việc vận hành',
+    path: '/admin/operator-tasks',
+    icon: ListCheck,
+    role: 'admin',
+  },
+  {
+    label: 'Chính sách hệ thống',
+    path: '/admin/policies',
+    icon: Gear,
+    role: 'admin',
+  },
+  {
+    label: 'Gói dịch vụ',
+    path: '/admin/subscription-plans',
+    icon: Tags,
+    role: 'admin',
+  },
+  {
+    label: 'Báo cáo',
+    path: '/admin/reports',
+    icon: ChartLine,
+    role: 'admin',
+  },
+  {
+    label: 'Thanh toán & tra soát',
+    path: '/admin/payments',
+    icon: Receipt,
+    role: 'admin',
+  },
+  {
+    label: 'Audit log',
+    path: '/admin/audit-logs',
+    icon: ClockArrowRotateLeft,
+    role: 'admin',
+  },
+  {
+    label: 'Tài khoản',
+    path: '/admin/settings',
+    icon: Gear,
+    role: 'admin',
+  },
+];
+
+const operatorNavigation: NavigationItem[] = [
+  { label: 'Dashboard', path: '/operator', icon: House, role: 'operator' },
+  {
+    label: 'Tủ của tôi',
+    path: '/operator/lockers',
+    icon: Boxes3,
+    role: 'operator',
+  },
+  {
+    label: 'Sự cố',
+    path: '/operator/incidents',
+    icon: TriangleExclamation,
+    role: 'operator',
+  },
+  {
+    label: 'Xử lý quá hạn',
+    path: '/operator/overdue-clearance',
+    icon: Hourglass,
+    role: 'operator',
+  },
+  {
+    label: 'Bảo trì',
+    path: '/operator/maintenance',
+    icon: Gear,
+    role: 'operator',
+  },
+  {
+    label: 'Vắng mặt',
+    path: '/operator/absences',
+    icon: CalendarIcon,
+    role: 'operator',
+  },
+  {
+    label: 'Công việc & bàn giao',
+    path: '/operator/tasks',
+    icon: ListCheck,
+    role: 'operator',
+  },
+  {
+    label: 'Lịch sử vận hành',
+    path: '/operator/operational-history',
+    icon: ClockArrowRotateLeft,
+    role: 'operator',
+  },
+  {
+    label: 'Cài đặt',
+    path: '/operator/settings',
+    icon: Gear,
+    role: 'operator',
+  },
+];
+
+export const navigationByRole: Record<AppRole, NavigationItem[]> = {
+  admin: adminNavigation,
+  operator: operatorNavigation,
+};
+
+export const logoutIcon = ArrowRightFromSquare;
+
+export function getNavigationItems(role: AppRole) {
+  return navigationByRole[role];
+}
+
+export function getNavigationItem(pathname: string, role: AppRole) {
+  return getNavigationItems(role)
+    .filter(
+      (item) => pathname === item.path || pathname.startsWith(`${item.path}/`),
+    )
+    .sort((first, second) => second.path.length - first.path.length)[0];
+}

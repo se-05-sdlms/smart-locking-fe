@@ -1,0 +1,81 @@
+import { Card, Input, Table, Typography } from '@heroui/react';
+import { useEffect, useState } from 'react';
+
+import {
+  operationsService,
+  type AuditItem,
+} from '@/services/operations-service';
+
+export default function AdminAuditLogsPage() {
+  const [items, setItems] = useState<AuditItem[]>([]);
+  const [query, setQuery] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const timer = window.setTimeout(
+      () =>
+        void operationsService
+          .audit(query)
+          .then(setItems)
+          .catch((e: unknown) =>
+            setError(
+              e instanceof Error ? e.message : 'Không thể tải audit log.',
+            ),
+          ),
+      250,
+    );
+
+    return () => window.clearTimeout(timer);
+  }, [query]);
+
+  return (
+    <section className="flex flex-col gap-6">
+      <div>
+        <Typography type="h2">Audit log</Typography>
+        <p className="text-muted">
+          Nhật ký bất biến của các thao tác quan trọng.
+        </p>
+      </div>
+      <Input
+        placeholder="Tìm hành động hoặc chi tiết"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {error ? <p className="text-danger">{error}</p> : null}
+      <Card>
+        <Card.Content className="p-0">
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content aria-label="Audit logs">
+                <Table.Header>
+                  <Table.Column isRowHeader id="time">
+                    Thời gian
+                  </Table.Column>
+                  <Table.Column id="actor">Người thực hiện</Table.Column>
+                  <Table.Column id="action">Hành động</Table.Column>
+                  <Table.Column id="target">Đối tượng</Table.Column>
+                  <Table.Column id="result">Kết quả</Table.Column>
+                  <Table.Column id="details">Chi tiết</Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {items.map((item) => (
+                    <Table.Row key={item.id} id={item.id}>
+                      <Table.Cell>
+                        {new Date(item.occurredAt).toLocaleString('vi-VN')}
+                      </Table.Cell>
+                      <Table.Cell>{item.actor}</Table.Cell>
+                      <Table.Cell>{item.action}</Table.Cell>
+                      <Table.Cell>{item.entityType ?? '—'}</Table.Cell>
+                      <Table.Cell>{item.result}</Table.Cell>
+                      <Table.Cell>{item.details ?? '—'}</Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
+        </Card.Content>
+      </Card>
+    </section>
+  );
+}
