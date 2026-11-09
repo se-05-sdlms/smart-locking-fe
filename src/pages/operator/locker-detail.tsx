@@ -33,7 +33,7 @@ import Wrench from '@gravity-ui/icons/Wrench';
 import Xmark from '@gravity-ui/icons/Xmark';
 import PowerIcon from '@gravity-ui/icons/Power';
 import { useNavigate, useParams } from 'react-router-dom';
-import Qrcode from '@gravity-ui/icons/Qrcode';
+import Qrcode from '@gravity-ui/icons/QrCode';
 
 import { EmergencyUnlockDialog } from './emergency-unlock-dialog';
 import {

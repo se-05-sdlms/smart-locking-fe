@@ -29,7 +29,7 @@ import CirclePlus from '@gravity-ui/icons/CirclePlus';
 import Pencil from '@gravity-ui/icons/Pencil';
 import TrashBin from '@gravity-ui/icons/TrashBin';
 import Xmark from '@gravity-ui/icons/Xmark';
-import Qrcode from '@gravity-ui/icons/Qrcode';
+import Qrcode from '@gravity-ui/icons/QrCode';
 
 import {
   ADMIN_CONNECTION_STATUS_DISPLAY,
