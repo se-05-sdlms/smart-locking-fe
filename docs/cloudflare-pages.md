@@ -1,11 +1,12 @@
 # Cloudflare Pages CI/CD
 
 The `Cloudflare Pages` GitHub Actions workflow builds pull requests targeting
-`dev` and deploys pushes to `dev`. It can also be run manually on `dev`.
+`dev` or `main`, builds pushes to both branches, and deploys pushes to `main`.
+It can also be run manually on `main` to deploy production.
 
 The existing Direct Upload project is `smart-locking-fe`, available at
 https://smart-locking-fe.pages.dev. Its production branch is `main`, so the
-deployment command explicitly uses `--branch=main` even though source is on `dev`.
+deployment command explicitly uses `--branch=main`.
 
 Configure these repository settings in GitHub Actions:
 
@@ -16,7 +17,7 @@ Configure these repository settings in GitHub Actions:
 | Variable | `VITE_API_BASE_URL` | Temporarily `http://localhost:5005`; replace with the public HTTPS backend URL |
 
 Vite embeds the API URL during build. After changing `VITE_API_BASE_URL`, run
-the workflow again on `dev`. Values prefixed with `VITE_` are public browser
+the workflow again on `main`. Values prefixed with `VITE_` are public browser
 configuration and must never contain secrets. `.env.production.local` only
 affects local builds and is ignored by Git.
 
