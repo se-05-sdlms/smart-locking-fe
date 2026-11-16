@@ -24,6 +24,8 @@ export type OperatorTask = {
   dueAt: string | null;
   createdAt: string;
   sourcePath: string;
+  assignedOperatorUserId: string | null;
+  assignedOperatorName: string | null;
 };
 
 export type OperatorTaskPage = {
@@ -92,6 +94,14 @@ export const priorityLabel = (priority: string) =>
 
 export const taskStatusLabel = (status: string) =>
   statusLabels[status] ?? status;
+
+// Locker coverage and handover acknowledgement do not assign individual work.
+export const taskAssigneeLabel = (
+  task: Pick<OperatorTask, 'assignedOperatorUserId' | 'assignedOperatorName'>,
+) =>
+  task.assignedOperatorUserId
+    ? task.assignedOperatorName || task.assignedOperatorUserId
+    : 'Chưa phân công riêng';
 
 export const priorityColor = (priority: string) =>
   priority === 'Critical'
