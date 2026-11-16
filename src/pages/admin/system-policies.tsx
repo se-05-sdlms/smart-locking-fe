@@ -417,7 +417,11 @@ function PolicyFormModal({
                     : 'Tạo phiên bản chính sách mới'}
                 </Modal.Heading>
               </Modal.Header>
-              <Form validationBehavior="aria" onSubmit={submit}>
+              <Form
+                className="flex min-h-0 flex-1 flex-col"
+                validationBehavior="aria"
+                onSubmit={submit}
+              >
                 <Modal.Body className="space-y-6">
                   <section className="space-y-3">
                     <h3 className="font-semibold">Giao hàng</h3>
@@ -579,7 +583,7 @@ function PolicyFormModal({
 
                   {submitError ? <ErrorAlert message={submitError} /> : null}
                 </Modal.Body>
-                <Modal.Footer>
+                <Modal.Footer className="shrink-0">
                   <Button
                     isDisabled={isSaving}
                     variant="ghost"
