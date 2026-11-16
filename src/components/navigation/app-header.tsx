@@ -1,4 +1,5 @@
 import type { AppRole } from '@/config/navigation';
+import type { ReactNode } from 'react';
 
 import { Breadcrumbs, Button, Surface, Toolbar, Tooltip } from '@heroui/react';
 import Calendar from '@gravity-ui/icons/Calendar';
@@ -9,7 +10,13 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { NotificationInbox } from '@/components/navigation/notification-inbox';
 import { getNavigationItem } from '@/config/navigation';
 
-export function AppHeader({ role }: { role: AppRole }) {
+export function AppHeader({
+  role,
+  menuTrigger,
+}: {
+  role: AppRole;
+  menuTrigger?: ReactNode;
+}) {
   const { pathname, state } = useLocation();
   const navigate = useNavigate();
   const [now, setNow] = useState(() => new Date());
@@ -60,54 +67,57 @@ export function AppHeader({ role }: { role: AppRole }) {
   }).format(now);
 
   return (
-    <Surface className="flex h-20 shrink-0 items-center justify-between bg-background px-8">
-      {isOperatorDashboard ? (
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight text-neutral-950">
-            Xin chào, Operator 👋
-          </h1>
-          <p className="truncate text-sm text-muted">
-            Tổng quan tình trạng các tủ bạn đang quản lý hôm nay.
-          </p>
-        </div>
-      ) : isOperatorSettings ? (
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold tracking-tight text-neutral-950">
-            Cài đặt
-          </h1>
-          <p className="truncate text-sm text-muted">
-            Thông tin tài khoản Operator
-          </p>
-        </div>
-      ) : currentItem?.path === '/operator/lockers' ||
-        currentItem?.path === '/operator/overdue-clearance' ? (
-        <Breadcrumbs aria-label="Đường dẫn trang">
-          <Breadcrumbs.Item
-            className="!text-xl font-semibold tracking-tight"
-            onPress={
-              lockerId
-                ? () => navigate('/operator/lockers')
-                : overdueParcelId
-                  ? () => navigate('/operator/overdue-clearance')
-                  : undefined
-            }
-          >
-            {currentItem.path === '/operator/lockers'
-              ? 'Tủ của tôi'
-              : 'Xử lý quá hạn'}
-          </Breadcrumbs.Item>
-          {lockerId || overdueParcelId ? (
-            <Breadcrumbs.Item className="!text-xl font-semibold tracking-tight">
-              {lockerLabel || overdueParcelLabel}
+    <Surface className="flex h-20 min-w-0 shrink-0 items-center justify-between gap-2 bg-background px-4 sm:px-6 lg:px-8">
+      {menuTrigger}
+      <div className="min-w-0 flex-1 overflow-hidden">
+        {isOperatorDashboard ? (
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-neutral-950">
+              Xin chào, Operator 👋
+            </h1>
+            <p className="truncate text-sm text-muted">
+              Tổng quan tình trạng các tủ bạn đang quản lý hôm nay.
+            </p>
+          </div>
+        ) : isOperatorSettings ? (
+          <div className="min-w-0">
+            <h1 className="truncate text-xl font-semibold tracking-tight text-neutral-950">
+              Cài đặt
+            </h1>
+            <p className="truncate text-sm text-muted">
+              Thông tin tài khoản Operator
+            </p>
+          </div>
+        ) : currentItem?.path === '/operator/lockers' ||
+          currentItem?.path === '/operator/overdue-clearance' ? (
+          <Breadcrumbs aria-label="Đường dẫn trang">
+            <Breadcrumbs.Item
+              className="!text-xl font-semibold tracking-tight"
+              onPress={
+                lockerId
+                  ? () => navigate('/operator/lockers')
+                  : overdueParcelId
+                    ? () => navigate('/operator/overdue-clearance')
+                    : undefined
+              }
+            >
+              {currentItem.path === '/operator/lockers'
+                ? 'Tủ của tôi'
+                : 'Xử lý quá hạn'}
             </Breadcrumbs.Item>
-          ) : null}
-        </Breadcrumbs>
-      ) : (
-        <h1 className="text-xl font-semibold tracking-tight text-neutral-950">
-          {headerTitle}
-        </h1>
-      )}
-      <Toolbar aria-label="Thao tác ứng dụng" className="gap-1">
+            {lockerId || overdueParcelId ? (
+              <Breadcrumbs.Item className="!text-xl font-semibold tracking-tight">
+                {lockerLabel || overdueParcelLabel}
+              </Breadcrumbs.Item>
+            ) : null}
+          </Breadcrumbs>
+        ) : (
+          <h1 className="text-xl font-semibold tracking-tight text-neutral-950">
+            {headerTitle}
+          </h1>
+        )}
+      </div>
+      <Toolbar aria-label="Thao tác ứng dụng" className="shrink-0 gap-1">
         {isOperatorDashboard ? (
           <time
             className="mr-3 hidden items-center gap-3 sm:flex"
