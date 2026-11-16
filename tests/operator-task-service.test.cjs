@@ -76,7 +76,9 @@ test('endpoints and access loss', async () => {
   ]);
   assert.deepEqual(calls[2].body, { workDone: 'a', blockers: '', nextSteps: 'b', intendedReceiverUserId: null });
   assert.deepEqual(calls[3].body, { notes: 'ok' });
-  assert.ok(service.isAccessLost(new ApiError(403, '')));
+  assert.ok(service.isAccessLost(new ApiError(403, '', 'locker/access_denied')));
+  assert.equal(service.isAccessLost(new ApiError(403, '', 'common/access_denied')), false);
+  assert.equal(service.isAccessLost(new ApiError(403, '', 'auth/password_change_required')), false);
   assert.match(service.getTaskErrorMessage(new ApiError(403, '', 'locker/access_denied')), /không còn quyền/);
   assert.match(service.getTaskErrorMessage(new ApiError(409, '', 'TASK_CLOSED')), /đã đóng/);
 });
