@@ -226,7 +226,14 @@ function TaskDrawer({
   onAccessLost: () => void;
 }) {
   const { state, reload, refresh } = useAsyncResource(
-    (signal) => getHandovers(task, signal),
+    async (signal) => {
+      try {
+        return await getHandovers(task, signal);
+      } catch (error) {
+        if (!signal.aborted && isAccessLost(error)) onAccessLost();
+        throw error;
+      }
+    },
     getTaskErrorMessage,
     [task.kind, task.id],
   );
@@ -405,7 +412,12 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
   );
 
   const accessLost = () => {
+    toast.warning('Quyền xử lý công việc đã thay đổi', {
+      description:
+        'Hồ sơ đã đóng và danh sách được tải lại. Bạn vẫn có thể xử lý các tủ còn quyền.',
+    });
     setOpen(null);
+    setLockerId('');
     reload();
   };
 

@@ -177,19 +177,28 @@ export const listTasks = (offset: number, signal?: AbortSignal) =>
     { signal },
   );
 
+const resourceAccessOptions = {
+  handledForbiddenCodes: [ErrorCodes.LOCKER_ACCESS_DENIED],
+};
+
 const taskPath = (task: Pick<OperatorTask, 'kind' | 'id'>) =>
   `/api/operator-tasks/${task.kind}/${encodeURIComponent(task.id)}/handovers`;
 
 export const getHandovers = (
   task: Pick<OperatorTask, 'kind' | 'id'>,
   signal?: AbortSignal,
-) => apiRequest<TaskHandover[]>(taskPath(task), { signal });
+) =>
+  apiRequest<TaskHandover[]>(taskPath(task), {
+    ...resourceAccessOptions,
+    signal,
+  });
 
 export const createHandover = (
   task: Pick<OperatorTask, 'kind' | 'id'>,
   values: HandoverFormValues,
 ) =>
   apiRequest<TaskHandover>(taskPath(task), {
+    ...resourceAccessOptions,
     method: 'POST',
     body: JSON.stringify({
       workDone: values.workDone.trim(),
@@ -202,12 +211,18 @@ export const createHandover = (
 export const acknowledgeHandover = (handoverId: string, notes: string) =>
   apiRequest<TaskAcknowledgement>(
     `/api/operator-tasks/handovers/${encodeURIComponent(handoverId)}/acknowledgements`,
-    { method: 'POST', body: JSON.stringify({ notes: notes.trim() }) },
+    {
+      ...resourceAccessOptions,
+      method: 'POST',
+      body: JSON.stringify({ notes: notes.trim() }),
+    },
   );
 
 /** True when the user lost access (e.g. a temporary assignment ended). */
 export const isAccessLost = (error: unknown) =>
-  error instanceof ApiError && error.status === 403;
+  error instanceof ApiError &&
+  error.status === 403 &&
+  error.code === ErrorCodes.LOCKER_ACCESS_DENIED;
 
 export function getTaskErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
