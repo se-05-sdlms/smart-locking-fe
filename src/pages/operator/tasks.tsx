@@ -386,7 +386,7 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
   const [lockerId, setLockerId] = useState('');
   const [kind, setKind] = useState<TaskKind | ''>('');
   const [open, setOpen] = useState<OperatorTask | null>(null);
-  const { state, reload } = useAsyncResource(
+  const { state, setState, reload } = useAsyncResource(
     async (signal) => {
       const items: OperatorTask[] = [];
       let hasMore = false;
@@ -418,6 +418,9 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
     });
     setOpen(null);
     setLockerId('');
+    // Permission loss invalidates the whole cached view. Do not leave stale
+    // tasks actionable if reloading is slow or fails.
+    setState({ status: 'loading' });
     reload();
   };
 
