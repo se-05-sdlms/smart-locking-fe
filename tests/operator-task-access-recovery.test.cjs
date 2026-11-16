@@ -6,7 +6,7 @@ const ts = require('typescript');
 
 // Render the actual page function and async-resource hook with a small hook runner.
 // UI primitives are inert JSX nodes; HTTP is the only data boundary.
-function harness() {
+function harness(initialTasks) {
   const slots = [];
   const cache = new Map();
   let cursor = 0;
@@ -43,7 +43,7 @@ function harness() {
     if (name === '@/auth/auth-context') return { useAuth: () => ({ user: { id: 'operator' } }) };
     if (name === '@/services/api-client') return { ApiError, apiRequest: async () => {
       calls++;
-      if (calls === 1) return { items: [task('a'), task('b')], hasMore: false };
+      if (calls === 1) return { items: initialTasks ?? [task('a'), task('b')], hasMore: false };
       if (calls === 2) return new Promise((_, reject) => { rejectReload = reject; });
       return { items: [task('b')], hasMore: false };
     } };
@@ -61,6 +61,7 @@ function harness() {
   return {
     render() { cursor = 0; const tree = OperatorTasksView({ mode: 'operator' }); while (effects.length) effects.shift()(); return tree; },
     failReload() { rejectReload(new Error('Network unavailable')); },
+    get calls() { return calls; },
   };
 }
 function find(node, predicate) {
@@ -70,6 +71,30 @@ function find(node, predicate) {
   return find(node.props?.children, predicate);
 }
 const settle = () => new Promise((resolve) => setImmediate(resolve));
+
+test('actual task rows show source assignee, never the viewing operator, without detail requests', async () => {
+  const base = { kind: 'incident', lockerId: 'locker', lockerCode: 'LKR', priority: 'High', status: 'Open', dueAt: null };
+  const h = harness([
+    { ...base, id: 'assigned', title: 'Assigned incident', assignedOperatorUserId: 'owner', assignedOperatorName: 'Người được giao xử lý' },
+    { ...base, id: 'unnamed', title: 'Missing display name', assignedOperatorUserId: 'owner-id', assignedOperatorName: null },
+    { ...base, id: 'unassigned', title: 'Unassigned incident', assignedOperatorUserId: null, assignedOperatorName: null },
+    { ...base, kind: 'maintenance', id: 'maintenance', title: 'Maintenance', assignedOperatorUserId: null, assignedOperatorName: null },
+    { ...base, kind: 'recovery', id: 'recovery', title: 'Recovery', assignedOperatorUserId: null, assignedOperatorName: null },
+  ]);
+  h.render(); await settle();
+  const tree = h.render();
+  const row = (id) => find(tree, node => node.type === 'Table.Row' && node.props.id.endsWith(`:${id}`));
+  const text = node => typeof node === 'string' ? node : Array.isArray(node) ? node.map(text).join(' ') : node && typeof node === 'object' ? text(node.props?.children) : '';
+  assert.match(text(row('assigned')), /Người được giao xử lý/);
+  assert.match(text(row('unnamed')), /owner-id/);
+  for (const id of ['unassigned', 'maintenance', 'recovery']) assert.match(text(row(id)), /Chưa phân công riêng/);
+  assert.equal(h.calls, 1);
+  find(tree, node => node.type === 'Table.Content').props.onRowAction('incident:assigned');
+  const drawer = find(h.render(), node => node.type?.name === 'TaskDrawer');
+  assert.equal(drawer.props.task.assignedOperatorUserId, 'owner');
+  assert.equal(drawer.props.task.assignedOperatorName, 'Người được giao xử lý');
+  assert.equal(h.calls, 1);
+});
 test('access loss removes stale actions while refetch is pending and failed, then retry restores only permitted locker', async () => {
   const h = harness(); h.render(); await settle();
   let tree = h.render();

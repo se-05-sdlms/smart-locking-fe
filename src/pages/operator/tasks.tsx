@@ -47,6 +47,7 @@ import {
   priorityColor,
   priorityLabel,
   TASK_PAGE_SIZE,
+  taskAssigneeLabel,
   taskKey,
   taskKindLabels,
   taskSourceHref,
@@ -310,6 +311,10 @@ function TaskDrawer({
                 {taskKindLabels[task.kind]} · Tủ {task.lockerCode} ·{' '}
                 {priorityLabel(task.priority)} · {taskStatusLabel(task.status)}
               </p>
+              <p className="break-words text-sm">
+                <span className="text-muted">Người phụ trách: </span>
+                {taskAssigneeLabel(task)}
+              </p>
               {canAct ? (
                 <Link
                   className="text-sm text-accent underline"
@@ -484,6 +489,7 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
                   </Table.Column>
                   <Table.Column id="kind">Loại</Table.Column>
                   <Table.Column id="locker">Tủ</Table.Column>
+                  <Table.Column id="assignee">Người phụ trách</Table.Column>
                   <Table.Column id="priority">Ưu tiên</Table.Column>
                   <Table.Column id="status">Trạng thái</Table.Column>
                   <Table.Column id="due">Hạn</Table.Column>
@@ -514,6 +520,11 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
                         {taskKindLabels[task.kind] ?? task.kind}
                       </Table.Cell>
                       <Table.Cell>{task.lockerCode}</Table.Cell>
+                      <Table.Cell>
+                        <span className="block max-w-56 break-words">
+                          {taskAssigneeLabel(task)}
+                        </span>
+                      </Table.Cell>
                       <Table.Cell>
                         <Chip
                           color={priorityColor(task.priority)}
