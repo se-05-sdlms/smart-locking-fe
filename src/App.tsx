@@ -5,6 +5,7 @@ import { Route, Routes } from 'react-router-dom';
 import EmptyRoutePage from '@/pages/empty-route';
 import LoginPage from '@/pages/login';
 import ForbiddenPage from '@/pages/forbidden';
+import NotFoundPage from '@/pages/not-found';
 import UserManagementPage from '@/pages/admin/user-management-page';
 import AdminDashboardPage from '@/pages/admin/dashboard';
 import AdminLockersPage from '@/pages/admin/lockers';
@@ -159,6 +160,7 @@ function App() {
       />
       {(['admin', 'operator'] as const).map(roleRoute)}
       <Route element={<ForbiddenPage />} path="/forbidden" />
+      <Route element={<NotFoundPage />} path="*" />
     </Routes>
   );
 }

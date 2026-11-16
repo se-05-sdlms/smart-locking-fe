@@ -226,7 +226,14 @@ function TaskDrawer({
   onAccessLost: () => void;
 }) {
   const { state, reload, refresh } = useAsyncResource(
-    (signal) => getHandovers(task, signal),
+    async (signal) => {
+      try {
+        return await getHandovers(task, signal);
+      } catch (error) {
+        if (!signal.aborted && isAccessLost(error)) onAccessLost();
+        throw error;
+      }
+    },
     getTaskErrorMessage,
     [task.kind, task.id],
   );
@@ -379,7 +386,7 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
   const [lockerId, setLockerId] = useState('');
   const [kind, setKind] = useState<TaskKind | ''>('');
   const [open, setOpen] = useState<OperatorTask | null>(null);
-  const { state, reload } = useAsyncResource(
+  const { state, setState, reload } = useAsyncResource(
     async (signal) => {
       const items: OperatorTask[] = [];
       let hasMore = false;
@@ -405,7 +412,15 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
   );
 
   const accessLost = () => {
+    toast.warning('Quyền xử lý công việc đã thay đổi', {
+      description:
+        'Hồ sơ đã đóng và danh sách được tải lại. Bạn vẫn có thể xử lý các tủ còn quyền.',
+    });
     setOpen(null);
+    setLockerId('');
+    // Permission loss invalidates the whole cached view. Do not leave stale
+    // tasks actionable if reloading is slow or fails.
+    setState({ status: 'loading' });
     reload();
   };
 
