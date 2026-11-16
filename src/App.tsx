@@ -4,6 +4,7 @@ import { Route, Routes } from 'react-router-dom';
 
 import EmptyRoutePage from '@/pages/empty-route';
 import LoginPage from '@/pages/login';
+import ForgotPasswordPage from '@/pages/forgot-password';
 import ForbiddenPage from '@/pages/forbidden';
 import NotFoundPage from '@/pages/not-found';
 import UserManagementPage from '@/pages/admin/user-management-page';
@@ -150,6 +151,7 @@ function App() {
     <Routes>
       <Route element={<LoginPage />} path="/" />
       <Route element={<LoginPage />} path="/login" />
+      <Route element={<ForgotPasswordPage />} path="/forgot-password" />
       <Route
         element={
           <RequirePasswordChange>

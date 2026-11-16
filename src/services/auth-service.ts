@@ -8,6 +8,7 @@ import type {
 
 import { ErrorCodes } from '@/constants/error-codes';
 import { MIN_PASSWORD_LENGTH } from '@/auth/password-change';
+import { normalizeResetEmail } from '@/auth/password-reset';
 import { ApiError, apiRequest } from '@/services/api-client';
 
 export function login(request: LoginRequest) {
@@ -20,6 +21,55 @@ export function login(request: LoginRequest) {
 
 export function getCurrentUser() {
   return apiRequest<AuthUser>('/api/auth/me');
+}
+
+export function requestPasswordReset(email: string) {
+  return apiRequest<void>('/api/auth/forgot-password', {
+    auth: false,
+    method: 'POST',
+    body: JSON.stringify({ loginIdentifier: normalizeResetEmail(email) }),
+  });
+}
+
+export function resetPassword(
+  email: string,
+  otpCode: string,
+  newPassword: string,
+) {
+  return apiRequest<void>('/api/auth/reset-password', {
+    auth: false,
+    method: 'POST',
+    body: JSON.stringify({
+      loginIdentifier: normalizeResetEmail(email),
+      otpCode: otpCode.trim(),
+      newPassword,
+    }),
+  });
+}
+
+export function getPasswordResetErrorMessage(error: unknown) {
+  if (error instanceof ApiError) {
+    if (error.code === 'auth/invalid_otp') {
+      return 'Mã OTP không đúng, đã hết hạn hoặc đã được sử dụng. Hãy kiểm tra mã mới nhất hoặc gửi lại mã.';
+    }
+    if (error.status === 0) {
+      return 'Không thể kết nối đến máy chủ. Vui lòng thử lại.';
+    }
+    if (error.status === 429 || error.code === ErrorCodes.RATE_LIMITED) {
+      return 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.';
+    }
+    if (error.status === 408) {
+      return 'Máy chủ phản hồi quá chậm. Vui lòng thử lại.';
+    }
+    if (error.status >= 500) {
+      return 'Máy chủ chưa thể xử lý yêu cầu. Vui lòng thử lại sau.';
+    }
+    if (error.status === 400) {
+      return 'Thông tin đặt lại mật khẩu chưa hợp lệ. Vui lòng kiểm tra email, mã OTP và mật khẩu mới.';
+    }
+  }
+
+  return 'Không thể đặt lại mật khẩu. Vui lòng thử lại.';
 }
 
 export function changePassword(request: ChangePasswordRequest) {

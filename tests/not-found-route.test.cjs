@@ -62,7 +62,7 @@ test('actual App routes recover unknown root/admin/operator URLs and retain know
     assert.equal(matches.at(-1).route.path, '*', url);
     assert.equal(matches.at(-1).route.element.type.name, 'NotFoundPage', url);
   }
-  for (const url of ['/', '/login', '/forbidden', '/operator/first-login-change-password']) {
+  for (const url of ['/', '/login', '/forgot-password', '/forbidden', '/operator/first-login-change-password']) {
     assert.notEqual(matchRoutes(routes, url).at(-1).route.path, '*', url);
   }
 });
