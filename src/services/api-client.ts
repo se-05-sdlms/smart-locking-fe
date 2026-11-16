@@ -17,6 +17,8 @@ const API_REQUEST_TIMEOUT_MS = 10_000;
 type ApiRequestOptions = RequestInit & {
   auth?: boolean;
   retryOnUnauthorized?: boolean;
+  /** Domain-specific 403 codes recovered by the caller instead of global navigation. */
+  handledForbiddenCodes?: readonly string[];
 };
 
 type ErrorPayload = {
@@ -47,12 +49,15 @@ export function hasErrorCode(error: unknown, code: string): error is ApiError {
 }
 
 /** A 403 either asks for the first-login password change or denies access. */
-function handleForbiddenResponse(error: unknown) {
+function handleForbiddenResponse(
+  error: unknown,
+  handledCodes: readonly string[],
+) {
   if (!(error instanceof ApiError) || error.status !== 403) return;
 
   if (error.code === ErrorCodes.AUTH_PASSWORD_CHANGE_REQUIRED) {
     emitPasswordChangeRequired();
-  } else {
+  } else if (!error.code || !handledCodes.includes(error.code)) {
     emitForbidden();
   }
 }
@@ -252,7 +257,12 @@ export async function apiRequest<T>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {
-  const { auth = true, retryOnUnauthorized = true, ...requestInit } = options;
+  const {
+    auth = true,
+    retryOnUnauthorized = true,
+    handledForbiddenCodes = [],
+    ...requestInit
+  } = options;
 
   if (!auth) return performRequest<T>(path, requestInit);
 
@@ -295,13 +305,13 @@ export async function apiRequest<T>(
           refreshedSession.accessToken,
         );
       } catch (retryError) {
-        handleForbiddenResponse(retryError);
+        handleForbiddenResponse(retryError, handledForbiddenCodes);
 
         throw retryError;
       }
     }
 
-    handleForbiddenResponse(error);
+    handleForbiddenResponse(error, handledForbiddenCodes);
 
     throw error;
   }
