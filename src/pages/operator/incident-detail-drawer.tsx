@@ -29,6 +29,7 @@ import {
   INCIDENT_TEXT_MAX_LENGTH,
   INCIDENT_TRANSITION_TEXT,
 } from '@/constants/incident';
+import { useAuth } from '@/auth/auth-context';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import { maintenanceFormHref } from '@/services/maintenance-service';
 import {
@@ -36,10 +37,10 @@ import {
   canAddIncidentAction,
   formatIncidentActionType,
   formatIncidentType,
+  getAllowedTransitions,
   getIncidentDetail,
   getIncidentLoadErrorMessage,
   getIncidentMutationErrorMessage,
-  getOperatorTransitions,
   updateIncidentStatus,
   validateIncidentText,
 } from '@/services/incident-service';
@@ -247,7 +248,11 @@ export function IncidentDetailDrawer({
     }
   };
 
-  const transitions = incident ? getOperatorTransitions(incident.status) : [];
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'Administrator';
+  const transitions = incident
+    ? getAllowedTransitions(incident.status, user?.role)
+    : [];
   const canAddAction = incident ? canAddIncidentAction(incident.status) : false;
 
   return (
@@ -354,7 +359,7 @@ export function IncidentDetailDrawer({
                         </DetailRow>
                       ) : null}
                     </dl>
-                    {incident.status !== 'Resolved' ? (
+                    {incident.status !== 'Resolved' && !isAdmin ? (
                       <Button
                         className="self-start"
                         size="sm"
@@ -383,8 +388,9 @@ export function IncidentDetailDrawer({
                         </Alert.Indicator>
                         <Alert.Content>
                           <Alert.Description>
-                            Sự cố đã chuyển cấp. Quản trị viên sẽ tiếp tục xử
-                            lý; bạn vẫn có thể ghi nhận thêm hành động.
+                            {isAdmin
+                              ? 'Sự cố đã chuyển cấp lên Quản trị viên. Bạn có thể tiếp nhận điều tra hoặc đóng giải quyết sự cố này.'
+                              : 'Sự cố đã chuyển cấp. Quản trị viên sẽ tiếp tục xử lý; bạn vẫn có thể ghi nhận thêm hành động.'}
                           </Alert.Description>
                         </Alert.Content>
                       </Alert>

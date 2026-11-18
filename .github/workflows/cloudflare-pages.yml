@@ -26,6 +26,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: node --test tests/*.test.cjs
+      - name: Validate production API URL
+        if: github.ref == 'refs/heads/main' || github.base_ref == 'main'
+        env:
+          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          node --input-type=module -e "const url = new URL(process.env.VITE_API_BASE_URL); if (url.protocol !== 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)) throw new Error('Production API must use a public HTTPS URL');"
       - run: npm run build
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}

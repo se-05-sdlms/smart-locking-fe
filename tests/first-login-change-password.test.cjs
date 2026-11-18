@@ -20,6 +20,7 @@ function harness(request = async () => undefined) {
     if (cache.has(name)) return cache.get(name).exports;
     assert.ok([
       '@/auth/password-change',
+      '@/auth/password-reset',
       '@/services/auth-service',
       '@/types/auth',
       '@/constants/error-codes',

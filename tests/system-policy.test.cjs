@@ -45,6 +45,33 @@ const policyDto = (overrides = {}) => ({
 // Mapping
 // ---------------------------------------------------------------------------
 
+test('edit and clone preserve all eight server SLA values in outgoing payload', () => {
+  const { service } = harness();
+  const incidentSla = {
+    criticalAcknowledgeMinutes: 7, criticalResolveMinutes: 17,
+    highAcknowledgeMinutes: 27, highResolveMinutes: 37,
+    mediumAcknowledgeMinutes: 47, mediumResolveMinutes: 57,
+    lowAcknowledgeMinutes: 67, lowResolveMinutes: 77,
+  };
+  for (const isActive of [false, true]) {
+    const values = service.toPolicyFormValues(service.mapSystemPolicy(policyDto({ isActive, incidentSla })));
+    values.overdueFeePerHour = '123';
+    const payload = service.buildPolicyRequest(values);
+    assert.deepEqual(payload.incidentSla, incidentSla);
+    assert.equal(payload.overdueFeePerHour, 123);
+    assert.notEqual(values.incidentSla, incidentSla);
+    assert.notEqual(payload.incidentSla, values.incidentSla);
+  }
+});
+
+test('new policy and legacy missing/null SLA delegate defaults to backend', () => {
+  const { service } = harness();
+  for (const policy of [undefined, service.mapSystemPolicy(policyDto()), service.mapSystemPolicy(policyDto({ incidentSla: null }))]) {
+    const payload = service.buildPolicyRequest(service.toPolicyFormValues(policy));
+    assert.equal(Object.hasOwn(payload, 'incidentSla'), false);
+  }
+});
+
 test('policy state distinguishes active, draft and expired versions', () => {
   const { service } = harness();
 
