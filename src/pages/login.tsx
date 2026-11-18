@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Button,
   FieldError,
@@ -146,14 +146,9 @@ export default function LoginPage() {
               <Input placeholder="Nhập mật khẩu" />
               <FieldError />
             </TextField>
-            <div className="mt-3 text-right">
-              <Link
-                className="inline-flex min-h-11 items-center rounded text-sm text-neutral-900 underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-orange-600"
-                to="/forgot-password"
-              >
-                Quên mật khẩu?
-              </Link>
-            </div>
+            <p className="mt-3 text-right text-sm text-neutral-900 underline underline-offset-4">
+              Quên mật khẩu?
+            </p>
             {error && (
               <p className="mt-4 text-sm text-red-600" role="alert">
                 {error}

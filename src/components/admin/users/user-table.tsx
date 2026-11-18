@@ -8,6 +8,7 @@ import type {
 import ArrowsRotateRight from '@gravity-ui/icons/ArrowsRotateRight';
 import ChevronLeft from '@gravity-ui/icons/ChevronLeft';
 import ChevronRight from '@gravity-ui/icons/ChevronRight';
+import Copy from '@gravity-ui/icons/Copy';
 import Persons from '@gravity-ui/icons/Persons';
 import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 import {
@@ -60,12 +61,13 @@ const sortableHeaderClassName =
   'w-full min-w-0 cursor-pointer gap-1 whitespace-nowrap';
 
 const operatorColumnClassNames = {
-  fullName: 'w-[32%]',
-  phoneNumber: 'w-[16%]',
-  assignedLockerCount: 'w-[12%] text-center',
-  createdAt: 'w-[14%]',
-  status: 'w-[12%] text-center',
-  action: 'w-[14%] text-center',
+  employeeCode: 'w-[15%]',
+  fullName: 'w-[28%]',
+  phoneNumber: 'w-[14%]',
+  assignedLockerCount: 'w-[8%] text-center',
+  createdAt: 'w-[13%]',
+  status: 'w-[10%] text-center',
+  action: 'w-[12%] text-center',
 } as const;
 
 const residentColumnClassNames = {
@@ -338,6 +340,21 @@ export function UserTable({
             }}
           >
             <Table.Header>
+              {isOperatorTable ? (
+                <Table.Column
+                  allowsSorting
+                  className={`${tableColumnClassName} ${operatorColumnClassNames.employeeCode}`}
+                  id="employeeCode"
+                  textValue="Mã nhân viên"
+                >
+                  {({ sortDirection }) => (
+                    <SortableColumnLabel
+                      label="Mã nhân viên"
+                      sortDirection={sortDirection}
+                    />
+                  )}
+                </Table.Column>
+              ) : null}
               <Table.Column
                 allowsSorting
                 isRowHeader
@@ -455,6 +472,34 @@ export function UserTable({
                   className={tableRowClassName}
                   id={user.id}
                 >
+                  {isOperatorTable && user.role === 'LOCKER_OPERATOR' ? (
+                    <Table.Cell className={tableCellClassName}>
+                      <div className="flex min-w-0 items-center gap-1">
+                        <span
+                          className="truncate font-mono text-sm font-medium"
+                          title={`#${user.employeeCode}`}
+                        >
+                          #{user.employeeCode}
+                        </span>
+                        <Button
+                          isIconOnly
+                          aria-label={`Sao chép mã nhân viên ${user.employeeCode}`}
+                          className="shrink-0"
+                          size="sm"
+                          variant="ghost"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                          onPress={() =>
+                            void navigator.clipboard.writeText(
+                              user.employeeCode,
+                            )
+                          }
+                        >
+                          <Copy aria-hidden="true" className="size-4" />
+                        </Button>
+                      </div>
+                    </Table.Cell>
+                  ) : null}
                   <Table.Cell className={tableCellClassName}>
                     <div className="flex min-w-0 items-center gap-3">
                       <UserAvatar user={user} />
