@@ -28,6 +28,8 @@ import CircleCheck from '@gravity-ui/icons/CircleCheck';
 import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
 import Xmark from '@gravity-ui/icons/Xmark';
 
+import { IncidentDetailDrawer } from './incident-detail-drawer';
+
 import { useAuth } from '@/auth/auth-context';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
@@ -47,6 +49,7 @@ import {
   priorityColor,
   priorityLabel,
   TASK_PAGE_SIZE,
+  taskAssigneeLabel,
   taskKey,
   taskKindLabels,
   taskSourceHref,
@@ -214,19 +217,28 @@ function HandoverEntry({
   );
 }
 
-function TaskDrawer({
+function HandoverDrawer({
   task,
   canAct,
+  mode = 'operator',
   onClose,
   onAccessLost,
 }: {
   task: OperatorTask;
   canAct: boolean;
+  mode?: 'operator' | 'admin';
   onClose: () => void;
   onAccessLost: () => void;
 }) {
   const { state, reload, refresh } = useAsyncResource(
-    (signal) => getHandovers(task, signal),
+    async (signal) => {
+      try {
+        return await getHandovers(task, signal);
+      } catch (error) {
+        if (!signal.aborted && isAccessLost(error)) onAccessLost();
+        throw error;
+      }
+    },
     getTaskErrorMessage,
     [task.kind, task.id],
   );
@@ -303,14 +315,16 @@ function TaskDrawer({
                 {taskKindLabels[task.kind]} · Tủ {task.lockerCode} ·{' '}
                 {priorityLabel(task.priority)} · {taskStatusLabel(task.status)}
               </p>
-              {canAct ? (
-                <Link
-                  className="text-sm text-accent underline"
-                  to={taskSourceHref(task)}
-                >
-                  Mở hồ sơ gốc
-                </Link>
-              ) : null}
+              <p className="break-words text-sm">
+                <span className="text-muted">Người phụ trách: </span>
+                {taskAssigneeLabel(task)}
+              </p>
+              <Link
+                className="text-sm text-accent underline"
+                to={taskSourceHref(task, mode)}
+              >
+                Mở hồ sơ gốc
+              </Link>
 
               {canAct ? (
                 <Card>
@@ -372,6 +386,43 @@ function TaskDrawer({
   );
 }
 
+function TaskDrawer({
+  task,
+  canAct,
+  mode = 'operator',
+  onClose,
+  onAccessLost,
+}: {
+  task: OperatorTask;
+  canAct: boolean;
+  mode?: 'operator' | 'admin';
+  onClose: () => void;
+  onAccessLost: () => void;
+}) {
+  if (task.kind === 'incident') {
+    return (
+      <IncidentDetailDrawer
+        isOpen
+        incidentId={task.id}
+        onChanged={onClose}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) onClose();
+        }}
+      />
+    );
+  }
+
+  return (
+    <HandoverDrawer
+      canAct={canAct}
+      mode={mode}
+      task={task}
+      onAccessLost={onAccessLost}
+      onClose={onClose}
+    />
+  );
+}
+
 /** Operators act on lockers they hold now; admins get a read-only system view. */
 export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
   const canAct = mode === 'operator';
@@ -379,7 +430,7 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
   const [lockerId, setLockerId] = useState('');
   const [kind, setKind] = useState<TaskKind | ''>('');
   const [open, setOpen] = useState<OperatorTask | null>(null);
-  const { state, reload } = useAsyncResource(
+  const { state, setState, reload } = useAsyncResource(
     async (signal) => {
       const items: OperatorTask[] = [];
       let hasMore = false;
@@ -405,7 +456,15 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
   );
 
   const accessLost = () => {
+    toast.warning('Quyền xử lý công việc đã thay đổi', {
+      description:
+        'Hồ sơ đã đóng và danh sách được tải lại. Bạn vẫn có thể xử lý các tủ còn quyền.',
+    });
     setOpen(null);
+    setLockerId('');
+    // Permission loss invalidates the whole cached view. Do not leave stale
+    // tasks actionable if reloading is slow or fails.
+    setState({ status: 'loading' });
     reload();
   };
 
@@ -469,6 +528,7 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
                   </Table.Column>
                   <Table.Column id="kind">Loại</Table.Column>
                   <Table.Column id="locker">Tủ</Table.Column>
+                  <Table.Column id="assignee">Người phụ trách</Table.Column>
                   <Table.Column id="priority">Ưu tiên</Table.Column>
                   <Table.Column id="status">Trạng thái</Table.Column>
                   <Table.Column id="due">Hạn</Table.Column>
@@ -499,6 +559,11 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
                         {taskKindLabels[task.kind] ?? task.kind}
                       </Table.Cell>
                       <Table.Cell>{task.lockerCode}</Table.Cell>
+                      <Table.Cell>
+                        <span className="block max-w-56 break-words">
+                          {taskAssigneeLabel(task)}
+                        </span>
+                      </Table.Cell>
                       <Table.Cell>
                         <Chip
                           color={priorityColor(task.priority)}
@@ -541,9 +606,13 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
         <TaskDrawer
           key={taskKey(open)}
           canAct={canAct}
+          mode={mode}
           task={open}
           onAccessLost={accessLost}
-          onClose={() => setOpen(null)}
+          onClose={() => {
+            setOpen(null);
+            reload();
+          }}
         />
       ) : null}
     </section>

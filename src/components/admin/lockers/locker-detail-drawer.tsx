@@ -5,7 +5,7 @@ import type {
   CompartmentFormValues,
 } from '@/types/admin-locker';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   AlertDialog,
@@ -43,6 +43,7 @@ import { LockerLocationSection } from '@/components/admin/lockers/locker-locatio
 import { SupportSummary } from '@/components/admin/support/locker-support-modal';
 import { LockerQrModal } from '@/components/lockers/locker-qr-modal';
 import { useAsyncResource } from '@/hooks/use-async-resource';
+import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
 import {
   getLockerSupport,
   getSupportErrorMessage,
@@ -144,6 +145,14 @@ export function LockerDetailDrawer({
     [lockerId],
   );
 
+  useEffect(() => {
+    if (isOpen) {
+      refresh();
+    }
+  }, [isOpen, refresh]);
+
+  useOperationsRealtime(isOpen && lockerId ? [lockerId] : [], refresh);
+
   const [compartment, setCompartment] =
     useState<CompartmentFormValues>(EMPTY_COMPARTMENT);
   const [compartmentErrors, setCompartmentErrors] =
@@ -197,7 +206,22 @@ export function LockerDetailDrawer({
   const isInactive = locker?.operationalStatus === 'Inactive';
 
   const updateCompartment = (patch: Partial<CompartmentFormValues>) => {
-    const next = { ...compartment, ...patch };
+    let next = { ...compartment, ...patch };
+    if (
+      patch.hardwareChannel !== undefined &&
+      (!compartment.code || compartment.code === compartment.hardwareChannel)
+    ) {
+      next = {
+        ...next,
+        code: patch.hardwareChannel,
+        hardwareCode: patch.hardwareChannel,
+      };
+    } else if (patch.code !== undefined) {
+      next = {
+        ...next,
+        hardwareCode: patch.code || next.hardwareChannel,
+      };
+    }
 
     setCompartment(next);
     if (Object.keys(compartmentErrors).length) {
@@ -418,11 +442,10 @@ export function LockerDetailDrawer({
                               className="flex flex-wrap items-center justify-between gap-2 py-2"
                             >
                               <span className="text-sm">
-                                <strong>{item.code}</strong>
+                                <strong>Ngăn {item.code}</strong>
                                 <span className="text-muted">
                                   {' '}
-                                  · {item.hardwareCode} · kênh{' '}
-                                  {item.hardwareChannel}
+                                  · kênh {item.hardwareChannel}
                                 </span>
                               </span>
                               <span className="flex gap-2">
@@ -523,39 +546,7 @@ export function LockerDetailDrawer({
                           <span className="text-sm font-semibold">
                             Thêm ngăn
                           </span>
-                          <div className="grid gap-3 sm:grid-cols-3">
-                            <TextField
-                              fullWidth
-                              isRequired
-                              isDisabled={isAddingCompartment}
-                              isInvalid={Boolean(compartmentErrors.code)}
-                              maxLength={LOCKER_FIELD_LIMITS.compartmentCode}
-                              value={compartment.code}
-                              onChange={(code) => updateCompartment({ code })}
-                            >
-                              <Label>Mã ngăn</Label>
-                              <Input placeholder="A01" variant="secondary" />
-                              <FieldError>{compartmentErrors.code}</FieldError>
-                            </TextField>
-                            <TextField
-                              fullWidth
-                              isRequired
-                              isDisabled={isAddingCompartment}
-                              isInvalid={Boolean(
-                                compartmentErrors.hardwareCode,
-                              )}
-                              maxLength={LOCKER_FIELD_LIMITS.hardwareCode}
-                              value={compartment.hardwareCode}
-                              onChange={(hardwareCode) =>
-                                updateCompartment({ hardwareCode })
-                              }
-                            >
-                              <Label>Mã phần cứng</Label>
-                              <Input placeholder="CH01" variant="secondary" />
-                              <FieldError>
-                                {compartmentErrors.hardwareCode}
-                              </FieldError>
-                            </TextField>
+                          <div className="grid gap-3 sm:grid-cols-2">
                             <TextField
                               fullWidth
                               isRequired
@@ -574,6 +565,18 @@ export function LockerDetailDrawer({
                               <FieldError>
                                 {compartmentErrors.hardwareChannel}
                               </FieldError>
+                            </TextField>
+                            <TextField
+                              fullWidth
+                              isDisabled={isAddingCompartment}
+                              isInvalid={Boolean(compartmentErrors.code)}
+                              maxLength={LOCKER_FIELD_LIMITS.compartmentCode}
+                              value={compartment.code}
+                              onChange={(code) => updateCompartment({ code })}
+                            >
+                              <Label>Mã ngăn</Label>
+                              <Input placeholder="Tự động theo kênh (VD: 1)" variant="secondary" />
+                              <FieldError>{compartmentErrors.code}</FieldError>
                             </TextField>
                           </div>
                           {compartmentError ? (
@@ -606,12 +609,6 @@ export function LockerDetailDrawer({
                   >
                     <TrashBin aria-hidden="true" className="size-4" />
                     Vô hiệu hóa
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    onPress={() => setIsCommissioningOpen(true)}
-                  >
-                    Quy trình bàn giao
                   </Button>
                   <Button variant="secondary" onPress={() => setIsQrOpen(true)}>
                     <Qrcode aria-hidden="true" className="size-4" />
