@@ -46,6 +46,7 @@ import {
   MAX_STORAGE_HOURS,
   OVERDUE_START_AFTER_HOURS,
   POLICY_STATE_DISPLAY,
+  toLocalDateTimeInput,
   toPolicyFormValues,
   updateSystemPolicy,
   validatePolicyForm,
@@ -323,6 +324,10 @@ function PolicyFormView({
   const [isSaving, setIsSaving] = useState(false);
   const pending = useRef(false);
   const isDirty = isPolicyFormDirty(initial, values);
+  const nowInputMin = useMemo(
+    () => toLocalDateTimeInput(new Date().toISOString()),
+    [],
+  );
 
   // Warn before leaving the page with unsaved changes.
   useEffect(() => {
@@ -637,7 +642,7 @@ function PolicyFormView({
                 onChange={(effectiveFrom) => update({ effectiveFrom })}
               >
                 <Label>Hiệu lực từ</Label>
-                <Input variant="secondary" />
+                <Input min={nowInputMin} variant="secondary" />
                 <Description>
                   Theo múi giờ của máy bạn ({TIME_ZONE}).
                 </Description>

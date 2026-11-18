@@ -193,17 +193,19 @@ export function validateCompartmentForm(
   values: CompartmentFormValues,
 ): CompartmentFormErrors {
   const channel = values.hardwareChannel.trim();
+  const effectiveCode = values.code.trim() || channel;
+  const effectiveHardwareCode =
+    values.hardwareCode?.trim() || effectiveCode || channel;
   const errors: CompartmentFormErrors = {
     code: requireText(
-      values.code,
+      effectiveCode,
       'mã ngăn',
       LOCKER_FIELD_LIMITS.compartmentCode,
     ),
-    hardwareCode: requireText(
-      values.hardwareCode,
-      'mã phần cứng',
-      LOCKER_FIELD_LIMITS.hardwareCode,
-    ),
+    hardwareCode:
+      effectiveHardwareCode.length > LOCKER_FIELD_LIMITS.hardwareCode
+        ? `mã phần cứng tối đa ${LOCKER_FIELD_LIMITS.hardwareCode} ký tự.`
+        : undefined,
     hardwareChannel: !channel
       ? 'Vui lòng nhập kênh phần cứng.'
       : !/^\d+$/.test(channel) || Number(channel) <= 0
@@ -239,10 +241,13 @@ export function buildUpdateLockerRequest(
 export function buildCreateCompartmentRequest(
   values: CompartmentFormValues,
 ): CreateCompartmentRequestDto {
+  const channel = values.hardwareChannel.trim();
+  const code = values.code.trim() || channel;
+  const hardwareCode = values.hardwareCode?.trim() || code || channel;
   return {
-    code: values.code.trim(),
-    hardwareCode: values.hardwareCode.trim(),
-    hardwareChannel: Number(values.hardwareChannel.trim()),
+    code,
+    hardwareCode,
+    hardwareChannel: Number(channel),
   };
 }
 

@@ -28,6 +28,8 @@ import CircleCheck from '@gravity-ui/icons/CircleCheck';
 import CircleExclamation from '@gravity-ui/icons/CircleExclamation';
 import Xmark from '@gravity-ui/icons/Xmark';
 
+import { IncidentDetailDrawer } from './incident-detail-drawer';
+
 import { useAuth } from '@/auth/auth-context';
 import { useAsyncResource } from '@/hooks/use-async-resource';
 import {
@@ -215,14 +217,16 @@ function HandoverEntry({
   );
 }
 
-function TaskDrawer({
+function HandoverDrawer({
   task,
   canAct,
+  mode = 'operator',
   onClose,
   onAccessLost,
 }: {
   task: OperatorTask;
   canAct: boolean;
+  mode?: 'operator' | 'admin';
   onClose: () => void;
   onAccessLost: () => void;
 }) {
@@ -315,14 +319,12 @@ function TaskDrawer({
                 <span className="text-muted">Người phụ trách: </span>
                 {taskAssigneeLabel(task)}
               </p>
-              {canAct ? (
-                <Link
-                  className="text-sm text-accent underline"
-                  to={taskSourceHref(task)}
-                >
-                  Mở hồ sơ gốc
-                </Link>
-              ) : null}
+              <Link
+                className="text-sm text-accent underline"
+                to={taskSourceHref(task, mode)}
+              >
+                Mở hồ sơ gốc
+              </Link>
 
               {canAct ? (
                 <Card>
@@ -381,6 +383,43 @@ function TaskDrawer({
         </Drawer.Content>
       </Drawer.Backdrop>
     </Drawer>
+  );
+}
+
+function TaskDrawer({
+  task,
+  canAct,
+  mode = 'operator',
+  onClose,
+  onAccessLost,
+}: {
+  task: OperatorTask;
+  canAct: boolean;
+  mode?: 'operator' | 'admin';
+  onClose: () => void;
+  onAccessLost: () => void;
+}) {
+  if (task.kind === 'incident') {
+    return (
+      <IncidentDetailDrawer
+        isOpen
+        incidentId={task.id}
+        onChanged={onClose}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) onClose();
+        }}
+      />
+    );
+  }
+
+  return (
+    <HandoverDrawer
+      canAct={canAct}
+      mode={mode}
+      task={task}
+      onAccessLost={onAccessLost}
+      onClose={onClose}
+    />
   );
 }
 
@@ -567,9 +606,13 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
         <TaskDrawer
           key={taskKey(open)}
           canAct={canAct}
+          mode={mode}
           task={open}
           onAccessLost={accessLost}
-          onClose={() => setOpen(null)}
+          onClose={() => {
+            setOpen(null);
+            reload();
+          }}
         />
       ) : null}
     </section>

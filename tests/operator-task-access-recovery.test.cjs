@@ -41,6 +41,7 @@ function harness(initialTasks) {
     if (name.startsWith('@gravity-ui/')) return { default: () => null };
     if (name === 'react-router-dom') return { Link: 'Link' };
     if (name === '@/auth/auth-context') return { useAuth: () => ({ user: { id: 'operator' } }) };
+    if (name === './incident-detail-drawer' || name === '@/pages/operator/incident-detail-drawer') return { IncidentDetailDrawer: () => null };
     if (name === '@/services/api-client') return { ApiError, apiRequest: async () => {
       calls++;
       if (calls === 1) return { items: initialTasks ?? [task('a'), task('b')], hasMore: false };

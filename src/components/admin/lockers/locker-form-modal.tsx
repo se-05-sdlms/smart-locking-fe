@@ -86,7 +86,7 @@ export function LockerFormModal({
       toast.success(isEdit ? 'Đã cập nhật tủ' : 'Đã khai báo tủ', {
         description: isEdit
           ? saved.code
-          : `${saved.code} chưa hoạt động. Mở chi tiết tủ → Quy trình bàn giao để cấu hình thiết bị.`,
+          : `${saved.code} đã được tạo và sẵn sàng hoạt động. Tủ sẽ tự Online khi thiết bị gửi tín hiệu mạng.`,
         indicator: <CircleCheck aria-hidden="true" className="size-5" />,
       });
       onSaved(saved);
