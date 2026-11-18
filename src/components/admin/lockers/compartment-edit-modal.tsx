@@ -52,11 +52,7 @@ export function CompartmentEditModal({
   const pending = useRef(false);
 
   const update = (patch: Partial<CompartmentFormValues>) => {
-    const next = {
-      ...values,
-      ...patch,
-      hardwareCode: patch.code ?? patch.hardwareChannel ?? values.code ?? values.hardwareChannel,
-    };
+    const next = { ...values, ...patch };
 
     setValues(next);
     if (Object.keys(errors).length) setErrors(validateCompartmentForm(next));
@@ -109,22 +105,6 @@ export function CompartmentEditModal({
                 <TextField
                   fullWidth
                   isRequired
-                  inputMode="numeric"
-                  isDisabled={isSaving}
-                  isInvalid={Boolean(errors.hardwareChannel)}
-                  value={values.hardwareChannel}
-                  onChange={(hardwareChannel) => update({ hardwareChannel })}
-                >
-                  <Label>Kênh</Label>
-                  <Input variant="secondary" />
-                  <Description>
-                    Kênh relay của ngăn trên ESP32 (1, 2, 3, 4...).
-                  </Description>
-                  <FieldError>{errors.hardwareChannel}</FieldError>
-                </TextField>
-                <TextField
-                  fullWidth
-                  isRequired
                   isDisabled={isSaving}
                   isInvalid={Boolean(errors.code)}
                   maxLength={LOCKER_FIELD_LIMITS.compartmentCode}
@@ -134,6 +114,36 @@ export function CompartmentEditModal({
                   <Label>Mã ngăn</Label>
                   <Input variant="secondary" />
                   <FieldError>{errors.code}</FieldError>
+                </TextField>
+                <TextField
+                  fullWidth
+                  isRequired
+                  isDisabled={isSaving}
+                  isInvalid={Boolean(errors.hardwareCode)}
+                  maxLength={LOCKER_FIELD_LIMITS.hardwareCode}
+                  value={values.hardwareCode}
+                  onChange={(hardwareCode) => update({ hardwareCode })}
+                >
+                  <Label>Mã phần cứng</Label>
+                  <Input variant="secondary" />
+                  <FieldError>{errors.hardwareCode}</FieldError>
+                </TextField>
+                <TextField
+                  fullWidth
+                  isRequired
+                  inputMode="numeric"
+                  isDisabled={isSaving}
+                  isInvalid={Boolean(errors.hardwareChannel)}
+                  value={values.hardwareChannel}
+                  onChange={(hardwareChannel) => update({ hardwareChannel })}
+                >
+                  <Label>Kênh phần cứng</Label>
+                  <Input variant="secondary" />
+                  <Description>
+                    Phải khớp kênh relay của ngăn trên ESP32; không trùng ngăn
+                    khác trong tủ.
+                  </Description>
+                  <FieldError>{errors.hardwareChannel}</FieldError>
                 </TextField>
                 <p className="text-sm text-muted">
                   Chỉ sửa được khi ngăn không còn bưu kiện, hàng trả hoặc lượt

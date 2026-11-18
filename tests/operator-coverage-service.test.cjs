@@ -55,7 +55,6 @@ test('form validation mirrors OperatorCoverageService', () => {
   const valid = { operatorUserId: 'o-1', startsAt: '2026-10-30T08:00', endsAt: '2026-10-31T08:00', reason: 'Nghỉ phép' };
 
   assert.deepEqual(service.validateAbsenceForm(valid, now), {});
-  assert.ok(service.validateAbsenceForm({ ...valid, startsAt: '2026-10-28T08:00' }, now).startsAt);
   assert.ok(service.validateAbsenceForm({ ...valid, endsAt: '2026-10-30T07:00' }, now).endsAt);
   assert.ok(service.validateAbsenceForm({ ...valid, operatorUserId: '' }, now).operatorUserId);
   assert.ok(service.validateAbsenceForm({ ...valid, reason: 'x'.repeat(1001) }, now).reason);

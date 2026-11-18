@@ -4,7 +4,6 @@ import { Avatar, Button, Surface, Tooltip } from '@heroui/react';
 import ArrowRightFromSquare from '@gravity-ui/icons/ArrowRightFromSquare';
 import ChevronsCollapseHorizontal from '@gravity-ui/icons/ChevronsCollapseHorizontal';
 import ChevronsExpandHorizontal from '@gravity-ui/icons/ChevronsExpandHorizontal';
-import Xmark from '@gravity-ui/icons/Xmark';
 import { NavLink, useNavigate } from 'react-router-dom';
 import clsx from 'clsx';
 
@@ -16,8 +15,6 @@ type AppSidebarProps = {
   role: AppRole;
   isCollapsed: boolean;
   onCollapsedChange: (isCollapsed: boolean) => void;
-  isMobile?: boolean;
-  onNavigate?: () => void;
 };
 
 const roleDetails: Record<AppRole, { identity: string; title: string }> = {
@@ -28,11 +25,9 @@ const roleDetails: Record<AppRole, { identity: string; title: string }> = {
 function SidebarNavigationItem({
   item,
   isCollapsed,
-  onNavigate,
 }: {
   item: NavigationItem;
   isCollapsed: boolean;
-  onNavigate?: () => void;
 }) {
   const link = (
     <NavLink
@@ -48,7 +43,6 @@ function SidebarNavigationItem({
       }
       end={item.path === `/${item.role}`}
       to={item.path}
-      onClick={onNavigate}
     >
       <item.icon aria-hidden="true" className="size-5 shrink-0" />
       <span className={clsx(isCollapsed && 'sr-only')}>{item.label}</span>
@@ -69,8 +63,6 @@ export function AppSidebar({
   role,
   isCollapsed,
   onCollapsedChange,
-  isMobile = false,
-  onNavigate,
 }: AppSidebarProps) {
   const navigate = useNavigate();
   const { isLoggingOut, logout, user } = useAuth();
@@ -85,9 +77,8 @@ export function AppSidebar({
   return (
     <Surface
       className={clsx(
-        'flex min-h-0 shrink-0 flex-col bg-background transition-[width] duration-200 ease-out',
-        isMobile ? 'h-full w-full' : 'h-dvh',
-        !isMobile && (isCollapsed ? 'w-[72px]' : 'w-64'),
+        'flex h-screen shrink-0 flex-col bg-background transition-[width] duration-200 ease-out',
+        isCollapsed ? 'w-[72px]' : 'w-64',
       )}
     >
       <div className="flex h-20 items-center px-4">
@@ -117,22 +108,16 @@ export function AppSidebar({
             </span>
             <Button
               isIconOnly
-              aria-label={
-                isMobile ? 'Đóng menu điều hướng' : 'Thu gọn thanh điều hướng'
-              }
+              aria-label="Thu gọn thanh điều hướng"
               className="ml-auto shrink-0"
               size="sm"
               variant="ghost"
               onPress={() => onCollapsedChange(true)}
             >
-              {isMobile ? (
-                <Xmark aria-hidden="true" className="size-5" />
-              ) : (
-                <ChevronsCollapseHorizontal
-                  aria-hidden="true"
-                  className="size-5"
-                />
-              )}
+              <ChevronsCollapseHorizontal
+                aria-hidden="true"
+                className="size-5"
+              />
             </Button>
           </div>
         )}
@@ -150,7 +135,6 @@ export function AppSidebar({
             key={item.path}
             isCollapsed={isCollapsed}
             item={item}
-            onNavigate={onNavigate}
           />
         ))}
       </nav>
