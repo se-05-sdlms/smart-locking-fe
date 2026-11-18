@@ -40,6 +40,7 @@ export const INCIDENT_TYPE_LABELS: Record<string, string> = {
   Retrieval: 'Nhận hàng',
   Return: 'Hàng gửi trả',
   Payment: 'Thanh toán',
+  DoorOpenTooLong: 'Cửa mở quá lâu',
   Other: 'Khác',
 };
 
