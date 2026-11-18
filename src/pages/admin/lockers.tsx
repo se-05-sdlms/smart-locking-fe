@@ -35,7 +35,6 @@ import {
   ADMIN_OPERATIONAL_STATUS_DISPLAY,
 } from '@/constants/admin-locker';
 import { useAsyncResource } from '@/hooks/use-async-resource';
-import { useOperationsRealtime } from '@/hooks/use-operations-realtime';
 import {
   filterAdminLockers,
   getAdminLockerErrorMessage,
@@ -58,8 +57,6 @@ export default function AdminLockersPage() {
   );
 
   const lockers = useMemo(() => state.data ?? [], [state.data]);
-  const lockerIds = useMemo(() => lockers.map((l) => l.id), [lockers]);
-  useOperationsRealtime(lockerIds, refresh);
   const filtered = useMemo(
     () => filterAdminLockers(lockers, keyword, filter),
     [filter, keyword, lockers],

@@ -24,8 +24,6 @@ export type OperatorTask = {
   dueAt: string | null;
   createdAt: string;
   sourcePath: string;
-  assignedOperatorUserId: string | null;
-  assignedOperatorName: string | null;
 };
 
 export type OperatorTaskPage = {
@@ -85,9 +83,6 @@ const statusLabels: Record<string, string> = {
   Open: 'Mới',
   Acknowledged: 'Đã tiếp nhận',
   InProgress: 'Đang xử lý',
-  Investigating: 'Đang điều tra',
-  Escalated: 'Đã chuyển cấp',
-  Resolved: 'Đã giải quyết',
   Stored: 'Đang lưu trong tủ',
   Overdue: 'Quá hạn',
 };
@@ -98,14 +93,6 @@ export const priorityLabel = (priority: string) =>
 export const taskStatusLabel = (status: string) =>
   statusLabels[status] ?? status;
 
-// Locker coverage and handover acknowledgement do not assign individual work.
-export const taskAssigneeLabel = (
-  task: Pick<OperatorTask, 'assignedOperatorUserId' | 'assignedOperatorName'>,
-) =>
-  task.assignedOperatorUserId
-    ? task.assignedOperatorName || task.assignedOperatorUserId
-    : 'Chưa phân công riêng';
-
 export const priorityColor = (priority: string) =>
   priority === 'Critical'
     ? ('danger' as const)
@@ -113,15 +100,10 @@ export const priorityColor = (priority: string) =>
       ? ('warning' as const)
       : ('default' as const);
 
-/** Where the original record is handled in the operator or admin console. */
-export function taskSourceHref(
-  task: Pick<OperatorTask, 'kind' | 'id'>,
-  role: 'admin' | 'operator' = 'operator',
-) {
-  const base = role === 'admin' ? '/admin' : '/operator';
-
+/** Where the original record is handled in the operator console. */
+export function taskSourceHref(task: Pick<OperatorTask, 'kind' | 'id'>) {
   if (task.kind === 'incident') {
-    return `${base}/incidents?incident=${encodeURIComponent(task.id)}`;
+    return `/operator/incidents?incident=${encodeURIComponent(task.id)}`;
   }
   if (task.kind === 'maintenance') {
     return `/operator/maintenance?request=${encodeURIComponent(task.id)}`;
@@ -195,28 +177,19 @@ export const listTasks = (offset: number, signal?: AbortSignal) =>
     { signal },
   );
 
-const resourceAccessOptions = {
-  handledForbiddenCodes: [ErrorCodes.LOCKER_ACCESS_DENIED],
-};
-
 const taskPath = (task: Pick<OperatorTask, 'kind' | 'id'>) =>
   `/api/operator-tasks/${task.kind}/${encodeURIComponent(task.id)}/handovers`;
 
 export const getHandovers = (
   task: Pick<OperatorTask, 'kind' | 'id'>,
   signal?: AbortSignal,
-) =>
-  apiRequest<TaskHandover[]>(taskPath(task), {
-    ...resourceAccessOptions,
-    signal,
-  });
+) => apiRequest<TaskHandover[]>(taskPath(task), { signal });
 
 export const createHandover = (
   task: Pick<OperatorTask, 'kind' | 'id'>,
   values: HandoverFormValues,
 ) =>
   apiRequest<TaskHandover>(taskPath(task), {
-    ...resourceAccessOptions,
     method: 'POST',
     body: JSON.stringify({
       workDone: values.workDone.trim(),
@@ -229,18 +202,12 @@ export const createHandover = (
 export const acknowledgeHandover = (handoverId: string, notes: string) =>
   apiRequest<TaskAcknowledgement>(
     `/api/operator-tasks/handovers/${encodeURIComponent(handoverId)}/acknowledgements`,
-    {
-      ...resourceAccessOptions,
-      method: 'POST',
-      body: JSON.stringify({ notes: notes.trim() }),
-    },
+    { method: 'POST', body: JSON.stringify({ notes: notes.trim() }) },
   );
 
 /** True when the user lost access (e.g. a temporary assignment ended). */
 export const isAccessLost = (error: unknown) =>
-  error instanceof ApiError &&
-  error.status === 403 &&
-  error.code === ErrorCodes.LOCKER_ACCESS_DENIED;
+  error instanceof ApiError && error.status === 403;
 
 export function getTaskErrorMessage(error: unknown) {
   if (error instanceof ApiError) {

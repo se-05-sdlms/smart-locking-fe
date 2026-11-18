@@ -4,9 +4,7 @@ import { Route, Routes } from 'react-router-dom';
 
 import EmptyRoutePage from '@/pages/empty-route';
 import LoginPage from '@/pages/login';
-import ForgotPasswordPage from '@/pages/forgot-password';
 import ForbiddenPage from '@/pages/forbidden';
-import NotFoundPage from '@/pages/not-found';
 import UserManagementPage from '@/pages/admin/user-management-page';
 import AdminDashboardPage from '@/pages/admin/dashboard';
 import AdminLockersPage from '@/pages/admin/lockers';
@@ -122,8 +120,6 @@ function roleRoute(role: AppRole) {
                 <AdminOperatorAssignmentsPage />
               ) : item.path === '/admin/operator-absences' ? (
                 <OperatorAbsencesView mode="admin" />
-              ) : item.path === '/admin/incidents' ? (
-                <OperatorIncidentsPage />
               ) : item.path === '/admin/operator-tasks' ? (
                 <OperatorTasksView mode="admin" />
               ) : item.path === '/admin/payments' ? (
@@ -153,7 +149,6 @@ function App() {
     <Routes>
       <Route element={<LoginPage />} path="/" />
       <Route element={<LoginPage />} path="/login" />
-      <Route element={<ForgotPasswordPage />} path="/forgot-password" />
       <Route
         element={
           <RequirePasswordChange>
@@ -164,7 +159,6 @@ function App() {
       />
       {(['admin', 'operator'] as const).map(roleRoute)}
       <Route element={<ForbiddenPage />} path="/forbidden" />
-      <Route element={<NotFoundPage />} path="*" />
     </Routes>
   );
 }

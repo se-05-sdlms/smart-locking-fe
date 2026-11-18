@@ -53,12 +53,6 @@ const adminNavigation: NavigationItem[] = [
     role: 'admin',
   },
   {
-    label: 'Sự cố',
-    path: '/admin/incidents',
-    icon: TriangleExclamation,
-    role: 'admin',
-  },
-  {
     label: 'Công việc vận hành',
     path: '/admin/operator-tasks',
     icon: ListCheck,

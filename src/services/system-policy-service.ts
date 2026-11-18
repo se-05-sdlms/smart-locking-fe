@@ -6,17 +6,6 @@ import { ErrorCodes } from '@/constants/error-codes';
 /** `DeliveryApprovalMode`: 0 Auto, 1 Manual. */
 export type ApprovalMode = 'Auto' | 'Manual';
 
-export type IncidentSlaPolicy = {
-  criticalAcknowledgeMinutes: number;
-  criticalResolveMinutes: number;
-  highAcknowledgeMinutes: number;
-  highResolveMinutes: number;
-  mediumAcknowledgeMinutes: number;
-  mediumResolveMinutes: number;
-  lowAcknowledgeMinutes: number;
-  lowResolveMinutes: number;
-};
-
 export type SystemPolicyDto = {
   id: string;
   version: number;
@@ -45,7 +34,6 @@ export type SystemPolicyDto = {
   operatorReplacementMaxLoad?: number | null;
   operatorReplacementAreas?: string[] | null;
   operatorReplacementEligibleUserIds?: string[] | null;
-  incidentSla?: IncidentSlaPolicy | null;
 };
 
 export type SaveSystemPolicyRequestDto = Omit<
@@ -84,8 +72,6 @@ export type PolicyFormValues = {
   /** One service area per line (or comma separated). */
   replacementAreas: string;
   replacementEligibleUserIds: string[];
-  /** Preserve server SLA when editing or cloning a policy version. */
-  incidentSla?: IncidentSlaPolicy;
 };
 
 export type PolicyFormErrors = Partial<Record<keyof PolicyFormValues, string>>;
@@ -175,7 +161,6 @@ export function toPolicyFormValues(
     replacementEligibleUserIds: [
       ...(policy?.operatorReplacementEligibleUserIds ?? []),
     ],
-    ...(policy?.incidentSla ? { incidentSla: { ...policy.incidentSla } } : {}),
   };
 }
 
@@ -307,7 +292,6 @@ export function buildPolicyRequest(
     enableBluetoothUnlock: values.enableBluetoothUnlock,
     // datetime-local is local time; send an absolute instant.
     effectiveFrom: new Date(values.effectiveFrom).toISOString(),
-    ...(values.incidentSla ? { incidentSla: { ...values.incidentSla } } : {}),
     ...(isReplacementConfigured(values)
       ? {
           operatorReplacementRadiusKm: Number(
