@@ -175,6 +175,15 @@ test('escalated and resolved incidents offer no operator transition', () => {
   assert.deepEqual(service.getOperatorTransitions('Unknown'), []);
 });
 
+test('admin transitions allow investigating/resolving and never escalating', () => {
+  const { service } = harness();
+
+  assert.deepEqual(service.getAllowedTransitions('Open', 'Administrator'), ['Investigating']);
+  assert.deepEqual(service.getAllowedTransitions('Investigating', 'Administrator'), ['Resolved']);
+  assert.deepEqual(service.getAllowedTransitions('Escalated', 'Administrator'), ['Investigating', 'Resolved']);
+  assert.deepEqual(service.getAllowedTransitions('Resolved', 'Administrator'), []);
+});
+
 test('actions can be added until the incident is resolved', () => {
   const { service } = harness();
 

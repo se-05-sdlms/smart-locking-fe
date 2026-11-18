@@ -122,6 +122,8 @@ function roleRoute(role: AppRole) {
                 <AdminOperatorAssignmentsPage />
               ) : item.path === '/admin/operator-absences' ? (
                 <OperatorAbsencesView mode="admin" />
+              ) : item.path === '/admin/incidents' ? (
+                <OperatorIncidentsPage />
               ) : item.path === '/admin/operator-tasks' ? (
                 <OperatorTasksView mode="admin" />
               ) : item.path === '/admin/payments' ? (

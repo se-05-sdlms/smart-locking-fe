@@ -45,6 +45,8 @@ test('source links open the original record, filters and locker options', () => 
   assert.ok(service.isTaskOverdue(task({ dueAt: '2026-10-01T00:00:00Z' }), Date.parse('2026-10-02T00:00:00Z')));
   assert.ok(!service.isTaskOverdue(task()));
   assert.equal(service.priorityLabel('Critical'), 'Khẩn cấp');
+  assert.equal(service.taskStatusLabel('Escalated'), 'Đã chuyển cấp');
+  assert.equal(service.taskSourceHref(task(), 'admin'), '/admin/incidents?incident=i-1');
 });
 
 test('handover validation and acknowledgement rules', () => {

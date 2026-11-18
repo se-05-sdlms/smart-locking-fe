@@ -144,6 +144,41 @@ export function getOperatorTransitions(
   }
 }
 
+/**
+ * Transitions permitted by IncidentService.IsValidTransition:
+ * - Operator: Open -> Investigating | Escalated; Investigating -> Resolved | Escalated
+ * - Administrator: Open -> Investigating; Investigating -> Resolved; Escalated -> Investigating | Resolved
+ *   (Administrators are the highest escalation tier, so they never escalate).
+ */
+export function getAllowedTransitions(
+  status: IncidentStatus,
+  role?: string,
+): IncidentTransition[] {
+  const isAdmin = role === 'Administrator' || role === 'admin';
+
+  if (isAdmin) {
+    switch (status) {
+      case 'Open':
+        return ['Investigating'];
+      case 'Investigating':
+        return ['Resolved'];
+      case 'Escalated':
+        return ['Investigating', 'Resolved'];
+      default:
+        return [];
+    }
+  }
+
+  switch (status) {
+    case 'Open':
+      return ['Investigating', 'Escalated'];
+    case 'Investigating':
+      return ['Resolved', 'Escalated'];
+    default:
+      return [];
+  }
+}
+
 /** Resolved incidents reject new actions with 409. */
 export function canAddIncidentAction(status: IncidentStatus) {
   return status !== 'Resolved' && status !== 'Unknown';

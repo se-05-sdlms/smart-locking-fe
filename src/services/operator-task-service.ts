@@ -85,6 +85,9 @@ const statusLabels: Record<string, string> = {
   Open: 'Mới',
   Acknowledged: 'Đã tiếp nhận',
   InProgress: 'Đang xử lý',
+  Investigating: 'Đang điều tra',
+  Escalated: 'Đã chuyển cấp',
+  Resolved: 'Đã giải quyết',
   Stored: 'Đang lưu trong tủ',
   Overdue: 'Quá hạn',
 };
@@ -110,10 +113,15 @@ export const priorityColor = (priority: string) =>
       ? ('warning' as const)
       : ('default' as const);
 
-/** Where the original record is handled in the operator console. */
-export function taskSourceHref(task: Pick<OperatorTask, 'kind' | 'id'>) {
+/** Where the original record is handled in the operator or admin console. */
+export function taskSourceHref(
+  task: Pick<OperatorTask, 'kind' | 'id'>,
+  role: 'admin' | 'operator' = 'operator',
+) {
+  const base = role === 'admin' ? '/admin' : '/operator';
+
   if (task.kind === 'incident') {
-    return `/operator/incidents?incident=${encodeURIComponent(task.id)}`;
+    return `${base}/incidents?incident=${encodeURIComponent(task.id)}`;
   }
   if (task.kind === 'maintenance') {
     return `/operator/maintenance?request=${encodeURIComponent(task.id)}`;

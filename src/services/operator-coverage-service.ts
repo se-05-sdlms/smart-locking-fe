@@ -171,6 +171,17 @@ export const emptyAbsenceForm = (operatorUserId = ''): AbsenceFormValues => ({
   reason: '',
 });
 
+const pad = (value: number) => String(value).padStart(2, '0');
+
+/** ISO date-time or Date → `YYYY-MM-DDTHH:mm` in local time for datetime-local inputs. */
+export function toLocalDateTimeInput(date: Date | string = new Date()) {
+  const d = typeof date === 'string' ? new Date(date) : date;
+
+  if (Number.isNaN(d.getTime())) return '';
+
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 export function validateAbsenceForm(
   values: AbsenceFormValues,
   now = Date.now(),
@@ -182,6 +193,8 @@ export function validateAbsenceForm(
   if (!values.operatorUserId) errors.operatorUserId = 'Vui lòng chọn Operator.';
   if (!values.startsAt || Number.isNaN(start))
     errors.startsAt = 'Chọn thời điểm bắt đầu.';
+  else if (start < now - 60_000)
+    errors.startsAt = 'Thời điểm bắt đầu phải từ hiện tại trở đi.';
   if (!values.endsAt || Number.isNaN(end))
     errors.endsAt = 'Chọn thời điểm kết thúc.';
   else if (end <= start) errors.endsAt = 'Kết thúc phải sau bắt đầu.';

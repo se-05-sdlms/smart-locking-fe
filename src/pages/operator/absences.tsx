@@ -46,6 +46,7 @@ import {
   replacementStatusColor,
   replacementStatusLabels,
   suggestReplacements,
+  toLocalDateTimeInput,
   translateReason,
   validateAbsenceForm,
   validateReason,
@@ -204,6 +205,8 @@ function AbsenceFormModal({
   const [submitError, setSubmitError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const pending = useRef(false);
+  const nowInputMin = useMemo(() => toLocalDateTimeInput(), []);
+  const endsAtMin = values.startsAt || nowInputMin;
 
   const update = (patch: Partial<AbsenceFormValues>) => {
     const next = { ...values, ...patch };
@@ -267,7 +270,7 @@ function AbsenceFormModal({
                   onChange={(startsAt) => update({ startsAt })}
                 >
                   <Label>Từ</Label>
-                  <Input variant="secondary" />
+                  <Input min={nowInputMin} variant="secondary" />
                   <FieldError>{errors.startsAt}</FieldError>
                 </TextField>
                 <TextField
@@ -278,7 +281,7 @@ function AbsenceFormModal({
                   onChange={(endsAt) => update({ endsAt })}
                 >
                   <Label>Đến</Label>
-                  <Input variant="secondary" />
+                  <Input min={endsAtMin} variant="secondary" />
                   <FieldError>{errors.endsAt}</FieldError>
                 </TextField>
               </div>
