@@ -217,7 +217,7 @@ function HandoverEntry({
   );
 }
 
-function TaskDrawer({
+function HandoverDrawer({
   task,
   canAct,
   mode = 'operator',
@@ -383,6 +383,43 @@ function TaskDrawer({
         </Drawer.Content>
       </Drawer.Backdrop>
     </Drawer>
+  );
+}
+
+function TaskDrawer({
+  task,
+  canAct,
+  mode = 'operator',
+  onClose,
+  onAccessLost,
+}: {
+  task: OperatorTask;
+  canAct: boolean;
+  mode?: 'operator' | 'admin';
+  onClose: () => void;
+  onAccessLost: () => void;
+}) {
+  if (task.kind === 'incident') {
+    return (
+      <IncidentDetailDrawer
+        isOpen
+        incidentId={task.id}
+        onChanged={onClose}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) onClose();
+        }}
+      />
+    );
+  }
+
+  return (
+    <HandoverDrawer
+      canAct={canAct}
+      mode={mode}
+      task={task}
+      onAccessLost={onAccessLost}
+      onClose={onClose}
+    />
   );
 }
 
@@ -565,23 +602,17 @@ export function OperatorTasksView({ mode }: { mode: 'operator' | 'admin' }) {
         </Button>
       ) : null}
 
-      {open && open.kind === 'incident' ? (
-        <IncidentDetailDrawer
-          incidentId={open.id}
-          isOpen={Boolean(open)}
-          onChanged={reload}
-          onOpenChange={(isOpen) => {
-            if (!isOpen) setOpen(null);
-          }}
-        />
-      ) : open ? (
+      {open ? (
         <TaskDrawer
           key={taskKey(open)}
           canAct={canAct}
           mode={mode}
           task={open}
           onAccessLost={accessLost}
-          onClose={() => setOpen(null)}
+          onClose={() => {
+            setOpen(null);
+            reload();
+          }}
         />
       ) : null}
     </section>
