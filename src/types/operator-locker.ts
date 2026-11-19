@@ -148,3 +148,19 @@ export type CompartmentFilter =
 
 /** Status change an Operator may request for a compartment. */
 export type CompartmentStatusAction = 'take-out-of-service' | 'restore';
+
+export type CompartmentPackageAction = 'Handover' | 'Remove';
+
+export type ConfirmCompartmentPackageActionRequestDto = {
+  action: CompartmentPackageAction;
+  reason: string;
+  setOutOfService?: boolean;
+};
+
+export type ConfirmCompartmentPackageActionResponseDto = {
+  compartmentId: string;
+  compartmentCode: string;
+  action: string;
+  packageCode: string | null;
+  message: string;
+};

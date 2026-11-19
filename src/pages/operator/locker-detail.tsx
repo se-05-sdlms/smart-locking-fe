@@ -1,5 +1,6 @@
 import type {
   CompartmentFilter,
+  CompartmentPackageAction,
   CompartmentStatusAction,
   OperatorCompartment,
 } from '@/types/operator-locker';
@@ -37,6 +38,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Qrcode from '@gravity-ui/icons/QrCode';
 
 import { EmergencyUnlockDialog } from './emergency-unlock-dialog';
+import { PackageActionDialog } from './package-action-dialog';
 import {
   CompartmentStatusChip,
   ConnectionChip,
@@ -185,6 +187,9 @@ export default function OperatorLockerDetailPage() {
   const statusState = useOverlayState();
   const emergencyState = useOverlayState();
   const [emergencyKey, setEmergencyKey] = useState(0);
+  const [packageActionTarget, setPackageActionTarget] =
+    useState<CompartmentPackageAction | null>(null);
+  const [isPackageActionOpen, setIsPackageActionOpen] = useState(false);
   const historyState = useOverlayState();
 
   const load = useCallback(
@@ -668,6 +673,29 @@ export default function OperatorLockerDetailPage() {
                                       : selectedCompartment.packageInfo.status}
                               </span>
                             </div>
+
+                            <div className="pt-2 border-t border-warning/20 flex flex-col gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onPress={() => {
+                                  setPackageActionTarget('Handover');
+                                  setIsPackageActionOpen(true);
+                                }}
+                              >
+                                Xác nhận đã bàn giao hàng
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onPress={() => {
+                                  setPackageActionTarget('Remove');
+                                  setIsPackageActionOpen(true);
+                                }}
+                              >
+                                Xác nhận đã thu hồi hàng
+                              </Button>
+                            </div>
                           </div>
                         ) : (
                           <p className="text-sm text-muted">
@@ -747,6 +775,18 @@ export default function OperatorLockerDetailPage() {
         locker={locker}
         onAttempted={refresh}
         onOpenChange={emergencyState.setOpen}
+      />
+
+      <PackageActionDialog
+        action={packageActionTarget}
+        compartment={selectedCompartment}
+        isOpen={isPackageActionOpen}
+        locker={locker}
+        onOpenChange={setIsPackageActionOpen}
+        onSuccess={() => {
+          drawerState.close();
+          refresh();
+        }}
       />
 
       <Modal state={historyState}>
