@@ -95,12 +95,22 @@ test('date range must not be reversed', () => {
 test('detail is offered only for kinds the backend detail endpoint supports', () => {
   const { service } = harness();
 
-  for (const kind of ['Parcel', 'Return', 'DeliveryRequest', 'Incident', 'MaintenanceRequest', 'LockerEvent']) {
+  for (const kind of ['Parcel', 'Return', 'DeliveryRequest', 'Incident', 'MaintenanceRequest', 'LockerEvent', 'EmergencyUnlock']) {
     assert.equal(service.hasOperationalRecordDetail(kind), true, kind);
   }
   for (const kind of ['Locker', 'LockerCompartment', 'Unknown']) {
     assert.equal(service.hasOperationalRecordDetail(kind), false, kind);
   }
+});
+
+test('EmergencyUnlock kind and status labels are translated to Vietnamese', () => {
+  const { constants } = harness();
+
+  assert.equal(constants.formatOperationalRecordKind('EmergencyUnlock'), 'Mở khóa khẩn cấp');
+  assert.equal(constants.formatOperationalRecordStatus('EmergencyUnlock', 'Succeeded'), 'Thành công');
+  assert.equal(constants.formatOperationalRecordStatus('EmergencyUnlock', 'Failed'), 'Thất bại');
+  assert.equal(constants.formatOperationalRecordStatus('EmergencyUnlock', 'Pending'), 'Đang xử lý');
+  assert.ok(constants.OPERATIONAL_RECORD_KIND_FILTERS.includes('EmergencyUnlock'));
 });
 
 test('detail rows use Vietnamese labels, translate enums and format dates', () => {

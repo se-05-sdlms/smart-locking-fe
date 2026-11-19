@@ -207,6 +207,7 @@ export function LockerDetailDrawer({
 
   const updateCompartment = (patch: Partial<CompartmentFormValues>) => {
     let next = { ...compartment, ...patch };
+
     if (
       patch.hardwareChannel !== undefined &&
       (!compartment.code || compartment.code === compartment.hardwareChannel)
@@ -464,6 +465,15 @@ export function LockerDetailDrawer({
                                     ].label
                                   }
                                 </Chip>
+                                <Chip
+                                  color={
+                                    item.isOccupied ? 'warning' : 'success'
+                                  }
+                                  size="sm"
+                                  variant="soft"
+                                >
+                                  {item.isOccupied ? 'Đang có hàng' : 'Trống'}
+                                </Chip>
                                 <Chip size="sm" variant="soft">
                                   {ADMIN_DOOR_STATUS_LABELS[item.doorStatus]}
                                 </Chip>
@@ -575,7 +585,10 @@ export function LockerDetailDrawer({
                               onChange={(code) => updateCompartment({ code })}
                             >
                               <Label>Mã ngăn</Label>
-                              <Input placeholder="Tự động theo kênh (VD: 1)" variant="secondary" />
+                              <Input
+                                placeholder="Tự động theo kênh (VD: 1)"
+                                variant="secondary"
+                              />
                               <FieldError>{compartmentErrors.code}</FieldError>
                             </TextField>
                           </div>
