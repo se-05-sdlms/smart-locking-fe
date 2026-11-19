@@ -90,6 +90,7 @@ export function mapAdminCompartment(
     hardwareChannel: dto.hardwareChannel,
     operationalStatus: toOperationalStatus(dto.operationalStatus),
     doorStatus: toDoorStatus(dto.doorStatus),
+    isOccupied: Boolean(dto.isOccupied),
   };
 }
 
@@ -244,6 +245,7 @@ export function buildCreateCompartmentRequest(
   const channel = values.hardwareChannel.trim();
   const code = values.code.trim() || channel;
   const hardwareCode = values.hardwareCode?.trim() || code || channel;
+
   return {
     code,
     hardwareCode,

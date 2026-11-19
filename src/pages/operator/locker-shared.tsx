@@ -55,6 +55,14 @@ export function CompartmentStatusChip({ value }: { value: OperationalStatus }) {
   return <StatusChip display={COMPARTMENT_OPERATIONAL_STATUS_DISPLAY[value]} />;
 }
 
+export function OccupancyChip({ isOccupied }: { isOccupied: boolean }) {
+  return (
+    <Chip color={isOccupied ? 'warning' : 'success'} size="sm" variant="soft">
+      {isOccupied ? 'Đang có hàng' : 'Trống'}
+    </Chip>
+  );
+}
+
 export function DoorChip({ value }: { value: DoorStatus }) {
   return <StatusChip display={DOOR_STATUS_DISPLAY[value]} />;
 }
