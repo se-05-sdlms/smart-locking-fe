@@ -102,6 +102,7 @@ export function mapCompartment(
     doorStatus: toDoorStatus(dto.doorStatus),
     updatedAt: dto.updatedAt,
     isOccupied: Boolean(dto.isOccupied),
+    packageInfo: dto.packageInfo ?? null,
   };
 }
 

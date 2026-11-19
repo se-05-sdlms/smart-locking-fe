@@ -1,4 +1,7 @@
-import type { EmergencyUnlock } from '@/types/emergency-unlock';
+import type {
+  EmergencyPackageAction,
+  EmergencyUnlock,
+} from '@/types/emergency-unlock';
 import type {
   OperatorCompartment,
   OperatorLocker,
@@ -53,6 +56,9 @@ export function EmergencyUnlockDialog({
   onAttempted,
 }: EmergencyUnlockDialogProps) {
   const [reason, setReason] = useState('');
+  const [packageAction, setPackageAction] =
+    useState<EmergencyPackageAction>('Keep');
+  const [setOutOfService, setSetOutOfService] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
@@ -67,6 +73,8 @@ export function EmergencyUnlockDialog({
 
   const reset = () => {
     setReason('');
+    setPackageAction('Keep');
+    setSetOutOfService(false);
     setIsSubmitted(false);
     setError('');
     setResult(null);
@@ -95,6 +103,8 @@ export function EmergencyUnlockDialog({
         locker.id,
         compartment.id,
         reason,
+        compartment.isOccupied ? packageAction : undefined,
+        setOutOfService,
       );
       const display = EMERGENCY_UNLOCK_RESULT_DISPLAY[unlock.result];
 
@@ -196,26 +206,156 @@ export function EmergencyUnlockDialog({
                   </Alert.Content>
                 </Alert>
               ) : (
-                <TextField
-                  fullWidth
-                  isRequired
-                  isDisabled={isSending || isBlocked}
-                  isInvalid={isSubmitted && Boolean(reasonError)}
-                  maxLength={EMERGENCY_REASON_MAX_LENGTH}
-                  value={reason}
-                  onChange={setReason}
-                >
-                  <Label>Lý do mở khẩn cấp</Label>
-                  <TextArea
-                    placeholder="Ví dụ: Cửa ngăn kẹt, cư dân cần lấy hàng gấp..."
-                    rows={4}
-                  />
-                  <Description>
-                    Tối thiểu {EMERGENCY_REASON_MIN_LENGTH} ký tự ·{' '}
-                    {reason.trim().length}/{EMERGENCY_REASON_MAX_LENGTH}
-                  </Description>
-                  <FieldError>{reasonError}</FieldError>
-                </TextField>
+                <div className="space-y-4">
+                  {compartment?.isOccupied ? (
+                    <div className="space-y-3 rounded-xl border border-warning/30 bg-warning/5 p-3.5">
+                      <div className="flex items-center gap-2 text-warning font-medium text-sm">
+                        <TriangleExclamation className="size-4 shrink-0" />
+                        <span>
+                          Ngăn này đang chứa bưu kiện{' '}
+                          {compartment.packageInfo
+                            ? `(${compartment.packageInfo.code})`
+                            : ''}
+                        </span>
+                      </div>
+                      {compartment.packageInfo ? (
+                        <div className="text-xs text-muted space-y-1 pl-6">
+                          <div>
+                            Cư dân:{' '}
+                            <span className="text-foreground font-medium">
+                              {compartment.packageInfo.residentName ??
+                                'Chưa rõ'}
+                            </span>{' '}
+                            {compartment.packageInfo.phoneNumber
+                              ? `(${compartment.packageInfo.phoneNumber})`
+                              : ''}
+                          </div>
+                          <div>
+                            Thời điểm gửi:{' '}
+                            {formatLockerDateTime(
+                              compartment.packageInfo.storedAt,
+                            )}
+                          </div>
+                        </div>
+                      ) : null}
+                      <div className="space-y-2 pt-1 border-t border-warning/20">
+                        <span className="text-xs font-semibold text-foreground block">
+                          Hành động xử lý hàng trong ngăn:
+                        </span>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex items-start gap-2.5">
+                            <input
+                              checked={packageAction === 'Keep'}
+                              className="mt-0.5 text-primary"
+                              disabled={isSending}
+                              id="package-action-keep"
+                              name="packageAction"
+                              type="radio"
+                              value="Keep"
+                              onChange={() => setPackageAction('Keep')}
+                            />
+                            <label
+                              className="cursor-pointer"
+                              htmlFor="package-action-keep"
+                            >
+                              <span className="font-medium text-foreground text-sm block">
+                                Chỉ kiểm tra / sửa chữa
+                              </span>
+                              <span className="text-xs text-muted block">
+                                Hàng vẫn giữ nguyên trong ngăn, đơn hàng không
+                                đổi.
+                              </span>
+                            </label>
+                          </div>
+                          <div className="flex items-start gap-2.5">
+                            <input
+                              checked={packageAction === 'Handover'}
+                              className="mt-0.5 text-primary"
+                              disabled={isSending}
+                              id="package-action-handover"
+                              name="packageAction"
+                              type="radio"
+                              value="Handover"
+                              onChange={() => setPackageAction('Handover')}
+                            />
+                            <label
+                              className="cursor-pointer"
+                              htmlFor="package-action-handover"
+                            >
+                              <span className="font-medium text-foreground text-sm block">
+                                Lấy hàng ra & Bàn giao cư dân
+                              </span>
+                              <span className="text-xs text-muted block">
+                                Đánh dấu đã nhận, giải phóng ngăn tủ.
+                              </span>
+                            </label>
+                          </div>
+                          <div className="flex items-start gap-2.5">
+                            <input
+                              checked={packageAction === 'Remove'}
+                              className="mt-0.5 text-primary"
+                              disabled={isSending}
+                              id="package-action-remove"
+                              name="packageAction"
+                              type="radio"
+                              value="Remove"
+                              onChange={() => setPackageAction('Remove')}
+                            />
+                            <label
+                              className="cursor-pointer"
+                              htmlFor="package-action-remove"
+                            >
+                              <span className="font-medium text-foreground text-sm block">
+                                Lấy hàng ra & Thu hồi về kho
+                              </span>
+                              <span className="text-xs text-muted block">
+                                Chuyển sang đã thu hồi, giải phóng ngăn tủ.
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <TextField
+                    fullWidth
+                    isRequired
+                    isDisabled={isSending || isBlocked}
+                    isInvalid={isSubmitted && Boolean(reasonError)}
+                    maxLength={EMERGENCY_REASON_MAX_LENGTH}
+                    value={reason}
+                    onChange={setReason}
+                  >
+                    <Label>Lý do mở khẩn cấp</Label>
+                    <TextArea
+                      placeholder="Ví dụ: Cửa ngăn kẹt, cư dân cần lấy hàng gấp..."
+                      rows={3}
+                    />
+                    <Description>
+                      Tối thiểu {EMERGENCY_REASON_MIN_LENGTH} ký tự ·{' '}
+                      {reason.trim().length}/{EMERGENCY_REASON_MAX_LENGTH}
+                    </Description>
+                    <FieldError>{reasonError}</FieldError>
+                  </TextField>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      checked={setOutOfService}
+                      className="rounded text-primary"
+                      disabled={isSending || isBlocked}
+                      id="action-set-out-of-service"
+                      type="checkbox"
+                      onChange={(e) => setSetOutOfService(e.target.checked)}
+                    />
+                    <label
+                      className="cursor-pointer text-sm text-foreground"
+                      htmlFor="action-set-out-of-service"
+                    >
+                      Khóa bảo trì ngăn này sau khi mở (Tạm ngưng)
+                    </label>
+                  </div>
+                </div>
               )}
 
               {error ? (

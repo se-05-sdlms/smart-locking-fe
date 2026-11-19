@@ -1,4 +1,5 @@
 import type {
+  EmergencyPackageAction,
   EmergencyUnlock,
   EmergencyUnlockBlocker,
   EmergencyUnlockRequestDto,
@@ -89,9 +90,21 @@ export function buildEmergencyUnlockRequest(
   lockerId: string,
   compartmentId: string,
   reason: string,
+  packageAction?: EmergencyPackageAction | null,
+  setOutOfService?: boolean,
 ): EmergencyUnlockRequestDto {
   // Emergency unlock is not tied to an incident from this screen (issue #15).
-  return { lockerId, compartmentId, incidentId: null, reason: reason.trim() };
+  const dto: EmergencyUnlockRequestDto = {
+    lockerId,
+    compartmentId,
+    incidentId: null,
+    reason: reason.trim(),
+  };
+
+  if (packageAction) dto.packageAction = packageAction;
+  if (setOutOfService) dto.setOutOfService = true;
+
+  return dto;
 }
 
 /** `POST /api/emergency-unlocks` — the backend audits every attempt. */
@@ -99,13 +112,21 @@ export async function createEmergencyUnlock(
   lockerId: string,
   compartmentId: string,
   reason: string,
+  packageAction?: EmergencyPackageAction | null,
+  setOutOfService?: boolean,
 ): Promise<EmergencyUnlock> {
   const response = await apiRequest<EmergencyUnlockResponseDto>(
     '/api/emergency-unlocks',
     {
       method: 'POST',
       body: JSON.stringify(
-        buildEmergencyUnlockRequest(lockerId, compartmentId, reason),
+        buildEmergencyUnlockRequest(
+          lockerId,
+          compartmentId,
+          reason,
+          packageAction,
+          setOutOfService,
+        ),
       ),
     },
   );

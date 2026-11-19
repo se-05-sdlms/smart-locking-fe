@@ -55,7 +55,11 @@ export function CompartmentEditModal({
     const next = {
       ...values,
       ...patch,
-      hardwareCode: patch.code ?? patch.hardwareChannel ?? values.code ?? values.hardwareChannel,
+      hardwareCode:
+        patch.code ??
+        patch.hardwareChannel ??
+        values.code ??
+        values.hardwareChannel,
     };
 
     setValues(next);

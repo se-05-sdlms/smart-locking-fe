@@ -24,6 +24,15 @@ export type LockerSummaryResponseDto = {
   updatedAt: string;
 };
 
+export type CompartmentPackageInfoDto = {
+  code: string;
+  type: 'Delivery' | 'Return';
+  residentName: string | null;
+  phoneNumber: string | null;
+  storedAt: string;
+  status: string;
+};
+
 export type LockerCompartmentResponseDto = {
   id: string;
   lockerId: string;
@@ -35,6 +44,7 @@ export type LockerCompartmentResponseDto = {
   createdAt: string;
   updatedAt: string;
   isOccupied?: boolean;
+  packageInfo?: CompartmentPackageInfoDto | null;
 };
 
 export type LockerDetailResponseDto = Omit<
@@ -94,6 +104,8 @@ export type OperatorLocker = {
   activeCompartments: number;
 };
 
+export type CompartmentPackageInfo = CompartmentPackageInfoDto;
+
 export type OperatorCompartment = {
   id: string;
   lockerId: string;
@@ -104,6 +116,7 @@ export type OperatorCompartment = {
   doorStatus: DoorStatus;
   updatedAt: string;
   isOccupied: boolean;
+  packageInfo?: CompartmentPackageInfo | null;
 };
 
 export type OperatorLockerDetail = OperatorLocker & {

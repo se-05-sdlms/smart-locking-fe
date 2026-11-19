@@ -1,12 +1,16 @@
 // Emergency unlock types. `*Dto` mirror smart-locking-be `dev`
 // (Application/DTOs/Operations/OperationsDtos.cs, numeric enums).
 
+export type EmergencyPackageAction = 'Keep' | 'Handover' | 'Remove';
+
 /** `EmergencyUnlockRequest`. */
 export type EmergencyUnlockRequestDto = {
   lockerId: string;
   compartmentId: string;
   incidentId: string | null;
   reason: string;
+  packageAction?: EmergencyPackageAction | null;
+  setOutOfService?: boolean;
 };
 
 /** `EmergencyUnlockResult`: 0 Pending, 1 Succeeded, 2 Failed. */
