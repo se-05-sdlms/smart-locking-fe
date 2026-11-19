@@ -44,6 +44,7 @@ import {
   formatLockerDateTime,
   LoadErrorAlert,
   LockerStatusChip,
+  OccupancyChip,
 } from './locker-shared';
 
 import {
@@ -473,6 +474,7 @@ export default function OperatorLockerDetailPage() {
               </span>
               <span className="flex w-full flex-wrap items-start gap-2">
                 <CompartmentStatusChip value={compartment.operationalStatus} />
+                <OccupancyChip isOccupied={compartment.isOccupied} />
                 <DoorChip value={compartment.doorStatus} />
               </span>
             </Button>
@@ -504,6 +506,11 @@ export default function OperatorLockerDetailPage() {
                       <DetailRow label="Trạng thái vận hành">
                         <CompartmentStatusChip
                           value={selectedCompartment.operationalStatus}
+                        />
+                      </DetailRow>
+                      <DetailRow label="Tình trạng hàng">
+                        <OccupancyChip
+                          isOccupied={selectedCompartment.isOccupied}
                         />
                       </DetailRow>
                       <DetailRow label="Cửa (thiết bị báo)">

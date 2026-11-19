@@ -34,6 +34,7 @@ export type LockerCompartmentResponseDto = {
   doorStatus: DoorStatusDto;
   createdAt: string;
   updatedAt: string;
+  isOccupied?: boolean;
 };
 
 export type LockerDetailResponseDto = Omit<
@@ -102,6 +103,7 @@ export type OperatorCompartment = {
   operationalStatus: OperationalStatus;
   doorStatus: DoorStatus;
   updatedAt: string;
+  isOccupied: boolean;
 };
 
 export type OperatorLockerDetail = OperatorLocker & {

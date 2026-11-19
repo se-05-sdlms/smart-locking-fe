@@ -160,13 +160,14 @@ test('locker detail derives counters from compartments and sorts codes naturally
   assert.equal(result.activeCompartments, 2);
 });
 
-test('compartment mapping separates operational status from reported door state', () => {
+test('compartment mapping separates operational status from reported door state and occupancy', () => {
   const { mappers } = harness();
-  const result = mappers.mapCompartment(compartmentDto('A1', { operationalStatus: 1, doorStatus: 0 }));
+  const result = mappers.mapCompartment(compartmentDto('A1', { operationalStatus: 1, doorStatus: 0, isOccupied: true }));
 
   assert.equal(result.operationalStatus, 'OutOfService');
   assert.equal(result.doorStatus, 'Open');
   assert.equal(result.hardwareCode, 'HW-A1');
+  assert.equal(result.isOccupied, true);
 });
 
 test('replacing a compartment keeps order and recomputes the active counter', () => {

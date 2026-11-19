@@ -33,6 +33,7 @@ export type AdminCompartmentDto = {
   doorStatus: DoorStatusDto;
   createdAt: string;
   updatedAt: string;
+  isOccupied?: boolean;
 };
 
 export type AdminLockerDetailDto = Omit<
@@ -93,6 +94,7 @@ export type AdminCompartment = {
   hardwareChannel: number;
   operationalStatus: OperationalStatus;
   doorStatus: DoorStatus;
+  isOccupied: boolean;
 };
 
 export type AdminLockerDetail = AdminLocker & {

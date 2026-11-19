@@ -15,6 +15,7 @@ export const OPERATIONAL_RECORD_KIND_LABELS: Record<string, string> = {
   LockerEvent: 'Sự kiện thiết bị',
   Locker: 'Tủ',
   LockerCompartment: 'Ngăn tủ',
+  EmergencyUnlock: 'Mở khóa khẩn cấp',
 };
 
 const OPERATIONAL_STATUS_LABELS: Record<string, string> = {
@@ -76,6 +77,11 @@ export const OPERATIONAL_RECORD_STATUS_LABELS: Record<
   },
   Locker: OPERATIONAL_STATUS_LABELS,
   LockerCompartment: OPERATIONAL_STATUS_LABELS,
+  EmergencyUnlock: {
+    Pending: 'Đang xử lý',
+    Succeeded: 'Thành công',
+    Failed: 'Thất bại',
+  },
 };
 
 export function formatOperationalRecordKind(kind: string) {
@@ -98,6 +104,7 @@ export const OPERATIONAL_RECORD_KIND_FILTERS = [
   'Return',
   'Locker',
   'LockerCompartment',
+  'EmergencyUnlock',
 ] as const;
 
 /**
@@ -113,6 +120,7 @@ export const OPERATIONAL_RECORD_DETAIL_KINDS = [
   'Incident',
   'MaintenanceRequest',
   'LockerEvent',
+  'EmergencyUnlock',
 ] as const;
 
 /** Keys of `details` in OperationalRecordDetailResponse. */
@@ -135,6 +143,9 @@ export const OPERATIONAL_RECORD_DETAIL_LABELS: Record<string, string> = {
   newValue: 'Giá trị sau',
   reason: 'Lý do',
   details: 'Chi tiết',
+  operatorUserId: 'Người thực hiện',
+  incidentId: 'Mã sự cố liên quan',
+  completedAt: 'Hoàn tất lúc',
 };
 
 /** Enum values that can appear inside `details`. */
