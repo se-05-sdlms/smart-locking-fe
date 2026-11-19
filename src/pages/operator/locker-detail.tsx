@@ -1,5 +1,6 @@
 import type {
   CompartmentFilter,
+  CompartmentPackageAction,
   CompartmentStatusAction,
   OperatorCompartment,
 } from '@/types/operator-locker';
@@ -9,6 +10,7 @@ import {
   Alert,
   AlertDialog,
   Button,
+  Chip,
   Drawer,
   ListBox,
   Modal,
@@ -36,6 +38,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import Qrcode from '@gravity-ui/icons/QrCode';
 
 import { EmergencyUnlockDialog } from './emergency-unlock-dialog';
+import { PackageActionDialog } from './package-action-dialog';
 import {
   CompartmentStatusChip,
   ConnectionChip,
@@ -184,6 +187,9 @@ export default function OperatorLockerDetailPage() {
   const statusState = useOverlayState();
   const emergencyState = useOverlayState();
   const [emergencyKey, setEmergencyKey] = useState(0);
+  const [packageActionTarget, setPackageActionTarget] =
+    useState<CompartmentPackageAction | null>(null);
+  const [isPackageActionOpen, setIsPackageActionOpen] = useState(false);
   const historyState = useOverlayState();
 
   const load = useCallback(
@@ -598,6 +604,106 @@ export default function OperatorLockerDetailPage() {
                         )}
                       </div>
                     </div>
+
+                    {selectedCompartment.isOccupied ? (
+                      <div>
+                        <Separator className="my-5" />
+                        <div className="flex items-center justify-between mb-3">
+                          <Typography type="h6">
+                            Thông tin hàng trong ngăn
+                          </Typography>
+                          <Chip color="warning" size="sm" variant="soft">
+                            Đang có hàng
+                          </Chip>
+                        </div>
+                        {selectedCompartment.packageInfo ? (
+                          <div className="rounded-xl border border-warning/30 bg-warning/5 p-4 space-y-2.5">
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted">Mã đơn / kiện:</span>
+                              <span className="font-semibold text-foreground">
+                                {selectedCompartment.packageInfo.code}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted">Loại đơn:</span>
+                              <span>
+                                {selectedCompartment.packageInfo.type ===
+                                'Delivery'
+                                  ? 'Đơn giao đến cư dân'
+                                  : 'Đơn cư dân gửi trả'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted">Cư dân:</span>
+                              <span className="font-medium text-foreground">
+                                {selectedCompartment.packageInfo.residentName ??
+                                  'Chưa xác định'}
+                              </span>
+                            </div>
+                            {selectedCompartment.packageInfo.phoneNumber ? (
+                              <div className="flex justify-between items-center text-sm">
+                                <span className="text-muted">
+                                  Số điện thoại:
+                                </span>
+                                <span className="font-mono text-foreground">
+                                  {selectedCompartment.packageInfo.phoneNumber}
+                                </span>
+                              </div>
+                            ) : null}
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted">Thời điểm gửi:</span>
+                              <span>
+                                {formatLockerDateTime(
+                                  selectedCompartment.packageInfo.storedAt,
+                                )}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-sm">
+                              <span className="text-muted">Tình trạng:</span>
+                              <span className="font-medium text-warning">
+                                {selectedCompartment.packageInfo.status ===
+                                'Overdue'
+                                  ? 'Quá hạn lưu trữ'
+                                  : selectedCompartment.packageInfo.status ===
+                                      'Stored'
+                                    ? 'Đang lưu kho'
+                                    : selectedCompartment.packageInfo.status ===
+                                        'Deposited'
+                                      ? 'Chờ shipper lấy'
+                                      : selectedCompartment.packageInfo.status}
+                              </span>
+                            </div>
+
+                            <div className="pt-2 border-t border-warning/20 flex flex-col gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onPress={() => {
+                                  setPackageActionTarget('Handover');
+                                  setIsPackageActionOpen(true);
+                                }}
+                              >
+                                Xác nhận đã bàn giao hàng
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onPress={() => {
+                                  setPackageActionTarget('Remove');
+                                  setIsPackageActionOpen(true);
+                                }}
+                              >
+                                Xác nhận đã thu hồi hàng
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-muted">
+                            Ngăn đang được giữ chỗ hoặc dữ liệu đang đồng bộ.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
               </Drawer.Body>
@@ -669,6 +775,18 @@ export default function OperatorLockerDetailPage() {
         locker={locker}
         onAttempted={refresh}
         onOpenChange={emergencyState.setOpen}
+      />
+
+      <PackageActionDialog
+        action={packageActionTarget}
+        compartment={selectedCompartment}
+        isOpen={isPackageActionOpen}
+        locker={locker}
+        onOpenChange={setIsPackageActionOpen}
+        onSuccess={() => {
+          drawerState.close();
+          refresh();
+        }}
       />
 
       <Modal state={historyState}>

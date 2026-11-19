@@ -23,6 +23,15 @@ export type AdminLockerSummaryDto = {
   updatedAt: string;
 };
 
+export type CompartmentPackageInfoDto = {
+  code: string;
+  type: 'Delivery' | 'Return';
+  residentName: string | null;
+  phoneNumber: string | null;
+  storedAt: string;
+  status: string;
+};
+
 export type AdminCompartmentDto = {
   id: string;
   lockerId: string;
@@ -34,6 +43,7 @@ export type AdminCompartmentDto = {
   createdAt: string;
   updatedAt: string;
   isOccupied?: boolean;
+  packageInfo?: CompartmentPackageInfoDto | null;
 };
 
 export type AdminLockerDetailDto = Omit<
@@ -95,6 +105,7 @@ export type AdminCompartment = {
   operationalStatus: OperationalStatus;
   doorStatus: DoorStatus;
   isOccupied: boolean;
+  packageInfo?: CompartmentPackageInfoDto | null;
 };
 
 export type AdminLockerDetail = AdminLocker & {

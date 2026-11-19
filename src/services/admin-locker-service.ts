@@ -91,6 +91,7 @@ export function mapAdminCompartment(
     operationalStatus: toOperationalStatus(dto.operationalStatus),
     doorStatus: toDoorStatus(dto.doorStatus),
     isOccupied: Boolean(dto.isOccupied),
+    packageInfo: dto.packageInfo ?? null,
   };
 }
 

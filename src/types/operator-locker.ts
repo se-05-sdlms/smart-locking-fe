@@ -24,6 +24,15 @@ export type LockerSummaryResponseDto = {
   updatedAt: string;
 };
 
+export type CompartmentPackageInfoDto = {
+  code: string;
+  type: 'Delivery' | 'Return';
+  residentName: string | null;
+  phoneNumber: string | null;
+  storedAt: string;
+  status: string;
+};
+
 export type LockerCompartmentResponseDto = {
   id: string;
   lockerId: string;
@@ -35,6 +44,7 @@ export type LockerCompartmentResponseDto = {
   createdAt: string;
   updatedAt: string;
   isOccupied?: boolean;
+  packageInfo?: CompartmentPackageInfoDto | null;
 };
 
 export type LockerDetailResponseDto = Omit<
@@ -94,6 +104,8 @@ export type OperatorLocker = {
   activeCompartments: number;
 };
 
+export type CompartmentPackageInfo = CompartmentPackageInfoDto;
+
 export type OperatorCompartment = {
   id: string;
   lockerId: string;
@@ -104,6 +116,7 @@ export type OperatorCompartment = {
   doorStatus: DoorStatus;
   updatedAt: string;
   isOccupied: boolean;
+  packageInfo?: CompartmentPackageInfo | null;
 };
 
 export type OperatorLockerDetail = OperatorLocker & {
@@ -135,3 +148,19 @@ export type CompartmentFilter =
 
 /** Status change an Operator may request for a compartment. */
 export type CompartmentStatusAction = 'take-out-of-service' | 'restore';
+
+export type CompartmentPackageAction = 'Handover' | 'Remove';
+
+export type ConfirmCompartmentPackageActionRequestDto = {
+  action: CompartmentPackageAction;
+  reason: string;
+  setOutOfService?: boolean;
+};
+
+export type ConfirmCompartmentPackageActionResponseDto = {
+  compartmentId: string;
+  compartmentCode: string;
+  action: string;
+  packageCode: string | null;
+  message: string;
+};
