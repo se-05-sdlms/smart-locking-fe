@@ -14,6 +14,11 @@ import TriangleExclamation from '@gravity-ui/icons/TriangleExclamation';
 import { Link, useNavigate } from 'react-router-dom';
 
 import { useAsyncResource } from '@/hooks/use-async-resource';
+import { ForecastPanel } from '@/components/admin/dashboard/forecast-panel';
+import {
+  getAdminForecast,
+  getAdminForecastErrorMessage,
+} from '@/services/admin-forecast-service';
 import {
   attentionReasons,
   auditActionLabel,
@@ -587,6 +592,11 @@ export default function AdminDashboardPage() {
     getAdminDashboardErrorMessage,
     [],
   );
+  const forecast = useAsyncResource(
+    getAdminForecast,
+    getAdminForecastErrorMessage,
+    [],
+  );
 
   return (
     <section className="flex w-full flex-col gap-5">
@@ -602,7 +612,10 @@ export default function AdminDashboardPage() {
         <Button
           isDisabled={state.status === 'loading'}
           variant="secondary"
-          onPress={refresh}
+          onPress={() => {
+            refresh();
+            forecast.refresh();
+          }}
         >
           <ArrowRotateRight aria-hidden="true" className="size-4" />
           Làm mới
@@ -625,6 +638,14 @@ export default function AdminDashboardPage() {
           </Button>
         </Alert>
       ) : null}
+
+      <ForecastPanel
+        data={forecast.state.data}
+        error={
+          forecast.state.status === 'error' ? forecast.state.message : undefined
+        }
+        isLoading={forecast.state.status === 'loading'}
+      />
 
       {state.data ? (
         <DashboardContent data={state.data} />

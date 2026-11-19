@@ -59,6 +59,7 @@ export default function AdminLockersPage() {
 
   const lockers = useMemo(() => state.data ?? [], [state.data]);
   const lockerIds = useMemo(() => lockers.map((l) => l.id), [lockers]);
+
   useOperationsRealtime(lockerIds, refresh);
   const filtered = useMemo(
     () => filterAdminLockers(lockers, keyword, filter),

@@ -192,6 +192,18 @@ test('request body matches the backend DTO and trims the reason', () => {
     incidentId: null,
     reason: 'Cửa ngăn bị kẹt',
   });
+
+  assert.deepEqual(
+    service.buildEmergencyUnlockRequest('locker-1', 'comp-1', 'Cư dân lấy hàng', 'Handover', true),
+    {
+      lockerId: 'locker-1',
+      compartmentId: 'comp-1',
+      incidentId: null,
+      reason: 'Cư dân lấy hàng',
+      packageAction: 'Handover',
+      setOutOfService: true,
+    },
+  );
 });
 
 test('create POSTs to /api/emergency-unlocks and maps the server result', async () => {
@@ -201,7 +213,13 @@ test('create POSTs to /api/emergency-unlocks and maps the server result', async 
     return responseDto({ result: 2 });
   });
 
-  const result = await service.createEmergencyUnlock('locker-1', 'comp-1', 'Cửa ngăn bị kẹt cứng');
+  const result = await service.createEmergencyUnlock(
+    'locker-1',
+    'comp-1',
+    'Cửa ngăn bị kẹt cứng',
+    'Remove',
+    true,
+  );
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, '/api/emergency-unlocks');
@@ -212,6 +230,8 @@ test('create POSTs to /api/emergency-unlocks and maps the server result', async 
     compartmentId: 'comp-1',
     incidentId: null,
     reason: 'Cửa ngăn bị kẹt cứng',
+    packageAction: 'Remove',
+    setOutOfService: true,
   });
   assert.deepEqual(result, {
     id: 'unlock-1',

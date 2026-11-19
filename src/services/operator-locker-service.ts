@@ -1,5 +1,7 @@
 import type {
   CompartmentStatusAction,
+  ConfirmCompartmentPackageActionRequestDto,
+  ConfirmCompartmentPackageActionResponseDto,
   LockerCompartmentResponseDto,
   LockerDetailResponseDto,
   LockerHistoryItem,
@@ -75,6 +77,24 @@ export async function updateCompartmentStatus(
   );
 
   return mapCompartment(response);
+}
+
+/**
+ * Xác nhận đã lấy bưu phẩm ra khỏi ngăn tủ để bàn giao hoặc thu hồi.
+ * `POST /api/Lockers/{id}/compartments/{cid}/package-action`
+ */
+export async function confirmCompartmentPackageAction(
+  lockerId: string,
+  compartmentId: string,
+  payload: ConfirmCompartmentPackageActionRequestDto,
+): Promise<ConfirmCompartmentPackageActionResponseDto> {
+  return await apiRequest<ConfirmCompartmentPackageActionResponseDto>(
+    `/api/Lockers/${encodeURIComponent(lockerId)}/compartments/${encodeURIComponent(compartmentId)}/package-action`,
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
 /** Recent operational records of one locker (`GET /api/operational-records`). */

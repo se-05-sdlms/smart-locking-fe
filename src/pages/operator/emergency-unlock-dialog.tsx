@@ -196,26 +196,28 @@ export function EmergencyUnlockDialog({
                   </Alert.Content>
                 </Alert>
               ) : (
-                <TextField
-                  fullWidth
-                  isRequired
-                  isDisabled={isSending || isBlocked}
-                  isInvalid={isSubmitted && Boolean(reasonError)}
-                  maxLength={EMERGENCY_REASON_MAX_LENGTH}
-                  value={reason}
-                  onChange={setReason}
-                >
-                  <Label>Lý do mở khẩn cấp</Label>
-                  <TextArea
-                    placeholder="Ví dụ: Cửa ngăn kẹt, cư dân cần lấy hàng gấp..."
-                    rows={4}
-                  />
-                  <Description>
-                    Tối thiểu {EMERGENCY_REASON_MIN_LENGTH} ký tự ·{' '}
-                    {reason.trim().length}/{EMERGENCY_REASON_MAX_LENGTH}
-                  </Description>
-                  <FieldError>{reasonError}</FieldError>
-                </TextField>
+                <div className="space-y-4">
+                  <TextField
+                    fullWidth
+                    isRequired
+                    isDisabled={isSending || isBlocked}
+                    isInvalid={isSubmitted && Boolean(reasonError)}
+                    maxLength={EMERGENCY_REASON_MAX_LENGTH}
+                    value={reason}
+                    onChange={setReason}
+                  >
+                    <Label>Lý do mở khẩn cấp</Label>
+                    <TextArea
+                      placeholder="Ví dụ: Cửa ngăn kẹt, cư dân cần lấy hàng gấp..."
+                      rows={3}
+                    />
+                    <Description>
+                      Tối thiểu {EMERGENCY_REASON_MIN_LENGTH} ký tự ·{' '}
+                      {reason.trim().length}/{EMERGENCY_REASON_MAX_LENGTH}
+                    </Description>
+                    <FieldError>{reasonError}</FieldError>
+                  </TextField>
+                </div>
               )}
 
               {error ? (
